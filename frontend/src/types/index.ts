@@ -1,8 +1,8 @@
 export interface User {
   id: string
   email: string
-  name?: string
-  createdAt: string
+  name?: string | null
+  createdAt?: string
 }
 
 export interface AuthResponse {
@@ -20,19 +20,47 @@ export enum BotStatus {
 export interface StrategyConfig {
   id: string
   strategy: string
-  params: Record<string, any>
+  params: Record<string, unknown>
+}
+
+export interface ExecutionSession {
+  id: string
+  botId: string
+  startedAt: string
+  endedAt: string | null
+  totalTrades: number
+  profitLoss: number
+  initialBalance: number
+  currentBalance: number
 }
 
 export interface Bot {
   id: string
   name: string
-  description?: string
+  description?: string | null
   symbol: string
   status: BotStatus
   userId: string
   createdAt: string
   updatedAt: string
-  strategyConfig?: StrategyConfig
+  strategyConfig?: StrategyConfig | null
+  executionSession?: ExecutionSession | null
+}
+
+export interface BotLog {
+  id: string
+  botId: string
+  level: string
+  message: string
+  metadata?: Record<string, unknown> | null
+  createdAt: string
+}
+
+export interface BotLogsResponse {
+  items: BotLog[]
+  total: number
+  take: number
+  skip: number
 }
 
 export enum TradeSide {
@@ -45,6 +73,7 @@ export enum TradeStatus {
   EXECUTED = 'EXECUTED',
   CANCELLED = 'CANCELLED',
   FAILED = 'FAILED',
+  CLOSED = 'CLOSED',
 }
 
 export interface Trade {
@@ -56,6 +85,32 @@ export interface Trade {
   price: number
   totalValue: number
   status: TradeStatus
-  executedAt?: string
+  executedAt?: string | null
   createdAt: string
+  exitPrice?: number | null
+  realizedPnl?: number | null
+  closedAt?: string | null
+  closeReason?: string | null
+  bot?: {
+    id: string
+    name: string
+    symbol: string
+  }
+}
+
+export interface CreateBotPayload {
+  name: string
+  description?: string
+  symbol: string
+  strategyConfig?: {
+    strategy: string
+    params: Record<string, unknown>
+  }
+}
+
+export interface UpdateBotPayload {
+  name?: string
+  description?: string
+  symbol?: string
+  status?: BotStatus
 }
