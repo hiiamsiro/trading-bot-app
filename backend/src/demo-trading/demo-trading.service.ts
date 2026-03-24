@@ -33,7 +33,7 @@ export class DemoTradingService {
       return;
     }
 
-    const price = this.marketData.getLastPrice(bot.symbol);
+    const price = await this.marketData.getLatestPrice(bot.symbol);
     if (price === null) {
       return;
     }
@@ -55,7 +55,7 @@ export class DemoTradingService {
       }
     }
 
-    const closes = this.marketData.getCloses(bot.symbol, 250);
+    const closes = await this.marketData.getCloses(bot.symbol, 250);
     const params = (bot.strategyConfig.params ?? {}) as Record<string, unknown>;
     const signal = this.strategy.evaluate(
       bot.strategyConfig.strategy,

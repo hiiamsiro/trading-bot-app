@@ -230,7 +230,7 @@ export class BotsService {
 
     if (openTrade) {
       const exitPrice =
-        this.marketData.getLastPrice(bot.symbol) ?? openTrade.price;
+        (await this.marketData.getLatestPrice(bot.symbol)) ?? openTrade.price;
       const realizedPnl = (exitPrice - openTrade.price) * openTrade.quantity;
       const closed = await this.prisma.trade.update({
         where: { id: openTrade.id },

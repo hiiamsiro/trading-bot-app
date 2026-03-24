@@ -268,7 +268,7 @@ Connect the client to the same **HTTP** origin as the API (for example `http://l
 
 #### Server → client
 
-- `market-data` — Simulated tick: `{ symbol, price, timestamp }`
+- `market-data` — Live snapshot: `{ symbol, price, timestamp, interval }`
 - `bot-status` — `{ botId, userId, status, symbol }`
 - `new-trade` — Trade fields from Prisma plus `userId` and `botId`
 - `bot-log` — Log row fields plus `userId` (emitted when a log line is written)
@@ -305,6 +305,9 @@ CORS_ORIGIN=http://localhost:3000
 INSTRUMENT_SYNC_PROVIDER=binance
 INSTRUMENT_SYNC_INTERVAL_MS=21600000
 BINANCE_METADATA_URL=https://api.binance.com
+MARKET_DATA_PROVIDER=binance
+BINANCE_MARKET_DATA_URL=https://api.binance.com
+BINANCE_WS_URL=wss://stream.binance.com:9443/ws
 ```
 
 ### Frontend `.env`
@@ -488,7 +491,7 @@ npm install
 ⚠️ **This is a demo application for paper trading only**
 - No real money involved
 - No real broker integration
-- Simulated market data
+- Live public market data feeds (no private keys)
 - For educational purposes only
 
 ## License

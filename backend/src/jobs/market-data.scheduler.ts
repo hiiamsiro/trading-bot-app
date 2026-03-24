@@ -23,6 +23,6 @@ export class MarketDataSchedulerService implements OnModuleInit {
       },
     );
 
-    this.logger.log(`Scheduled mock market-data tick every ${interval}ms`);
+    this.logger.log(`Scheduled live market-data processing every ${interval}ms`);
   }
 }

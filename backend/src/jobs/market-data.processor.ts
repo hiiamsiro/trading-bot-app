@@ -38,8 +38,10 @@ export class MarketDataProcessor extends WorkerHost {
     ]);
 
     for (const symbol of symbols) {
-      const tick = this.marketData.nextTick(symbol);
-      this.gateway.emitMarketData(tick);
+      const snapshot = await this.marketData.getMarketSnapshot(symbol);
+      if (snapshot) {
+        this.gateway.emitMarketData(snapshot);
+      }
     }
 
     const bots = await this.prisma.bot.findMany({
