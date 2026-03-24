@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { History } from 'lucide-react'
+import { History, ShieldCheck } from 'lucide-react'
 
 export default function TradesPage() {
   const token = useAuthStore((s) => s.token)
@@ -38,6 +38,13 @@ export default function TradesPage() {
   const [botsLoaded, setBotsLoaded] = useState<{ id: string; name: string }[]>(
     [],
   )
+  const formatTradeTime = (value: string) =>
+    new Date(value).toLocaleString([], {
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
 
   useEffect(() => {
     if (!token) return
@@ -113,17 +120,21 @@ export default function TradesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Trade history</h1>
+      <div className="rounded-xl border border-border/70 bg-card/70 p-6">
+        <h1 className="text-3xl font-semibold tracking-tight">Trade history</h1>
         <p className="text-muted-foreground">
           Trades for bots you own (live data from the API).
         </p>
+        <p className="mt-2 inline-flex items-center gap-1 text-xs text-amber-300">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Verified records for audit-friendly review
+        </p>
       </div>
 
-      <div className="flex max-w-sm flex-col gap-2">
+      <div className="flex max-w-sm flex-col gap-2 rounded-lg border border-border/70 bg-card/70 p-4">
         <Label>Filter by bot</Label>
         <Select value={botId} onValueChange={setBotId}>
-          <SelectTrigger>
+          <SelectTrigger className="cursor-pointer">
             <SelectValue placeholder="All bots" />
           </SelectTrigger>
           <SelectContent>
@@ -145,16 +156,16 @@ export default function TradesPage() {
         >
           <Link
             href="/bots"
-            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+            className="cursor-pointer text-sm font-medium text-primary underline-offset-4 hover:underline"
           >
             Go to bots
           </Link>
         </EmptyState>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-md border border-border/70 bg-card/80 backdrop-blur-xl">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>Created</TableHead>
                 <TableHead>Bot</TableHead>
                 <TableHead>Symbol</TableHead>
@@ -167,21 +178,28 @@ export default function TradesPage() {
             </TableHeader>
             <TableBody>
               {trades.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell className="whitespace-nowrap text-muted-foreground text-xs">
-                    {new Date(t.createdAt).toLocaleString()}
+                <TableRow key={t.id} className="transition-colors duration-200 hover:bg-muted/40">
+                  <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                    {formatTradeTime(t.createdAt)}
                   </TableCell>
                   <TableCell>{t.bot?.name ?? '—'}</TableCell>
-                  <TableCell>{t.symbol}</TableCell>
+                  <TableCell className="font-mono">{t.symbol}</TableCell>
                   <TableCell>
-                    <Badge variant={t.side === 'BUY' ? 'default' : 'secondary'}>
+                    <Badge
+                      variant="outline"
+                      className={
+                        t.side === 'BUY'
+                          ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                          : 'border-rose-500/40 bg-rose-500/15 text-rose-300'
+                      }
+                    >
                       {t.side}
                     </Badge>
                   </TableCell>
-                  <TableCell>{t.quantity}</TableCell>
-                  <TableCell>{t.price.toFixed(4)}</TableCell>
-                  <TableCell>{t.status}</TableCell>
-                  <TableCell>
+                  <TableCell className="font-mono">{t.quantity}</TableCell>
+                  <TableCell className="font-mono">{t.price.toFixed(4)}</TableCell>
+                  <TableCell className="text-muted-foreground">{t.status}</TableCell>
+                  <TableCell className="font-mono">
                     {t.realizedPnl != null ? t.realizedPnl.toFixed(2) : '—'}
                   </TableCell>
                 </TableRow>

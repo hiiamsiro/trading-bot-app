@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { Loader2, Play, Square, Trash2, Pencil } from 'lucide-react'
+import { Loader2, Play, Square, Trash2, Pencil, ShieldCheck } from 'lucide-react'
 import { ApiError } from '@/lib/api'
 import { Bot, BotStatus } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
@@ -137,19 +137,24 @@ export default function BotDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
+          <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2 cursor-pointer">
             <Link href="/bots">← Bots</Link>
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight">{bot.name}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">{bot.name}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
             <BotStatusBadge status={bot.status} />
-            <span>{bot.symbol}</span>
+            <span className="font-mono">{bot.symbol}</span>
+          </p>
+          <p className="mt-2 inline-flex items-center gap-1 text-xs text-amber-300">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Controlled execution and full session visibility
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {bot.status === BotStatus.RUNNING ? (
             <Button
               variant="secondary"
+              className="cursor-pointer"
               onClick={onStop}
               disabled={!!actionLoading}
             >
@@ -161,7 +166,7 @@ export default function BotDetailPage() {
               Stop
             </Button>
           ) : (
-            <Button onClick={onStart} disabled={!!actionLoading}>
+            <Button onClick={onStart} disabled={!!actionLoading} className="cursor-pointer">
               {actionLoading === 'start' ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -170,17 +175,18 @@ export default function BotDetailPage() {
               Start
             </Button>
           )}
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className="cursor-pointer">
             <Link href={`/bots/${id}/edit`}>
               <Pencil className="mr-2 h-4 w-4" />
               Edit
             </Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className="cursor-pointer">
             <Link href={`/logs?botId=${id}`}>Logs</Link>
           </Button>
           <Button
             variant="destructive"
+            className="cursor-pointer"
             onClick={onDelete}
             disabled={!!actionLoading}
           >
@@ -199,7 +205,7 @@ export default function BotDetailPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader>
             <CardTitle className="text-lg">Strategy</CardTitle>
           </CardHeader>
@@ -210,7 +216,7 @@ export default function BotDetailPage() {
                   <span className="text-muted-foreground">Key: </span>
                   {bot.strategyConfig.strategy}
                 </p>
-                <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-muted p-3 text-xs">
+                <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-muted p-3 font-mono text-xs">
                   {JSON.stringify(bot.strategyConfig.params, null, 2)}
                 </pre>
               </>
@@ -221,7 +227,7 @@ export default function BotDetailPage() {
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader>
             <CardTitle className="text-lg">Execution session</CardTitle>
           </CardHeader>
@@ -234,12 +240,13 @@ export default function BotDetailPage() {
                 </p>
                 <p>
                   <span className="text-muted-foreground">P/L: </span>
-                  {session.profitLoss.toFixed(2)}
+                  <span className="font-mono">{session.profitLoss.toFixed(2)}</span>
                 </p>
                 <p>
                   <span className="text-muted-foreground">Balance: </span>
-                  {session.currentBalance.toFixed(2)} /{' '}
-                  {session.initialBalance.toFixed(2)}
+                  <span className="font-mono">
+                    {session.currentBalance.toFixed(2)} / {session.initialBalance.toFixed(2)}
+                  </span>
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Started {new Date(session.startedAt).toLocaleString()}

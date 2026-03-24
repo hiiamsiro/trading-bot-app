@@ -4,7 +4,7 @@ import { LoginForm } from './login-form'
 
 function LoginFallback() {
   return (
-    <div className="flex min-h-[320px] w-full max-w-md items-center justify-center rounded-lg border bg-card shadow-lg text-sm text-muted-foreground">
+    <div className="flex min-h-[420px] w-full max-w-md items-center justify-center rounded-xl border border-border/70 bg-card/80 shadow-lg backdrop-blur-xl text-sm text-muted-foreground">
       Loading…
     </div>
   )

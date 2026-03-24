@@ -48,9 +48,9 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md shadow-lg">
+    <Card className="w-full max-w-md border-border/70 bg-card/80 shadow-lg backdrop-blur-xl">
       <CardHeader>
-        <CardTitle>Sign in</CardTitle>
+        <CardTitle className="text-2xl">Sign in</CardTitle>
         <CardDescription>
           Use your email and password to access the dashboard.
         </CardDescription>
@@ -67,6 +67,7 @@ export function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
+              className="bg-background/70"
             />
           </div>
           <div className="space-y-2">
@@ -78,17 +79,21 @@ export function LoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="bg-background/70"
             />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={submitting}>
+          <Button type="submit" className="w-full cursor-pointer" disabled={submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sign in
           </Button>
           <p className="text-center text-sm text-muted-foreground">
             No account?{' '}
-            <Link href="/register" className="text-primary underline-offset-4 hover:underline">
+            <Link
+              href="/register"
+              className="cursor-pointer text-primary underline-offset-4 hover:underline"
+            >
               Register
             </Link>
           </p>

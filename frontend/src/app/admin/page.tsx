@@ -87,67 +87,70 @@ export default function AdminMonitoringPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-          <Activity className="h-8 w-8" />
+      <div className="rounded-xl border border-border/70 bg-card/70 p-6">
+        <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-tight">
+          <Activity className="h-8 w-8 text-primary" />
           Monitoring
         </h1>
         <p className="mt-1 text-muted-foreground">
           Workspace overview from live <code className="text-xs">/bots</code> and{' '}
           <code className="text-xs">/trades</code> responses (your account).
         </p>
+        <Badge className="mt-3 border border-amber-400/40 bg-amber-400/15 text-amber-300">
+          Trust and authority metrics
+        </Badge>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Bots</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{bots.length}</p>
+            <p className="text-2xl font-semibold">{bots.length}</p>
             <p className="text-xs text-muted-foreground">
               {stats.running} running · {stats.stopped} stopped
               {stats.errored ? ` · ${stats.errored} error` : ''}
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Trades</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{trades.length}</p>
+            <p className="text-2xl font-semibold">{trades.length}</p>
             <p className="text-xs text-muted-foreground">
               {stats.executed} executed · {stats.closed} closed
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Open positions</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats.openExecuted}</p>
+            <p className="text-2xl font-semibold">{stats.openExecuted}</p>
             <p className="text-xs text-muted-foreground">EXECUTED and not closed</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Realized P/L (sum)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats.pnlSum.toFixed(2)}</p>
+            <p className="font-mono text-2xl font-semibold">{stats.pnlSum.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">From trade records</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Bots snapshot</CardTitle>
           <Link
             href="/bots"
-            className="text-sm text-primary underline-offset-4 hover:underline"
+            className="cursor-pointer text-sm text-primary underline-offset-4 hover:underline"
           >
             Manage
           </Link>
@@ -158,7 +161,7 @@ export default function AdminMonitoringPage() {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="hover:bg-transparent">
                   <TableHead>Name</TableHead>
                   <TableHead>Symbol</TableHead>
                   <TableHead>Status</TableHead>
@@ -167,17 +170,17 @@ export default function AdminMonitoringPage() {
               </TableHeader>
               <TableBody>
                 {bots.map((b) => (
-                  <TableRow key={b.id}>
+                  <TableRow key={b.id} className="transition-colors duration-200 hover:bg-muted/40">
                     <TableCell className="font-medium">
-                      <Link href={`/bots/${b.id}`} className="hover:underline">
+                      <Link href={`/bots/${b.id}`} className="cursor-pointer hover:underline">
                         {b.name}
                       </Link>
                     </TableCell>
-                    <TableCell>{b.symbol}</TableCell>
+                    <TableCell className="font-mono">{b.symbol}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{b.status}</Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="font-mono">
                       {b.executionSession
                         ? b.executionSession.profitLoss.toFixed(2)
                         : '—'}

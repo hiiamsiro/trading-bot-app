@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ShieldCheck } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { createBot } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
@@ -76,16 +76,20 @@ export default function CreateBotPage() {
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
-        <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
+        <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2 cursor-pointer">
           <Link href="/bots">← Back to bots</Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Create bot</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Create bot</h1>
         <p className="text-muted-foreground">
           Configure a demo bot. Strategy parameters match the backend engine.
         </p>
+        <p className="mt-2 inline-flex items-center gap-1 text-xs text-amber-300">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Secure setup with validated parameters
+        </p>
       </div>
 
-      <Card>
+      <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
         <CardHeader>
           <CardTitle>Bot details</CardTitle>
           <CardDescription>Required fields are validated by the API.</CardDescription>
@@ -126,7 +130,7 @@ export default function CreateBotPage() {
                 value={strategy}
                 onValueChange={(v) => setStrategy(v as StrategyKey)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="cursor-pointer">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -182,11 +186,11 @@ export default function CreateBotPage() {
               />
             </div>
             <div className="flex gap-2 pt-2">
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} className="cursor-pointer">
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create
               </Button>
-              <Button type="button" variant="outline" asChild>
+              <Button type="button" variant="outline" asChild className="cursor-pointer">
                 <Link href="/bots">Cancel</Link>
               </Button>
             </div>

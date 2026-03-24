@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ScrollText, Loader2 } from 'lucide-react'
+import { ScrollText, Loader2, ShieldCheck } from 'lucide-react'
 
 const PAGE_SIZE = 50
 
@@ -45,6 +45,14 @@ function LogsContent() {
   const [total, setTotal] = useState(0)
   const [logsLoading, setLogsLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const formatLogTime = (value: string) =>
+    new Date(value).toLocaleString([], {
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
 
   useEffect(() => {
     if (!token) return
@@ -152,17 +160,21 @@ function LogsContent() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Logs</h1>
+      <div className="rounded-xl border border-border/70 bg-card/70 p-6">
+        <h1 className="text-3xl font-semibold tracking-tight">Logs</h1>
         <p className="text-muted-foreground">
           Paginated bot logs from the API.
         </p>
+        <p className="mt-2 inline-flex items-center gap-1 text-xs text-amber-300">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Reliable event trail with realtime refresh
+        </p>
       </div>
 
-      <div className="flex max-w-sm flex-col gap-2">
+      <div className="flex max-w-sm flex-col gap-2 rounded-lg border border-border/70 bg-card/70 p-4">
         <Label htmlFor="bot">Bot</Label>
         <Select value={botId} onValueChange={setBotId}>
-          <SelectTrigger id="bot">
+          <SelectTrigger id="bot" className="cursor-pointer">
             <SelectValue placeholder="Select bot" />
           </SelectTrigger>
           <SelectContent>
@@ -188,10 +200,10 @@ function LogsContent() {
           <p className="text-sm text-muted-foreground">
             Showing {logs.length} of {total}
           </p>
-          <div className="rounded-md border">
+          <div className="rounded-md border border-border/70 bg-card/80 backdrop-blur-xl">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="hover:bg-transparent">
                   <TableHead>Time</TableHead>
                   <TableHead>Level</TableHead>
                   <TableHead>Message</TableHead>
@@ -199,9 +211,9 @@ function LogsContent() {
               </TableHeader>
               <TableBody>
                 {logs.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {new Date(row.createdAt).toLocaleString()}
+                  <TableRow key={row.id} className="transition-colors duration-200 hover:bg-muted/40">
+                    <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                      {formatLogTime(row.createdAt)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{row.level}</Badge>
@@ -209,7 +221,7 @@ function LogsContent() {
                     <TableCell className="max-w-md">
                       <span className="text-sm">{row.message}</span>
                       {row.metadata && (
-                        <pre className="mt-1 max-h-24 overflow-auto rounded bg-muted p-2 text-xs">
+                        <pre className="mt-1 max-h-24 overflow-auto rounded bg-muted p-2 font-mono text-xs">
                           {JSON.stringify(row.metadata, null, 2)}
                         </pre>
                       )}
@@ -222,6 +234,7 @@ function LogsContent() {
           {logs.length < total && (
             <Button
               variant="outline"
+              className="cursor-pointer"
               onClick={loadMore}
               disabled={loadingMore}
             >

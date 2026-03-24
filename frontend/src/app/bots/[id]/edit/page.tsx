@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ShieldCheck } from 'lucide-react'
 import { ApiError } from '@/lib/api'
 import { Bot, BotStatus } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
@@ -108,16 +108,20 @@ export default function EditBotPage() {
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
-        <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
+        <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2 cursor-pointer">
           <Link href={id ? `/bots/${id}` : '/bots'}>← Back</Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Edit bot</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Edit bot</h1>
         <p className="text-muted-foreground">
           Name, symbol, description, and status. Strategy changes are not exposed on this API.
         </p>
+        <p className="mt-2 inline-flex items-center gap-1 text-xs text-amber-300">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Trusted update flow with strict API validation
+        </p>
       </div>
 
-      <Card>
+      <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
         <CardHeader>
           <CardTitle>Details</CardTitle>
           <CardDescription>Updates are sent to PUT /bots/:id</CardDescription>
@@ -156,7 +160,7 @@ export default function EditBotPage() {
                 value={status}
                 onValueChange={(v) => setStatus(v as BotStatus)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="cursor-pointer">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -169,11 +173,11 @@ export default function EditBotPage() {
               </Select>
             </div>
             <div className="flex gap-2 pt-2">
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} className="cursor-pointer">
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save
               </Button>
-              <Button type="button" variant="outline" asChild>
+              <Button type="button" variant="outline" asChild className="cursor-pointer">
                 <Link href={`/bots/${id}`}>Cancel</Link>
               </Button>
             </div>
