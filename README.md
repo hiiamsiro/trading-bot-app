@@ -5,28 +5,31 @@ A demo trading bot web application for paper trading (no real money involved).
 ## Tech Stack
 
 ### Frontend
-- **Next.js 14** - React framework with App Router
-- **TypeScript** - Type-safe JavaScript
-- **Tailwind CSS** - Utility-first CSS framework
-- **shadcn/ui** - Beautiful UI components
-- **Zustand** - State management
-- **Socket.io Client** - Real-time WebSocket connection
+- **Next.js 16** — App Router, production build uses **webpack** (`next build --webpack`)
+- **React 19**
+- **TypeScript**
+- **ESLint 9** — flat config (`eslint.config.mjs`) with `eslint-config-next`
+- **Tailwind CSS 3**
+- **Radix UI / shadcn-style components**
+- **Zustand** — client state
+- **Socket.IO client** — real-time connection to the API
 
 ### Backend
-- **NestJS** - Progressive Node.js framework
-- **TypeScript** - Type-safe JavaScript
-- **Prisma** - Modern database ORM
-- **PostgreSQL** - Relational database
-- **Redis** - In-memory data store
-- **BullMQ** - Queue and job processing
-- **Socket.io** - WebSocket server
-- **JWT** - Authentication
-- **Swagger** - API documentation
+- **NestJS 11** — Node API framework
+- **TypeScript**
+- **Prisma 6** — ORM and migrations
+- **PostgreSQL** — primary database
+- **Redis** — cache and BullMQ broker
+- **BullMQ** — queues and workers
+- **Socket.IO** — WebSocket server (same port as HTTP)
+- **Passport JWT** — authentication
+- **Swagger** (`@nestjs/swagger` 11) — `/api` docs
 
-### Infrastructure
-- **Docker & Docker Compose** - Containerization
-- **PostgreSQL 15** - Database
-- **Redis 7** - Cache and queue
+### Infrastructure (Docker Compose)
+- **Node.js 22** (Alpine) — frontend and backend images
+- **PostgreSQL 17** (Alpine)
+- **Redis 8** (Alpine)
+- **Docker Compose v2** — `docker compose` (plugin)
 
 ## Project Structure
 
@@ -85,13 +88,13 @@ trading-bot-app/
 
 ### Prerequisites
 
-- **Docker** and **Docker Compose** installed
-- **Node.js 20+** (for local development without Docker)
-- **npm** or **yarn**
+- **Docker Desktop** (or Docker Engine) with **Docker Compose v2**
+- **Node.js ≥ 20.9** (recommended **22.x**) if you run `npm` on the host instead of only in containers
+- **npm**
 
 ### Quick Start with Docker
 
-1. **Clone the repository**
+1. **Go to the project root**
 
 ```bash
 cd trading-bot-app
@@ -105,23 +108,31 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-Use the defaults unless ports conflict. Set `NEXT_PUBLIC_WS_URL` to the **HTTP** base URL of the API (for example `http://localhost:3001`). Socket.IO connects to that URL; a bare `ws://` URL is not required.
+Adjust ports or secrets if needed. Set `NEXT_PUBLIC_WS_URL` to the **HTTP** base URL of the API (e.g. `http://localhost:3001`). Socket.IO uses that origin; you do not need a separate `ws://` URL.
 
-3. **Start all services**
+3. **Build images** (after dependency or Dockerfile changes)
+
+```bash
+docker compose build
+```
+
+Use `docker compose build --no-cache` for a fully clean rebuild.
+
+4. **Start all services**
 
 ```bash
 docker compose up -d
 ```
 
-This starts PostgreSQL (`5432`), Redis (`6379`), the backend (`3001`), and the frontend (`3000`). On startup, the backend container runs `npx prisma migrate deploy`, then `npx prisma db seed`, then `npm run start:dev` (see `backend/Dockerfile`).
+This starts **PostgreSQL** (`5432`), **Redis** (`6379`), the **backend** (`3001`), and the **frontend** (`3000`). The backend development image runs `npx prisma migrate deploy`, then `npx prisma db seed`, then `npm run start:dev` (see `backend/Dockerfile`).
 
-4. **Open the application**
+5. **Open the application**
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
-- Swagger: http://localhost:3001/api
+- Frontend: http://localhost:3000  
+- Backend API: http://localhost:3001  
+- Swagger: http://localhost:3001/api  
 
-5. **Demo logins (seeded)**
+6. **Demo logins (seeded)**
 
 | Email | Password |
 |-------|----------|
@@ -151,8 +162,8 @@ npm install
 2. **Start PostgreSQL and Redis**
 
 ```bash
-# Using Docker for databases only
-docker-compose up -d postgres redis
+# Databases only
+docker compose up -d postgres redis
 ```
 
 3. **Configure environment**
@@ -220,9 +231,9 @@ npm run lint           # Lint code
 
 ```bash
 npm run dev            # Start development server
-npm run build          # Build for production
+npm run build          # Production build (uses webpack: next build --webpack)
 npm run start          # Start production server
-npm run lint           # Lint code
+npm run lint           # Lint code (ESLint 9 flat config)
 ```
 
 ## API Documentation
@@ -304,56 +315,61 @@ Use `http://` for `NEXT_PUBLIC_WS_URL` so Socket.IO can negotiate the transport.
 
 ## Docker Commands
 
+Compose uses the v2 CLI: **`docker compose`** (space, not hyphen).
+
 ### Start all services
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Stop all services
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### View logs
 
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f backend
-docker-compose logs -f frontend
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f postgres
 ```
 
 ### Rebuild services
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
-### Access container shell
+### Access a container shell
 
 ```bash
 # Backend
-docker exec -it trading-bot-backend sh
+docker compose exec backend sh
 
 # Frontend
-docker exec -it trading-bot-frontend sh
+docker compose exec frontend sh
 
-# PostgreSQL
-docker exec -it trading-bot-postgres psql -U postgres -d trading_bot
+# PostgreSQL (adjust user/database if your .env differs)
+docker compose exec postgres psql -U postgres -d trading_bot
 ```
 
-### Reset database
+### Reset volumes (PostgreSQL + Redis data)
 
 ```bash
 docker compose down -v
 docker compose up -d
 ```
 
-After a fresh volume, the backend container applies migrations and runs the seed script on startup. To re-seed without wiping the volume:
+This removes named volumes (`postgres_data`, `redis_data`). On the next start, Postgres initializes a **new** data directory and the backend runs migrations and seed again.
+
+To re-seed **without** wiping volumes:
 
 ```bash
 docker compose exec backend npx prisma db seed
@@ -363,8 +379,8 @@ docker compose exec backend npx prisma db seed
 
 1. **Make changes** to your code
 2. **Hot reload** is enabled for both frontend and backend
-3. **Check logs** for errors: `docker-compose logs -f`
-4. **Run migrations** when schema changes: `docker exec -it trading-bot-backend npm run prisma:migrate`
+3. **Check logs** for errors: `docker compose logs -f`
+4. **Run migrations** when the schema changes: `docker compose exec backend npm run prisma:migrate`
 5. **Test API** using Swagger UI at http://localhost:3001/api
 
 ## Troubleshooting
@@ -386,20 +402,20 @@ kill -9 <PID>
 docker ps | grep postgres
 
 # Check PostgreSQL logs
-docker-compose logs postgres
+docker compose logs postgres
 
 # Restart PostgreSQL
-docker-compose restart postgres
+docker compose restart postgres
 ```
 
 ### Prisma issues
 
 ```bash
 # Regenerate Prisma client
-docker exec -it trading-bot-backend npm run prisma:generate
+docker compose exec backend npm run prisma:generate
 
-# Reset database
-docker exec -it trading-bot-backend npx prisma migrate reset
+# Reset database (destructive)
+docker compose exec backend npx prisma migrate reset
 ```
 
 ### Frontend build errors
@@ -433,13 +449,6 @@ npm install
 - [x] State management (Zustand)
 - [x] Dockerfiles for frontend and backend
 - [x] README with setup instructions
-
-## Phase 5 (realtime & demo data)
-
-- Socket.IO events: `market-data`, `bot-status`, `new-trade`, `bot-log` (payloads scoped with `userId` where relevant)
-- Frontend refreshes bots, trades, logs, and bot detail when matching events arrive (`useTradingSocket`)
-- `backend/prisma/seed.ts` — demo users, sample bots, trades, and logs; wired via `prisma.seed` in `backend/package.json`
-- Backend dev Docker image: `migrate deploy` + `db seed` before `start:dev`
 
 ## Important Notes
 
