@@ -109,6 +109,7 @@ model Trade {
   totalValue    Float
   status        TradeStatus @default(PENDING)
   executedAt    DateTime?
+  openReason    String?
   exitPrice     Float?
   realizedPnl   Float?
   stopLoss      Float?

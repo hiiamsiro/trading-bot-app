@@ -30,17 +30,6 @@ export class DemoTradingService {
     private readonly botsService: BotsService,
   ) {}
 
-  private isSupportedInterval(value: string): value is MarketKlineInterval {
-    return (
-      value === '1m' ||
-      value === '5m' ||
-      value === '15m' ||
-      value === '1h' ||
-      value === '4h' ||
-      value === '1d'
-    );
-  }
-
   private parseRequestedInterval(params: Record<string, unknown>): string | null {
     const raw = params.interval ?? params.timeframe ?? params.candleInterval ?? null;
     if (typeof raw !== 'string') {
@@ -60,14 +49,21 @@ export class DemoTradingService {
     const supported = supportedRaw
       .filter((item): item is string => typeof item === 'string')
       .map((item) => item.toLowerCase())
-      .filter((item): item is MarketKlineInterval => this.isSupportedInterval(item));
+      .filter((item): item is MarketKlineInterval => this.strategy.isSupportedInterval(item));
     const fallback: MarketKlineInterval = supported[0] ?? '1m';
     const requested = this.parseRequestedInterval(params);
-    if (!requested || !this.isSupportedInterval(requested)) {
+    if (!requested) {
       return fallback;
     }
+    if (!this.strategy.isSupportedInterval(requested)) {
+      throw new Error(
+        `Unsupported interval "${requested}". Supported values: 1m, 5m, 15m, 1h, 4h, 1d`,
+      );
+    }
     if (!supported.includes(requested)) {
-      return fallback;
+      throw new Error(
+        `Interval "${requested}" is not supported for instrument ${instrument.symbol}. Supported intervals: ${supported.join(', ')}`,
+      );
     }
     return requested;
   }
@@ -126,6 +122,11 @@ export class DemoTradingService {
     }
 
     const params = (bot.strategyConfig.params ?? {}) as Record<string, unknown>;
+    const reachedDailyLossLimit = await this.enforceMaxDailyLoss(bot, openTrade, livePrice, params);
+    if (reachedDailyLossLimit) {
+      return;
+    }
+
     const interval = this.resolveInterval(instrument, params);
     const requiredCandles = this.strategy.getRequiredCandles(bot.strategyConfig.strategy, params);
     const closes = await this.marketData.getCloses(bot.symbol, requiredCandles, interval);
@@ -178,6 +179,23 @@ export class DemoTradingService {
     params: Record<string, unknown>,
     decision: { signal: string; reason: string; metadata: Record<string, unknown> },
   ): Promise<void> {
+    const existingOpenTrade = await this.prisma.trade.findFirst({
+      where: {
+        botId: bot.id,
+        closedAt: null,
+        status: 'EXECUTED',
+      },
+      select: { id: true },
+    });
+    if (existingOpenTrade) {
+      await this.botsService.appendLog(bot.id, LogLevel.WARNING, 'Skipped opening position', {
+        symbol: bot.symbol,
+        reason: 'open_position_already_exists',
+        activeTradeId: existingOpenTrade.id,
+      });
+      return;
+    }
+
     const quantity = Number(params.quantity) > 0 ? Number(params.quantity) : 0.01;
     const totalValue = quantity * entryPrice;
     const slPct = params.stopLossPercent;
@@ -197,6 +215,7 @@ export class DemoTradingService {
         totalValue,
         status: 'EXECUTED',
         executedAt: new Date(),
+        openReason: `strategy:${decision.reason}`,
         stopLoss,
         takeProfit,
       },
@@ -277,5 +296,51 @@ export class DemoTradingService {
       ...updated,
       userId: bot.userId,
     });
+  }
+
+  private async enforceMaxDailyLoss(
+    bot: BotWithStrategy,
+    openTrade: Trade | null,
+    livePrice: number,
+    params: Record<string, unknown>,
+  ): Promise<boolean> {
+    const maxDailyLoss = Number(params.maxDailyLoss);
+    if (!Number.isFinite(maxDailyLoss) || maxDailyLoss <= 0) {
+      return false;
+    }
+
+    const session = await this.prisma.executionSession.findUnique({
+      where: { botId: bot.id },
+      select: { profitLoss: true, endedAt: true },
+    });
+    if (!session || session.endedAt) {
+      return false;
+    }
+    if (session.profitLoss > -maxDailyLoss) {
+      return false;
+    }
+
+    await this.botsService.appendLog(bot.id, LogLevel.WARNING, 'Max daily loss reached', {
+      symbol: bot.symbol,
+      maxDailyLoss,
+      currentProfitLoss: session.profitLoss,
+      action: openTrade ? 'close_position_and_stop_bot' : 'stop_bot',
+    });
+
+    if (openTrade) {
+      await this.closeTrade(bot, openTrade, livePrice, 'risk:max_daily_loss', {
+        signal: 'RISK_EXIT',
+        reason: 'max_daily_loss',
+        metadata: {
+          trigger: 'max_daily_loss',
+          maxDailyLoss,
+          sessionProfitLossBeforeClose: session.profitLoss,
+          checkedPrice: livePrice,
+        },
+      });
+    }
+
+    await this.botsService.stop(bot.id, bot.userId);
+    return true;
   }
 }

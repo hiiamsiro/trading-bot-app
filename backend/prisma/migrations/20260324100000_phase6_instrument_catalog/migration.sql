@@ -1,14 +1,32 @@
 -- CreateEnum
-CREATE TYPE "InstrumentAssetClass" AS ENUM ('CRYPTO', 'COMMODITY');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'InstrumentAssetClass') THEN
+    CREATE TYPE "InstrumentAssetClass" AS ENUM ('CRYPTO', 'COMMODITY');
+  END IF;
+END
+$$;
 
 -- CreateEnum
-CREATE TYPE "InstrumentMarketType" AS ENUM ('SPOT', 'CFD');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'InstrumentMarketType') THEN
+    CREATE TYPE "InstrumentMarketType" AS ENUM ('SPOT', 'CFD');
+  END IF;
+END
+$$;
 
 -- CreateEnum
-CREATE TYPE "InstrumentStatus" AS ENUM ('ACTIVE', 'MAINTENANCE', 'DISABLED');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'InstrumentStatus') THEN
+    CREATE TYPE "InstrumentStatus" AS ENUM ('ACTIVE', 'MAINTENANCE', 'DISABLED');
+  END IF;
+END
+$$;
 
 -- CreateTable
-CREATE TABLE "instruments" (
+CREATE TABLE IF NOT EXISTS "instruments" (
     "id" TEXT NOT NULL,
     "symbol" TEXT NOT NULL,
     "displayName" TEXT NOT NULL,
@@ -31,10 +49,10 @@ CREATE TABLE "instruments" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "instruments_symbol_key" ON "instruments"("symbol");
+CREATE UNIQUE INDEX IF NOT EXISTS "instruments_symbol_key" ON "instruments"("symbol");
 
 -- CreateIndex
-CREATE INDEX "instruments_isActive_idx" ON "instruments"("isActive");
+CREATE INDEX IF NOT EXISTS "instruments_isActive_idx" ON "instruments"("isActive");
 
 -- CreateIndex
-CREATE INDEX "instruments_assetClass_marketType_idx" ON "instruments"("assetClass", "marketType");
+CREATE INDEX IF NOT EXISTS "instruments_assetClass_marketType_idx" ON "instruments"("assetClass", "marketType");

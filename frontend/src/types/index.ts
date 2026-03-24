@@ -136,6 +136,7 @@ export interface Trade {
   totalValue: number
   status: TradeStatus
   executedAt?: string | null
+  openReason?: string | null
   createdAt: string
   exitPrice?: number | null
   realizedPnl?: number | null

@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from '../market-data/market-data.service';
 import { MarketDataGateway } from '../market-data/market-data.gateway';
 import { InstrumentsService } from '../instruments/instruments.service';
+import { StrategyService } from '../strategy/strategy.service';
 import { CreateBotDto } from './dto/create-bot.dto';
 import { UpdateBotDto } from './dto/update-bot.dto';
 
@@ -19,6 +20,7 @@ export class BotsService {
     private readonly marketData: MarketDataService,
     private readonly marketGateway: MarketDataGateway,
     private readonly instrumentsService: InstrumentsService,
+    private readonly strategyService: StrategyService,
   ) {}
 
   async findAll(userId: string) {
@@ -54,7 +56,14 @@ export class BotsService {
 
   async create(createBotDto: CreateBotDto, userId: string) {
     const normalizedSymbol = createBotDto.symbol.trim().toUpperCase();
-    await this.instrumentsService.assertActiveBySymbol(normalizedSymbol);
+    const instrument = await this.instrumentsService.assertActiveBySymbol(normalizedSymbol);
+    const validatedStrategyConfig = createBotDto.strategyConfig
+      ? this.validateStrategyConfig(
+          createBotDto.strategyConfig.strategy,
+          createBotDto.strategyConfig.params,
+          instrument.supportedIntervals,
+        )
+      : null;
 
     return this.prisma.bot.create({
       data: {
@@ -62,11 +71,11 @@ export class BotsService {
         description: createBotDto.description,
         symbol: normalizedSymbol,
         userId,
-        strategyConfig: createBotDto.strategyConfig
+        strategyConfig: validatedStrategyConfig
           ? {
               create: {
-                strategy: createBotDto.strategyConfig.strategy,
-                params: createBotDto.strategyConfig.params as Prisma.InputJsonValue,
+                strategy: validatedStrategyConfig.strategy,
+                params: validatedStrategyConfig.params as Prisma.InputJsonValue,
               },
             }
           : undefined,
@@ -161,7 +170,13 @@ export class BotsService {
       throw new BadRequestException('Configure a strategy before starting the bot');
     }
 
-    const params = (bot.strategyConfig.params ?? {}) as Record<string, unknown>;
+    const instrument = await this.instrumentsService.assertActiveBySymbol(bot.symbol);
+    const validatedStrategyConfig = this.validateStrategyConfig(
+      bot.strategyConfig.strategy,
+      (bot.strategyConfig.params ?? {}) as Record<string, unknown>,
+      instrument.supportedIntervals,
+    );
+    const params = validatedStrategyConfig.params;
     const initialBalance =
       params.initialBalance != null && !Number.isNaN(Number(params.initialBalance))
         ? Number(params.initialBalance)
@@ -188,7 +203,15 @@ export class BotsService {
 
     const updated = await this.prisma.bot.update({
       where: { id },
-      data: { status: 'RUNNING' },
+      data: {
+        status: 'RUNNING',
+        strategyConfig: {
+          update: {
+            strategy: validatedStrategyConfig.strategy,
+            params: validatedStrategyConfig.params as Prisma.InputJsonValue,
+          },
+        },
+      },
       include: {
         strategyConfig: true,
         executionSession: true,
@@ -317,5 +340,60 @@ export class BotsService {
       take,
       skip,
     };
+  }
+
+  private validateStrategyConfig(
+    strategy: string,
+    params: Record<string, unknown>,
+    supportedIntervalsRaw: unknown,
+  ): { strategy: string; params: Record<string, unknown> } {
+    try {
+      const validated = this.strategyService.validateConfig(strategy, params);
+      const requestedInterval = this.parseRequestedInterval(validated.normalizedParams);
+      if (requestedInterval) {
+        if (!this.strategyService.isSupportedInterval(requestedInterval)) {
+          throw new BadRequestException(
+            `Unsupported interval "${requestedInterval}". Supported values: 1m, 5m, 15m, 1h, 4h, 1d`,
+          );
+        }
+        const supportedByInstrument = this.normalizeInstrumentIntervals(supportedIntervalsRaw);
+        if (
+          supportedByInstrument.length > 0 &&
+          !supportedByInstrument.includes(requestedInterval)
+        ) {
+          throw new BadRequestException(
+            `Interval "${requestedInterval}" is not supported for this instrument. Supported intervals: ${supportedByInstrument.join(', ')}`,
+          );
+        }
+      }
+      return {
+        strategy: validated.normalizedStrategy,
+        params: validated.normalizedParams,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : 'Invalid strategy config';
+      throw new BadRequestException(message);
+    }
+  }
+
+  private parseRequestedInterval(params: Record<string, unknown>): string | null {
+    const value = params.interval ?? params.timeframe ?? params.candleInterval;
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const normalized = value.trim().toLowerCase();
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  private normalizeInstrumentIntervals(supportedIntervalsRaw: unknown): string[] {
+    if (!Array.isArray(supportedIntervalsRaw)) {
+      return [];
+    }
+    return supportedIntervalsRaw
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.toLowerCase());
   }
 }

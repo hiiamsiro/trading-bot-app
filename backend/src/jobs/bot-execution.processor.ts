@@ -1,7 +1,10 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
+import { LogLevel } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DemoTradingService } from '../demo-trading/demo-trading.service';
+import { BotsService } from '../bots/bots.service';
+import { MarketDataGateway } from '../market-data/market-data.gateway';
 
 type BotExecutionJob = { botId: string };
 
@@ -10,6 +13,8 @@ export class BotExecutionProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly demoTrading: DemoTradingService,
+    private readonly botsService: BotsService,
+    private readonly marketGateway: MarketDataGateway,
   ) {
     super();
   }
@@ -26,6 +31,26 @@ export class BotExecutionProcessor extends WorkerHost {
     if (!bot || bot.status !== 'RUNNING') {
       return;
     }
-    await this.demoTrading.processTick(bot);
+    try {
+      await this.demoTrading.processTick(bot);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown bot execution error';
+      const updatedBot = await this.prisma.bot.update({
+        where: { id: bot.id },
+        data: { status: 'ERROR' },
+        select: { id: true, userId: true, symbol: true, status: true },
+      });
+      await this.botsService.appendLog(bot.id, LogLevel.ERROR, 'Bot execution failed', {
+        botId: bot.id,
+        symbol: bot.symbol,
+        reason: message,
+      });
+      this.marketGateway.emitBotStatus({
+        botId: updatedBot.id,
+        userId: updatedBot.userId,
+        symbol: updatedBot.symbol,
+        status: updatedBot.status,
+      });
+    }
   }
 }
