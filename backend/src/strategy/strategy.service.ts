@@ -1,6 +1,20 @@
 import { Injectable } from '@nestjs/common';
+import { MarketKlineInterval } from '../market-data/providers/market-data-provider.types';
 
 export type StrategySignal = 'BUY' | 'SELL' | 'HOLD';
+export type StrategyDecision = {
+  signal: StrategySignal;
+  reason: string;
+  metadata: Record<string, unknown>;
+};
+
+type StrategyInput = {
+  strategyKey: string;
+  instrument: string;
+  interval: MarketKlineInterval;
+  params: Record<string, unknown>;
+  closes: number[];
+};
 
 function sma(values: number[], period: number): number {
   if (values.length < period || period < 1) {
@@ -35,33 +49,79 @@ function rsi(closes: number[], period: number): number {
 
 @Injectable()
 export class StrategyService {
-  evaluate(
-    strategyKey: string,
-    params: Record<string, unknown>,
-    closes: number[],
-  ): StrategySignal {
-    const key = strategyKey.toLowerCase().replace(/-/g, '_');
+  evaluate(input: StrategyInput): StrategyDecision {
+    const key = this.normalizeStrategyKey(input.strategyKey);
     if (key === 'ma_crossover' || key === 'sma_crossover') {
-      return this.maCrossover(params, closes);
+      return this.maCrossover(input);
     }
     if (key === 'rsi') {
-      return this.rsiStrategy(params, closes);
+      return this.rsiStrategy(input);
     }
-    return 'HOLD';
+    return {
+      signal: 'HOLD',
+      reason: `Unsupported strategy: ${input.strategyKey}`,
+      metadata: {
+        strategy: input.strategyKey,
+        instrument: input.instrument,
+        interval: input.interval,
+      },
+    };
   }
 
-  private maCrossover(
+  getRequiredCandles(
+    strategyKey: string,
     params: Record<string, unknown>,
-    closes: number[],
-  ): StrategySignal {
+  ): number {
+    const key = this.normalizeStrategyKey(strategyKey);
+    if (key === 'ma_crossover' || key === 'sma_crossover') {
+      const shortPeriod = Number(params.shortPeriod) || 10;
+      const longPeriod = Number(params.longPeriod) || 20;
+      return Math.max(longPeriod + 2, shortPeriod + 2);
+    }
+    if (key === 'rsi') {
+      const period = Number(params.period) || 14;
+      return period + 2;
+    }
+    return 2;
+  }
+
+  private normalizeStrategyKey(strategyKey: string): string {
+    return strategyKey.toLowerCase().replace(/-/g, '_');
+  }
+
+  private maCrossover(input: StrategyInput): StrategyDecision {
+    const { params, closes, instrument, interval } = input;
     const shortPeriod = Number(params.shortPeriod) || 10;
     const longPeriod = Number(params.longPeriod) || 20;
     if (shortPeriod >= longPeriod) {
-      return 'HOLD';
+      return {
+        signal: 'HOLD',
+        reason: 'Invalid MA periods: shortPeriod must be smaller than longPeriod',
+        metadata: {
+          strategy: 'sma_crossover',
+          instrument,
+          interval,
+          shortPeriod,
+          longPeriod,
+          closesCount: closes.length,
+        },
+      };
     }
     const min = longPeriod + 2;
     if (closes.length < min) {
-      return 'HOLD';
+      return {
+        signal: 'HOLD',
+        reason: `Insufficient candle history for SMA crossover (${closes.length}/${min})`,
+        metadata: {
+          strategy: 'sma_crossover',
+          instrument,
+          interval,
+          shortPeriod,
+          longPeriod,
+          requiredCandles: min,
+          closesCount: closes.length,
+        },
+      };
     }
     const prevShort = sma(closes.slice(0, -1), shortPeriod);
     const prevLong = sma(closes.slice(0, -1), longPeriod);
@@ -70,21 +130,72 @@ export class StrategyService {
     if (
       [prevShort, prevLong, currShort, currLong].some((v) => Number.isNaN(v))
     ) {
-      return 'HOLD';
+      return {
+        signal: 'HOLD',
+        reason: 'Unable to compute SMA values',
+        metadata: {
+          strategy: 'sma_crossover',
+          instrument,
+          interval,
+          shortPeriod,
+          longPeriod,
+          closesCount: closes.length,
+        },
+      };
     }
     if (prevShort <= prevLong && currShort > currLong) {
-      return 'BUY';
+      return {
+        signal: 'BUY',
+        reason: 'Bullish SMA crossover detected',
+        metadata: {
+          strategy: 'sma_crossover',
+          instrument,
+          interval,
+          shortPeriod,
+          longPeriod,
+          prevShort,
+          prevLong,
+          currShort,
+          currLong,
+        },
+      };
     }
     if (prevShort >= prevLong && currShort < currLong) {
-      return 'SELL';
+      return {
+        signal: 'SELL',
+        reason: 'Bearish SMA crossover detected',
+        metadata: {
+          strategy: 'sma_crossover',
+          instrument,
+          interval,
+          shortPeriod,
+          longPeriod,
+          prevShort,
+          prevLong,
+          currShort,
+          currLong,
+        },
+      };
     }
-    return 'HOLD';
+    return {
+      signal: 'HOLD',
+      reason: 'No SMA crossover signal on this candle',
+      metadata: {
+        strategy: 'sma_crossover',
+        instrument,
+        interval,
+        shortPeriod,
+        longPeriod,
+        prevShort,
+        prevLong,
+        currShort,
+        currLong,
+      },
+    };
   }
 
-  private rsiStrategy(
-    params: Record<string, unknown>,
-    closes: number[],
-  ): StrategySignal {
+  private rsiStrategy(input: StrategyInput): StrategyDecision {
+    const { params, closes, instrument, interval } = input;
     const period = Number(params.period) || 14;
     const oversold =
       params.oversold != null && !Number.isNaN(Number(params.oversold))
@@ -95,19 +206,83 @@ export class StrategyService {
         ? Number(params.overbought)
         : 70;
     if (closes.length < period + 2) {
-      return 'HOLD';
+      return {
+        signal: 'HOLD',
+        reason: `Insufficient candle history for RSI (${closes.length}/${period + 2})`,
+        metadata: {
+          strategy: 'rsi',
+          instrument,
+          interval,
+          period,
+          oversold,
+          overbought,
+          requiredCandles: period + 2,
+          closesCount: closes.length,
+        },
+      };
     }
     const prevR = rsi(closes.slice(0, -1), period);
     const currR = rsi(closes, period);
     if (Number.isNaN(prevR) || Number.isNaN(currR)) {
-      return 'HOLD';
+      return {
+        signal: 'HOLD',
+        reason: 'Unable to compute RSI values',
+        metadata: {
+          strategy: 'rsi',
+          instrument,
+          interval,
+          period,
+          oversold,
+          overbought,
+          closesCount: closes.length,
+        },
+      };
     }
     if (prevR > oversold && currR <= oversold) {
-      return 'BUY';
+      return {
+        signal: 'BUY',
+        reason: 'RSI crossed into oversold zone',
+        metadata: {
+          strategy: 'rsi',
+          instrument,
+          interval,
+          period,
+          oversold,
+          overbought,
+          prevRsi: prevR,
+          currRsi: currR,
+        },
+      };
     }
     if (prevR < overbought && currR >= overbought) {
-      return 'SELL';
+      return {
+        signal: 'SELL',
+        reason: 'RSI crossed into overbought zone',
+        metadata: {
+          strategy: 'rsi',
+          instrument,
+          interval,
+          period,
+          oversold,
+          overbought,
+          prevRsi: prevR,
+          currRsi: currR,
+        },
+      };
     }
-    return 'HOLD';
+    return {
+      signal: 'HOLD',
+      reason: 'RSI thresholds were not crossed',
+      metadata: {
+        strategy: 'rsi',
+        instrument,
+        interval,
+        period,
+        oversold,
+        overbought,
+        prevRsi: prevR,
+        currRsi: currR,
+      },
+    };
   }
 }
