@@ -1,9 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import {
-  InstrumentAssetClass,
-  InstrumentMarketType,
-  InstrumentStatus,
-} from '@prisma/client';
+import { InstrumentAssetClass, InstrumentMarketType, InstrumentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BinanceInstrumentProvider } from './providers/binance-instrument.provider';
 import { InstrumentProvider } from './providers/instrument-provider.types';
@@ -22,14 +18,10 @@ export class InstrumentsService {
   }
 
   private getProvider(): InstrumentProvider {
-    const configured = (process.env.INSTRUMENT_SYNC_PROVIDER || 'binance')
-      .trim()
-      .toLowerCase();
+    const configured = (process.env.INSTRUMENT_SYNC_PROVIDER || 'binance').trim().toLowerCase();
     const provider = this.providers.get(configured);
     if (!provider) {
-      throw new NotFoundException(
-        `Unsupported instrument provider: ${configured}`,
-      );
+      throw new NotFoundException(`Unsupported instrument provider: ${configured}`);
     }
     return provider;
   }

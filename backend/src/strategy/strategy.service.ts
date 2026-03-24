@@ -68,10 +68,7 @@ export class StrategyService {
     };
   }
 
-  getRequiredCandles(
-    strategyKey: string,
-    params: Record<string, unknown>,
-  ): number {
+  getRequiredCandles(strategyKey: string, params: Record<string, unknown>): number {
     const key = this.normalizeStrategyKey(strategyKey);
     if (key === 'ma_crossover' || key === 'sma_crossover') {
       const shortPeriod = Number(params.shortPeriod) || 10;
@@ -127,9 +124,7 @@ export class StrategyService {
     const prevLong = sma(closes.slice(0, -1), longPeriod);
     const currShort = sma(closes, shortPeriod);
     const currLong = sma(closes, longPeriod);
-    if (
-      [prevShort, prevLong, currShort, currLong].some((v) => Number.isNaN(v))
-    ) {
+    if ([prevShort, prevLong, currShort, currLong].some((v) => Number.isNaN(v))) {
       return {
         signal: 'HOLD',
         reason: 'Unable to compute SMA values',

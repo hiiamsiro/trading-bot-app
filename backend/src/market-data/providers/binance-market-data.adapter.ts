@@ -70,7 +70,8 @@ export class BinanceMarketDataAdapter implements MarketDataAdapter {
     const streamKey = this.buildStreamKey(symbol, interval);
     const url = this.buildWsUrl(symbol, interval);
     const existing = this.streamStates.get(streamKey);
-    const listeners = existing?.listeners ?? new Set<(snapshot: MarketDataAdapterSnapshot) => void>();
+    const listeners =
+      existing?.listeners ?? new Set<(snapshot: MarketDataAdapterSnapshot) => void>();
 
     const ws = new WebSocket(url);
     const state: StreamState = {
@@ -194,10 +195,7 @@ export class BinanceMarketDataAdapter implements MarketDataAdapter {
       if (state.reconnectTimer) {
         clearTimeout(state.reconnectTimer);
       }
-      if (
-        state.ws.readyState === WebSocket.OPEN ||
-        state.ws.readyState === WebSocket.CONNECTING
-      ) {
+      if (state.ws.readyState === WebSocket.OPEN || state.ws.readyState === WebSocket.CONNECTING) {
         state.ws.close();
       }
     });

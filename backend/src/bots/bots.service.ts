@@ -98,10 +98,7 @@ export class BotsService {
       },
     });
 
-    if (
-      updateBotDto.status !== undefined &&
-      updateBotDto.status !== existing.status
-    ) {
+    if (updateBotDto.status !== undefined && updateBotDto.status !== existing.status) {
       this.marketGateway.emitBotStatus({
         botId: id,
         userId: updated.userId,
@@ -229,35 +226,48 @@ export class BotsService {
     });
 
     if (openTrade) {
-      const exitPrice =
-        (await this.marketData.getLatestPrice(bot.symbol)) ?? openTrade.price;
-      const realizedPnl = (exitPrice - openTrade.price) * openTrade.quantity;
-      const closed = await this.prisma.trade.update({
-        where: { id: openTrade.id },
-        data: {
+      const exitPrice = await this.marketData.getLatestPrice(bot.symbol, {
+        forceRefresh: true,
+      });
+      if (exitPrice === null) {
+        await this.appendLog(id, LogLevel.WARNING, 'Skipped position close on bot stop', {
+          tradeId: openTrade.id,
+          symbol: bot.symbol,
+          reason: 'live_price_unavailable',
+        });
+      } else {
+        const realizedPnl = (exitPrice - openTrade.price) * openTrade.quantity;
+        const closed = await this.prisma.trade.update({
+          where: { id: openTrade.id },
+          data: {
+            exitPrice,
+            realizedPnl,
+            closedAt: new Date(),
+            closeReason: 'bot_stopped',
+            status: 'CLOSED',
+          },
+        });
+        await this.prisma.executionSession.updateMany({
+          where: { botId: id, endedAt: null },
+          data: {
+            profitLoss: { increment: realizedPnl },
+            currentBalance: { increment: realizedPnl },
+          },
+        });
+        await this.appendLog(id, LogLevel.INFO, 'Position closed on bot stop', {
+          tradeId: closed.id,
           exitPrice,
           realizedPnl,
-          closedAt: new Date(),
-          closeReason: 'bot_stopped',
-          status: 'CLOSED',
-        },
-      });
-      await this.prisma.executionSession.updateMany({
-        where: { botId: id, endedAt: null },
-        data: {
-          profitLoss: { increment: realizedPnl },
-          currentBalance: { increment: realizedPnl },
-        },
-      });
-      await this.appendLog(id, LogLevel.INFO, 'Position closed on bot stop', {
-        tradeId: closed.id,
-        exitPrice,
-        realizedPnl,
-      });
-      this.marketGateway.emitNewTrade({
-        ...closed,
-        userId: bot.userId,
-      });
+          execution: {
+            type: 'simulated',
+            priceSource: 'live_market',
+          },
+        });
+        this.marketGateway.emitNewTrade({
+          ...closed,
+          userId: bot.userId,
+        });
+      }
     }
 
     await this.prisma.executionSession.updateMany({
@@ -288,12 +298,7 @@ export class BotsService {
     return updated;
   }
 
-  async findLogs(
-    botId: string,
-    userId: string,
-    take: number,
-    skip: number,
-  ) {
+  async findLogs(botId: string, userId: string, take: number, skip: number) {
     await this.findOne(botId, userId);
 
     const [items, total] = await Promise.all([

@@ -6,9 +6,7 @@ import { Queue } from 'bullmq';
 export class InstrumentSyncSchedulerService implements OnModuleInit {
   private readonly logger = new Logger(InstrumentSyncSchedulerService.name);
 
-  constructor(
-    @InjectQueue('instrument-sync') private readonly instrumentSyncQueue: Queue,
-  ) {}
+  constructor(@InjectQueue('instrument-sync') private readonly instrumentSyncQueue: Queue) {}
 
   async onModuleInit(): Promise<void> {
     const everyMs = parseInt(

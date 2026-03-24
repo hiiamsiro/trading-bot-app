@@ -35,9 +35,7 @@ export class MarketDataService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    await Promise.all(
-      Array.from(this.providers.values()).map((provider) => provider.close()),
-    );
+    await Promise.all(Array.from(this.providers.values()).map((provider) => provider.close()));
   }
 
   private getMaxHistory(): number {
@@ -59,11 +57,7 @@ export class MarketDataService implements OnModuleDestroy {
     return state;
   }
 
-  private pushClose(
-    instrument: string,
-    interval: MarketKlineInterval,
-    closePrice: number,
-  ): void {
+  private pushClose(instrument: string, interval: MarketKlineInterval, closePrice: number): void {
     const state = this.getState(instrument);
     const closes = state.closesByInterval.get(interval) ?? [];
     closes.push(closePrice);
@@ -83,9 +77,7 @@ export class MarketDataService implements OnModuleDestroy {
   }
 
   private getProvider(): MarketDataAdapter {
-    const configured = (process.env.MARKET_DATA_PROVIDER || 'binance')
-      .trim()
-      .toLowerCase();
+    const configured = (process.env.MARKET_DATA_PROVIDER || 'binance').trim().toLowerCase();
     const provider = this.providers.get(configured);
     if (!provider) {
       throw new Error(`Unsupported market data provider: ${configured}`);
@@ -119,11 +111,7 @@ export class MarketDataService implements OnModuleDestroy {
       return;
     }
     try {
-      const candles = await this.getProvider().getKlines(
-        sourceSymbol,
-        interval,
-        state.maxHistory,
-      );
+      const candles = await this.getProvider().getKlines(sourceSymbol, interval, state.maxHistory);
       state.closesByInterval.set(
         interval,
         candles.map((k) => k.close),
@@ -153,20 +141,20 @@ export class MarketDataService implements OnModuleDestroy {
 
     const sourceSymbol = await this.resolveSourceSymbol(normalized);
     await this.bootstrapCloses(normalized, sourceSymbol, interval);
-    await this.getProvider().subscribeToLiveUpdates(
-      sourceSymbol,
-      interval,
-      (snapshot) => {
-        this.applySnapshot(normalized, snapshot);
-      },
-    );
+    await this.getProvider().subscribeToLiveUpdates(sourceSymbol, interval, (snapshot) => {
+      this.applySnapshot(normalized, snapshot);
+    });
     state.subscribedIntervals.add(interval);
   }
 
-  async getLatestPrice(instrument: string): Promise<number | null> {
+  async getLatestPrice(
+    instrument: string,
+    options?: { forceRefresh?: boolean },
+  ): Promise<number | null> {
     const normalized = instrument.trim().toUpperCase();
     const state = this.getState(normalized);
-    if (state.latestPrice !== null) {
+    const forceRefresh = options?.forceRefresh === true;
+    if (!forceRefresh && state.latestPrice !== null) {
       return state.latestPrice;
     }
     try {
@@ -193,11 +181,7 @@ export class MarketDataService implements OnModuleDestroy {
     const maxItems = limit && limit > 0 ? limit : state.maxHistory;
 
     try {
-      const candles = await this.getProvider().getKlines(
-        sourceSymbol,
-        interval,
-        maxItems,
-      );
+      const candles = await this.getProvider().getKlines(sourceSymbol, interval, maxItems);
       state.closesByInterval.set(
         interval,
         candles.map((k) => k.close),

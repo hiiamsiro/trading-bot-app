@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  UseGuards,
-  ParseUUIDPipe,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -38,10 +31,7 @@ export class TradesController {
     description: 'Filter by bot UUID',
   })
   @ApiOkResponse({ description: 'Trades with minimal bot info' })
-  async findAll(
-    @CurrentUser() user: AuthUserPayload,
-    @Query('botId') botId?: string,
-  ) {
+  async findAll(@CurrentUser() user: AuthUserPayload, @Query('botId') botId?: string) {
     return this.tradesService.findAll(user.userId, botId);
   }
 
@@ -50,10 +40,7 @@ export class TradesController {
   @ApiOkResponse({ description: 'Trade with bot relation' })
   @ApiNotFoundResponse({ description: 'Trade not found' })
   @ApiForbiddenResponse({ description: 'Trade belongs to another user' })
-  async findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AuthUserPayload,
-  ) {
+  async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.tradesService.findOne(id, user.userId);
   }
 }

@@ -1,8 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  InstrumentProvider,
-  SyncInstrumentRecord,
-} from './instrument-provider.types';
+import { InstrumentProvider, SyncInstrumentRecord } from './instrument-provider.types';
 
 type BinanceFilter = {
   filterType: string;
@@ -63,9 +60,7 @@ export class BinanceInstrumentProvider implements InstrumentProvider {
       .filter((row) => row.isSpotTradingAllowed !== false)
       .map((row) => {
         const lotSize = row.filters?.find((f) => f.filterType === 'LOT_SIZE');
-        const quantityPrecisionFromStep = this.getPrecisionFromStepSize(
-          lotSize?.stepSize,
-        );
+        const quantityPrecisionFromStep = this.getPrecisionFromStepSize(lotSize?.stepSize);
 
         return {
           symbol: row.symbol.toUpperCase(),
@@ -77,10 +72,7 @@ export class BinanceInstrumentProvider implements InstrumentProvider {
           sourceSymbol: row.symbol.toLowerCase(),
           supportedIntervals: this.supportedIntervals,
           pricePrecision: Math.max(0, row.quotePrecision ?? 0),
-          quantityPrecision: Math.max(
-            0,
-            quantityPrecisionFromStep || row.baseAssetPrecision || 0,
-          ),
+          quantityPrecision: Math.max(0, quantityPrecisionFromStep || row.baseAssetPrecision || 0),
           status: this.mapStatus(row.status),
         } satisfies SyncInstrumentRecord;
       });

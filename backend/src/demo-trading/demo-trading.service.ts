@@ -30,9 +30,7 @@ export class DemoTradingService {
     private readonly botsService: BotsService,
   ) {}
 
-  private isSupportedInterval(
-    value: string,
-  ): value is MarketKlineInterval {
+  private isSupportedInterval(value: string): value is MarketKlineInterval {
     return (
       value === '1m' ||
       value === '5m' ||
@@ -43,11 +41,8 @@ export class DemoTradingService {
     );
   }
 
-  private parseRequestedInterval(
-    params: Record<string, unknown>,
-  ): string | null {
-    const raw =
-      params.interval ?? params.timeframe ?? params.candleInterval ?? null;
+  private parseRequestedInterval(params: Record<string, unknown>): string | null {
+    const raw = params.interval ?? params.timeframe ?? params.candleInterval ?? null;
     if (typeof raw !== 'string') {
       return null;
     }
@@ -82,8 +77,25 @@ export class DemoTradingService {
       return;
     }
 
-    const price = await this.marketData.getLatestPrice(bot.symbol);
-    if (price === null) {
+    const instrument = await this.prisma.instrument.findUnique({
+      where: { symbol: bot.symbol },
+    });
+    if (!instrument || !instrument.isActive || instrument.status !== 'ACTIVE') {
+      await this.botsService.appendLog(bot.id, LogLevel.WARNING, 'Skipped strategy evaluation', {
+        symbol: bot.symbol,
+        reason: 'active_instrument_not_found',
+      });
+      return;
+    }
+
+    const livePrice = await this.marketData.getLatestPrice(bot.symbol, {
+      forceRefresh: true,
+    });
+    if (livePrice === null) {
+      await this.botsService.appendLog(bot.id, LogLevel.WARNING, 'Skipped strategy evaluation', {
+        symbol: bot.symbol,
+        reason: 'live_price_unavailable',
+      });
       return;
     }
 
@@ -97,30 +109,25 @@ export class DemoTradingService {
     });
 
     if (openTrade) {
-      const hit = this.checkStopTake(openTrade, price);
+      const hit = this.checkStopTake(openTrade, livePrice);
       if (hit) {
-        await this.closeTrade(bot, openTrade, price, hit);
+        await this.closeTrade(bot, openTrade, livePrice, `risk:${hit}`, {
+          signal: 'RISK_EXIT',
+          reason: hit,
+          metadata: {
+            trigger: hit,
+            checkedPrice: livePrice,
+            stopLoss: openTrade.stopLoss,
+            takeProfit: openTrade.takeProfit,
+          },
+        });
         return;
       }
     }
 
     const params = (bot.strategyConfig.params ?? {}) as Record<string, unknown>;
-    const instrument = await this.prisma.instrument.findUnique({
-      where: { symbol: bot.symbol },
-    });
-    if (!instrument || !instrument.isActive || instrument.status !== 'ACTIVE') {
-      await this.botsService.appendLog(bot.id, LogLevel.WARNING, 'Skipped strategy evaluation', {
-        symbol: bot.symbol,
-        reason: 'active_instrument_not_found',
-      });
-      return;
-    }
-
     const interval = this.resolveInterval(instrument, params);
-    const requiredCandles = this.strategy.getRequiredCandles(
-      bot.strategyConfig.strategy,
-      params,
-    );
+    const requiredCandles = this.strategy.getRequiredCandles(bot.strategyConfig.strategy, params);
     const closes = await this.marketData.getCloses(bot.symbol, requiredCandles, interval);
     const decision = this.strategy.evaluate({
       strategyKey: bot.strategyConfig.strategy,
@@ -138,24 +145,18 @@ export class DemoTradingService {
       reason: decision.reason,
       requiredCandles,
       closesCount: closes.length,
+      livePrice,
       ...decision.metadata,
     });
 
     if (decision.signal === 'BUY' && !openTrade) {
-      await this.openLong(bot, price, params, decision);
-    } else if (
-      decision.signal === 'SELL' &&
-      openTrade &&
-      openTrade.side === TradeSide.BUY
-    ) {
-      await this.closeTrade(bot, openTrade, price, `strategy:${decision.reason}`, decision);
+      await this.openLong(bot, livePrice, params, decision);
+    } else if (decision.signal === 'SELL' && openTrade && openTrade.side === TradeSide.BUY) {
+      await this.closeTrade(bot, openTrade, livePrice, `strategy:${decision.reason}`, decision);
     }
   }
 
-  private checkStopTake(
-    trade: Trade,
-    price: number,
-  ): 'stop_loss' | 'take_profit' | null {
+  private checkStopTake(trade: Trade, price: number): 'stop_loss' | 'take_profit' | null {
     if (trade.side === TradeSide.BUY) {
       if (trade.stopLoss != null && price <= trade.stopLoss) {
         return 'stop_loss';
@@ -182,13 +183,9 @@ export class DemoTradingService {
     const slPct = params.stopLossPercent;
     const tpPct = params.takeProfitPercent;
     const stopLoss =
-      slPct != null && !Number.isNaN(Number(slPct))
-        ? entryPrice * (1 - Number(slPct) / 100)
-        : null;
+      slPct != null && !Number.isNaN(Number(slPct)) ? entryPrice * (1 - Number(slPct) / 100) : null;
     const takeProfit =
-      tpPct != null && !Number.isNaN(Number(tpPct))
-        ? entryPrice * (1 + Number(tpPct) / 100)
-        : null;
+      tpPct != null && !Number.isNaN(Number(tpPct)) ? entryPrice * (1 + Number(tpPct) / 100) : null;
 
     const trade = await this.prisma.trade.create({
       data: {
@@ -220,6 +217,10 @@ export class DemoTradingService {
       signal: decision.signal,
       signalReason: decision.reason,
       signalMetadata: decision.metadata,
+      execution: {
+        type: 'simulated',
+        priceSource: 'live_market',
+      },
     });
 
     this.gateway.emitNewTrade({
@@ -235,10 +236,7 @@ export class DemoTradingService {
     reason: string,
     decision?: { signal: string; reason: string; metadata: Record<string, unknown> },
   ): Promise<void> {
-    const pnl =
-      trade.side === TradeSide.BUY
-        ? this.computePnlLong(trade, exitPrice)
-        : 0;
+    const pnl = trade.side === TradeSide.BUY ? this.computePnlLong(trade, exitPrice) : 0;
 
     const updated = await this.prisma.trade.update({
       where: { id: trade.id },
@@ -262,12 +260,17 @@ export class DemoTradingService {
     await this.botsService.appendLog(bot.id, LogLevel.INFO, 'Closed demo position', {
       tradeId: trade.id,
       symbol: bot.symbol,
+      entryPrice: trade.price,
       exitPrice,
       realizedPnl: pnl,
       reason,
       signal: decision?.signal,
       signalReason: decision?.reason,
       signalMetadata: decision?.metadata,
+      execution: {
+        type: 'simulated',
+        priceSource: 'live_market',
+      },
     });
 
     this.gateway.emitNewTrade({

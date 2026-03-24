@@ -28,11 +28,7 @@ export type MarketSnapshot = {
 export interface MarketDataAdapter {
   providerKey: string;
   getLatestPrice(symbol: string): Promise<number>;
-  getKlines(
-    symbol: string,
-    interval: MarketKlineInterval,
-    limit: number,
-  ): Promise<MarketKline[]>;
+  getKlines(symbol: string, interval: MarketKlineInterval, limit: number): Promise<MarketKline[]>;
   subscribeToLiveUpdates(
     symbol: string,
     interval: MarketKlineInterval,

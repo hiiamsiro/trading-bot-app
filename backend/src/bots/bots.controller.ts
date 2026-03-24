@@ -46,10 +46,7 @@ export class BotsController {
   @ApiOkResponse({ description: 'Bot is running' })
   @ApiNotFoundResponse({ description: 'Bot not found' })
   @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
-  async start(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AuthUserPayload,
-  ) {
+  async start(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.botsService.start(id, user.userId);
   }
 
@@ -58,10 +55,7 @@ export class BotsController {
   @ApiOkResponse({ description: 'Bot is stopped' })
   @ApiNotFoundResponse({ description: 'Bot not found' })
   @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
-  async stop(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AuthUserPayload,
-  ) {
+  async stop(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.botsService.stop(id, user.userId);
   }
 
@@ -86,20 +80,14 @@ export class BotsController {
   @ApiOperation({ summary: 'Get bot by ID' })
   @ApiNotFoundResponse({ description: 'Bot not found' })
   @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
-  async findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AuthUserPayload,
-  ) {
+  async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.botsService.findOne(id, user.userId);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create a new bot' })
   @ApiOkResponse({ description: 'Created bot' })
-  async create(
-    @Body() createBotDto: CreateBotDto,
-    @CurrentUser() user: AuthUserPayload,
-  ) {
+  async create(@Body() createBotDto: CreateBotDto, @CurrentUser() user: AuthUserPayload) {
     return this.botsService.create(createBotDto, user.userId);
   }
 
@@ -119,10 +107,7 @@ export class BotsController {
   @ApiOperation({ summary: 'Delete bot' })
   @ApiNotFoundResponse({ description: 'Bot not found' })
   @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
-  async remove(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AuthUserPayload,
-  ) {
+  async remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.botsService.remove(id, user.userId);
   }
 }

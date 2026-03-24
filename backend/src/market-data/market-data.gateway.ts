@@ -28,18 +28,11 @@ export class MarketDataGateway implements OnGatewayConnection, OnGatewayDisconne
     this.server.emit('market-data', data);
   }
 
-  emitBotStatus(data: {
-    botId: string;
-    userId: string;
-    status: string;
-    symbol: string;
-  }) {
+  emitBotStatus(data: { botId: string; userId: string; status: string; symbol: string }) {
     this.server.emit('bot-status', data);
   }
 
-  emitNewTrade(
-    data: Record<string, unknown> & { userId: string; botId: string },
-  ) {
+  emitNewTrade(data: Record<string, unknown> & { userId: string; botId: string }) {
     this.server.emit('new-trade', data);
   }
 
