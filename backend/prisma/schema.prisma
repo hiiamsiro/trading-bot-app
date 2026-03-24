@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bots Bot[]
+
+  @@map("users")
+}
+
+model Bot {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  symbol      String
+  status      BotStatus @default(STOPPED)
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyConfig   StrategyConfig?
+  trades           Trade[]
+  logs             BotLog[]
+  executionSession ExecutionSession?
+
+  @@map("bots")
+}
+
+enum BotStatus {
+  RUNNING
+  STOPPED
+  PAUSED
+  ERROR
+}
+
+model StrategyConfig {
+  id        String   @id @default(uuid())
+  botId     String   @unique
+  strategy  String
+  params    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@map("strategy_configs")
+}
+
+model Trade {
+  id            String    @id @default(uuid())
+  botId         String
+  symbol        String
+  side          TradeSide
+  quantity      Float
+  price         Float
+  totalValue    Float
+  status        TradeStatus @default(PENDING)
+  executedAt    DateTime?
+  createdAt     DateTime    @default(now())
+
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@map("trades")
+}
+
+enum TradeSide {
+  BUY
+  SELL
+}
+
+enum TradeStatus {
+  PENDING
+  EXECUTED
+  CANCELLED
+  FAILED
+}
+
+model BotLog {
+  id        String   @id @default(uuid())
+  botId     String
+  level     LogLevel
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@map("bot_logs")
+}
+
+enum LogLevel {
+  INFO
+  WARNING
+  ERROR
+  DEBUG
+}
+
+model ExecutionSession {
+  id              String    @id @default(uuid())
+  botId           String    @unique
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  totalTrades     Int       @default(0)
+  profitLoss      Float     @default(0)
+  initialBalance  Float
+  currentBalance  Float
+
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@map("execution_sessions")
+}
