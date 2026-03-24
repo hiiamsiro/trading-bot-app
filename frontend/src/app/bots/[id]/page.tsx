@@ -14,6 +14,7 @@ import {
   stopBot,
 } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
+import { useTradingSocket } from '@/hooks/use-trading-socket'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,6 +27,7 @@ export default function BotDetailPage() {
   const router = useRouter()
   const id = typeof params.id === 'string' ? params.id : ''
   const token = useAuthStore((s) => s.token)
+  const user = useAuthStore((s) => s.user)
   const handleError = useHandleApiError()
   const [loading, setLoading] = useState(true)
   const [bot, setBot] = useState<Bot | null>(null)
@@ -54,6 +56,12 @@ export default function BotDetailPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useTradingSocket({
+    userId: user?.id,
+    botId: id || undefined,
+    onRefresh: load,
+  })
 
   async function onStart() {
     if (!token || !id) return

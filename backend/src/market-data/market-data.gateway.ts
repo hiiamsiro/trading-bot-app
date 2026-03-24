@@ -24,15 +24,34 @@ export class MarketDataGateway implements OnGatewayConnection, OnGatewayDisconne
     console.log(`Client disconnected: ${client.id}`);
   }
 
-  emitMarketData(data: any) {
+  emitMarketData(data: Record<string, unknown>) {
     this.server.emit('market-data', data);
   }
 
-  emitBotStatus(data: any) {
+  emitBotStatus(data: {
+    botId: string;
+    userId: string;
+    status: string;
+    symbol: string;
+  }) {
     this.server.emit('bot-status', data);
   }
 
-  emitNewTrade(data: any) {
+  emitNewTrade(
+    data: Record<string, unknown> & { userId: string; botId: string },
+  ) {
     this.server.emit('new-trade', data);
+  }
+
+  emitBotLog(data: {
+    id: string;
+    botId: string;
+    userId: string;
+    level: string;
+    message: string;
+    metadata: unknown;
+    createdAt: string;
+  }) {
+    this.server.emit('bot-log', data);
   }
 }

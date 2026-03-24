@@ -16,7 +16,7 @@ RUN npx prisma generate
 
 EXPOSE 3001
 
-CMD ["/bin/sh", "-c", "if [ ! -f node_modules/.bin/nest ] || [ ! -d node_modules/ts-loader ]; then npm install; fi && npx prisma generate && npx prisma db push --accept-data-loss && npm run start:dev"]
+CMD ["/bin/sh", "-c", "if [ ! -f node_modules/.bin/nest ] || [ ! -d node_modules/ts-loader ]; then npm install; fi && npx prisma generate && npx prisma migrate deploy && npx prisma db seed && npm run start:dev"]
 
 FROM base AS build
 

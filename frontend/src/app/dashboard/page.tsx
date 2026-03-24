@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Bot, Trade, BotStatus } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
 import { fetchBots, fetchTrades } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
+import { useTradingSocket } from '@/hooks/use-trading-socket'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -29,6 +30,20 @@ export default function DashboardPage() {
   const [bots, setBots] = useState<Bot[]>([])
   const [trades, setTrades] = useState<Trade[]>([])
   const [tradeTotal, setTradeTotal] = useState(0)
+
+  const reload = useCallback(() => {
+    if (!token) return
+    ;(async () => {
+      try {
+        const [b, t] = await Promise.all([fetchBots(token), fetchTrades(token)])
+        setBots(b)
+        setTradeTotal(t.length)
+        setTrades(t.slice(0, 8))
+      } catch (e) {
+        handleError(e)
+      }
+    })()
+  }, [token, handleError])
 
   useEffect(() => {
     if (!token) return
@@ -54,6 +69,11 @@ export default function DashboardPage() {
       cancelled = true
     }
   }, [token, handleError])
+
+  useTradingSocket({
+    userId: user?.id,
+    onRefresh: reload,
+  })
 
   const running = bots.filter((b) => b.status === BotStatus.RUNNING).length
 

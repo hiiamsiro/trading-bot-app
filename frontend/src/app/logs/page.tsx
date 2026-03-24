@@ -1,12 +1,13 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { BotLog } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
 import { fetchBotLogs, fetchBots } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
+import { useTradingSocket } from '@/hooks/use-trading-socket'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
@@ -35,6 +36,7 @@ function LogsContent() {
   const searchParams = useSearchParams()
   const botIdFromUrl = searchParams.get('botId')
   const token = useAuthStore((s) => s.token)
+  const user = useAuthStore((s) => s.user)
   const handleError = useHandleApiError()
   const [bots, setBots] = useState<{ id: string; name: string }[]>([])
   const [botsLoading, setBotsLoading] = useState(true)
@@ -74,6 +76,19 @@ function LogsContent() {
     }
   }, [token, botIdFromUrl, handleError])
 
+  const refreshFirstPage = useCallback(() => {
+    if (!botId || !token) return
+    ;(async () => {
+      try {
+        const res = await fetchBotLogs(token, botId, PAGE_SIZE, 0)
+        setLogs(res.items)
+        setTotal(res.total)
+      } catch (e) {
+        handleError(e)
+      }
+    })()
+  }, [token, botId, handleError])
+
   useEffect(() => {
     if (!botId || !token) return
     setLogs([])
@@ -97,6 +112,12 @@ function LogsContent() {
       cancelled = true
     }
   }, [token, botId, handleError])
+
+  useTradingSocket({
+    userId: botId ? user?.id : undefined,
+    botId: botId || undefined,
+    onRefresh: refreshFirstPage,
+  })
 
   async function loadMore() {
     if (!token || !botId || loadingMore || logs.length >= total) return

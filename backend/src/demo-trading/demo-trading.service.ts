@@ -136,7 +136,10 @@ export class DemoTradingService {
       takeProfit,
     });
 
-    this.gateway.emitNewTrade(trade);
+    this.gateway.emitNewTrade({
+      ...trade,
+      userId: bot.userId,
+    });
   }
 
   private async closeTrade(
@@ -177,6 +180,9 @@ export class DemoTradingService {
       reason,
     });
 
-    this.gateway.emitNewTrade(updated);
+    this.gateway.emitNewTrade({
+      ...updated,
+      userId: bot.userId,
+    });
   }
 }

@@ -1,5 +1,8 @@
+'use client'
+
 import { create } from 'zustand'
 import { User } from '@/types'
+import { disconnectWebSocket } from '@/lib/websocket'
 
 interface AuthState {
   user: User | null
@@ -28,6 +31,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      disconnectWebSocket()
     }
   },
   setRehydrated: (value) => set({ rehydrated: value }),

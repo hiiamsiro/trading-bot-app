@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Bot } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
 import { fetchBots } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
+import { useTradingSocket } from '@/hooks/use-trading-socket'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
@@ -22,9 +23,22 @@ import { Plus, Bot as BotIcon } from 'lucide-react'
 
 export default function BotsListPage() {
   const token = useAuthStore((s) => s.token)
+  const user = useAuthStore((s) => s.user)
   const handleError = useHandleApiError()
   const [loading, setLoading] = useState(true)
   const [bots, setBots] = useState<Bot[]>([])
+
+  const reload = useCallback(() => {
+    if (!token) return
+    ;(async () => {
+      try {
+        const data = await fetchBots(token)
+        setBots(data)
+      } catch (e) {
+        handleError(e)
+      }
+    })()
+  }, [token, handleError])
 
   useEffect(() => {
     if (!token) return
@@ -46,6 +60,11 @@ export default function BotsListPage() {
       cancelled = true
     }
   }, [token, handleError])
+
+  useTradingSocket({
+    userId: user?.id,
+    onRefresh: reload,
+  })
 
   if (loading) {
     return (

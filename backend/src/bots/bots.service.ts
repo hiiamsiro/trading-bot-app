@@ -73,9 +73,9 @@ export class BotsService {
   }
 
   async update(id: string, updateBotDto: UpdateBotDto, userId: string) {
-    await this.findOne(id, userId);
+    const existing = await this.findOne(id, userId);
 
-    return this.prisma.bot.update({
+    const updated = await this.prisma.bot.update({
       where: { id },
       data: {
         name: updateBotDto.name,
@@ -87,6 +87,20 @@ export class BotsService {
         strategyConfig: true,
       },
     });
+
+    if (
+      updateBotDto.status !== undefined &&
+      updateBotDto.status !== existing.status
+    ) {
+      this.marketGateway.emitBotStatus({
+        botId: id,
+        userId: updated.userId,
+        status: updated.status,
+        symbol: updated.symbol,
+      });
+    }
+
+    return updated;
   }
 
   async remove(id: string, userId: string) {
@@ -103,7 +117,7 @@ export class BotsService {
     message: string,
     metadata?: Record<string, unknown>,
   ) {
-    return this.prisma.botLog.create({
+    const row = await this.prisma.botLog.create({
       data: {
         botId,
         level,
@@ -111,6 +125,24 @@ export class BotsService {
         metadata: metadata === undefined ? undefined : (metadata as object),
       },
     });
+
+    const owner = await this.prisma.bot.findUnique({
+      where: { id: botId },
+      select: { userId: true },
+    });
+    if (owner) {
+      this.marketGateway.emitBotLog({
+        id: row.id,
+        botId: row.botId,
+        userId: owner.userId,
+        level: row.level,
+        message: row.message,
+        metadata: row.metadata,
+        createdAt: row.createdAt.toISOString(),
+      });
+    }
+
+    return row;
   }
 
   async start(id: string, userId: string) {
@@ -163,6 +195,7 @@ export class BotsService {
 
     this.marketGateway.emitBotStatus({
       botId: id,
+      userId: updated.userId,
       status: updated.status,
       symbol: updated.symbol,
     });
@@ -211,7 +244,10 @@ export class BotsService {
         exitPrice,
         realizedPnl,
       });
-      this.marketGateway.emitNewTrade(closed);
+      this.marketGateway.emitNewTrade({
+        ...closed,
+        userId: bot.userId,
+      });
     }
 
     await this.prisma.executionSession.updateMany({
@@ -234,6 +270,7 @@ export class BotsService {
 
     this.marketGateway.emitBotStatus({
       botId: id,
+      userId: updated.userId,
       status: updated.status,
       symbol: updated.symbol,
     });

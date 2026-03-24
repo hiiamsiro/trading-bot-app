@@ -100,49 +100,42 @@ cd trading-bot-app
 2. **Create environment files**
 
 ```bash
-# Copy root .env.example
 cp .env.example .env
-
-# Copy backend .env.example
 cp backend/.env.example backend/.env
-
-# Copy frontend .env.example
 cp frontend/.env.example frontend/.env
 ```
 
-3. **Start all services with Docker Compose**
+Use the defaults unless ports conflict. Set `NEXT_PUBLIC_WS_URL` to the **HTTP** base URL of the API (for example `http://localhost:3001`). Socket.IO connects to that URL; a bare `ws://` URL is not required.
+
+3. **Start all services**
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-This will start:
-- PostgreSQL on port `5432`
-- Redis on port `6379`
-- Backend API on port `3001`
-- Frontend on port `3000`
+This starts PostgreSQL (`5432`), Redis (`6379`), the backend (`3001`), and the frontend (`3000`). On startup, the backend container runs `npx prisma migrate deploy`, then `npx prisma db seed`, then `npm run start:dev` (see `backend/Dockerfile`).
 
-4. **Run database migrations**
-
-```bash
-# Enter backend container
-docker exec -it trading-bot-backend sh
-
-# Run Prisma migrations
-npm run prisma:migrate
-
-# Generate Prisma client
-npm run prisma:generate
-
-# Exit container
-exit
-```
-
-5. **Access the application**
+4. **Open the application**
 
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:3001
-- Swagger API Docs: http://localhost:3001/api
+- Swagger: http://localhost:3001/api
+
+5. **Demo logins (seeded)**
+
+| Email | Password |
+|-------|----------|
+| demo@example.com | password123 |
+| demo2@example.com | password123 |
+
+The first account gets sample bots, trades, and logs. The seed script is idempotent: if a bot named **Demo BTC Bot** already exists for `demo@example.com`, it skips creating demo bots/trades again.
+
+If migrations or seed fail (for example after a bad volume state), run them manually:
+
+```bash
+docker compose exec backend npx prisma migrate deploy
+docker compose exec backend npx prisma db seed
+```
 
 ### Local Development (Without Docker)
 
@@ -216,8 +209,9 @@ Frontend will run on http://localhost:3000
 npm run start:dev      # Start development server
 npm run build          # Build for production
 npm run start:prod     # Start production server
-npm run prisma:migrate # Run database migrations
+npm run prisma:migrate # Run database migrations (dev)
 npm run prisma:generate # Generate Prisma client
+npm run prisma:seed    # Seed demo users, bots, trades, logs
 npm run prisma:studio  # Open Prisma Studio
 npm run lint           # Lint code
 ```
@@ -257,15 +251,16 @@ Once the backend is running, access the Swagger documentation at:
 - `GET /trades` - Get all trades for current user
 - `GET /trades/:id` - Get trade by ID
 
-### WebSocket Events
+### WebSocket (Socket.IO)
 
-#### Client → Server
-- Connect to `ws://localhost:3001`
+Connect the client to the same **HTTP** origin as the API (for example `http://localhost:3001`). Events are broadcast to all connected clients; the payload includes `userId` so the frontend can ignore other users’ data.
 
-#### Server → Client
-- `market-data` - Real-time market price updates
-- `bot-status` - Bot status changes
-- `new-trade` - New trade executed
+#### Server → client
+
+- `market-data` — Simulated tick: `{ symbol, price, timestamp }`
+- `bot-status` — `{ botId, userId, status, symbol }`
+- `new-trade` — Trade fields from Prisma plus `userId` and `botId`
+- `bot-log` — Log row fields plus `userId` (emitted when a log line is written)
 
 ## Environment Variables
 
@@ -282,7 +277,7 @@ FRONTEND_PORT=3000
 JWT_SECRET=your-secret-key-change-in-production
 JWT_EXPIRES_IN=7d
 NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_WS_URL=ws://localhost:3001
+NEXT_PUBLIC_WS_URL=http://localhost:3001
 ```
 
 ### Backend `.env`
@@ -302,8 +297,10 @@ CORS_ORIGIN=http://localhost:3000
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_WS_URL=ws://localhost:3001
+NEXT_PUBLIC_WS_URL=http://localhost:3001
 ```
+
+Use `http://` for `NEXT_PUBLIC_WS_URL` so Socket.IO can negotiate the transport.
 
 ## Docker Commands
 
@@ -352,9 +349,14 @@ docker exec -it trading-bot-postgres psql -U postgres -d trading_bot
 ### Reset database
 
 ```bash
-docker-compose down -v
-docker-compose up -d
-docker exec -it trading-bot-backend npm run prisma:migrate
+docker compose down -v
+docker compose up -d
+```
+
+After a fresh volume, the backend container applies migrations and runs the seed script on startup. To re-seed without wiping the volume:
+
+```bash
+docker compose exec backend npx prisma db seed
 ```
 
 ## Development Workflow
@@ -432,18 +434,12 @@ npm install
 - [x] Dockerfiles for frontend and backend
 - [x] README with setup instructions
 
-## Next Steps (Phase 2+)
+## Phase 5 (realtime & demo data)
 
-- Implement authentication UI (login/register forms)
-- Implement bot management UI
-- Implement trade history UI
-- Add market data simulation
-- Implement trading strategies
-- Add bot execution logic
-- Implement real-time updates via WebSocket
-- Add charts and visualizations
-- Add backtesting functionality
-- Add performance metrics
+- Socket.IO events: `market-data`, `bot-status`, `new-trade`, `bot-log` (payloads scoped with `userId` where relevant)
+- Frontend refreshes bots, trades, logs, and bot detail when matching events arrive (`useTradingSocket`)
+- `backend/prisma/seed.ts` — demo users, sample bots, trades, and logs; wired via `prisma.seed` in `backend/package.json`
+- Backend dev Docker image: `migrate deploy` + `db seed` before `start:dev`
 
 ## Important Notes
 

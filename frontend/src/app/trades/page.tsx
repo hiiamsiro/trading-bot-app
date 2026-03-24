@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Trade } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
 import { fetchBots, fetchTrades } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
+import { useTradingSocket } from '@/hooks/use-trading-socket'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +30,7 @@ import { History } from 'lucide-react'
 
 export default function TradesPage() {
   const token = useAuthStore((s) => s.token)
+  const user = useAuthStore((s) => s.user)
   const handleError = useHandleApiError()
   const [loading, setLoading] = useState(true)
   const [trades, setTrades] = useState<Trade[]>([])
@@ -55,6 +57,21 @@ export default function TradesPage() {
     }
   }, [token])
 
+  const reloadTrades = useCallback(() => {
+    if (!token) return
+    ;(async () => {
+      try {
+        const data = await fetchTrades(
+          token,
+          botId === 'all' ? undefined : botId,
+        )
+        setTrades(data)
+      } catch (e) {
+        handleError(e)
+      }
+    })()
+  }, [token, botId, handleError])
+
   useEffect(() => {
     if (!token) return
     let cancelled = false
@@ -78,6 +95,11 @@ export default function TradesPage() {
       cancelled = true
     }
   }, [token, botId, handleError])
+
+  useTradingSocket({
+    userId: user?.id,
+    onRefresh: reloadTrades,
+  })
 
   if (loading && trades.length === 0) {
     return (
