@@ -4,6 +4,6 @@ import { MarketDataService } from './market-data.service';
 
 @Module({
   providers: [MarketDataGateway, MarketDataService],
-  exports: [MarketDataService],
+  exports: [MarketDataService, MarketDataGateway],
 })
 export class MarketDataModule {}

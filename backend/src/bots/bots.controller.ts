@@ -41,6 +41,30 @@ export class BotsController {
     return this.botsService.findAll(user.userId);
   }
 
+  @Post(':id/start')
+  @ApiOperation({ summary: 'Start bot (demo execution)' })
+  @ApiOkResponse({ description: 'Bot is running' })
+  @ApiNotFoundResponse({ description: 'Bot not found' })
+  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
+  async start(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.botsService.start(id, user.userId);
+  }
+
+  @Post(':id/stop')
+  @ApiOperation({ summary: 'Stop bot (demo execution)' })
+  @ApiOkResponse({ description: 'Bot is stopped' })
+  @ApiNotFoundResponse({ description: 'Bot not found' })
+  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
+  async stop(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.botsService.stop(id, user.userId);
+  }
+
   @Get(':id/logs')
   @ApiOperation({ summary: 'List logs for a bot (newest first)' })
   @ApiOkResponse({

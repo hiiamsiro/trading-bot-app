@@ -47,6 +47,9 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       PORT: 3001
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      # Bind-mount (esp. Windows + Docker): native fs events often miss → enable polling so `nest start --watch` reloads
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "${BACKEND_PORT:-3001}:3001"
     volumes:

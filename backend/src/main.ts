@@ -21,16 +21,6 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Trading Bot API')
-    .setDescription(
-      [
-        'Demo-only trading bot backend (NestJS + Prisma + PostgreSQL).',
-        '',
-        '**Auth:** `POST /auth/register`, `POST /auth/login` return a JWT. Send `Authorization: Bearer <token>` for protected routes.',
-        '**Current user:** `GET /users/me`.',
-        '**Bots:** full CRUD under `/bots`. **Logs:** `GET /bots/:id/logs?take=&skip=`.',
-        '**Trades:** read-only `GET /trades` and `GET /trades/:id` (optional `?botId=`).',
-      ].join('\n'),
-    )
     .setVersion('1.0')
     .addBearerAuth({
       type: 'http',

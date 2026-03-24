@@ -69,6 +69,12 @@ model Trade {
   totalValue    Float
   status        TradeStatus @default(PENDING)
   executedAt    DateTime?
+  exitPrice     Float?
+  realizedPnl   Float?
+  stopLoss      Float?
+  takeProfit    Float?
+  closedAt      DateTime?
+  closeReason   String?
   createdAt     DateTime    @default(now())
 
   bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
@@ -86,6 +92,7 @@ enum TradeStatus {
   EXECUTED
   CANCELLED
   FAILED
+  CLOSED
 }
 
 model BotLog {
