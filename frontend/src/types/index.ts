@@ -83,6 +83,20 @@ export interface Instrument {
   updatedAt: string
 }
 
+export interface InstrumentSyncResult {
+  provider: string
+  totalFetched: number
+  created: number
+  updated: number
+}
+
+export interface InstrumentCatalogResponse {
+  items: Instrument[]
+  total: number
+  take: number
+  skip: number
+}
+
 export interface BotLog {
   id: string
   botId: string

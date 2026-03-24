@@ -2,9 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Bot, Trade, BotStatus } from '@/types'
+import { Bot, Trade, BotStatus, Instrument } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
-import { fetchBots, fetchTrades } from '@/lib/api-client'
+import {
+  fetchAllInstruments,
+  fetchBots,
+  fetchTrades,
+  setInstrumentActivation,
+  syncInstruments,
+} from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { useTradingSocket } from '@/hooks/use-trading-socket'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,8 +36,17 @@ export default function DashboardPage() {
   const [bots, setBots] = useState<Bot[]>([])
   const [trades, setTrades] = useState<Trade[]>([])
   const [tradeTotal, setTradeTotal] = useState(0)
+  const [instruments, setInstruments] = useState<Instrument[]>([])
+  const [instrumentTotal, setInstrumentTotal] = useState(0)
+  const [instrumentPage, setInstrumentPage] = useState(1)
+  const [instrumentPageInput, setInstrumentPageInput] = useState('1')
+  const [instrumentSearchInput, setInstrumentSearchInput] = useState('')
+  const [instrumentSearchQuery, setInstrumentSearchQuery] = useState('')
+  const [syncingInstruments, setSyncingInstruments] = useState(false)
+  const [togglingSymbol, setTogglingSymbol] = useState<string | null>(null)
+  const INSTRUMENT_PAGE_SIZE = 10
 
-  const reload = useCallback(() => {
+  const reloadOverview = useCallback(() => {
     if (!token) return
     ;(async () => {
       try {
@@ -44,6 +59,38 @@ export default function DashboardPage() {
       }
     })()
   }, [token, handleError])
+
+  const loadInstrumentsPage = useCallback(
+    async (page: number, search = instrumentSearchQuery) => {
+      if (!token) return
+      const skip = (page - 1) * INSTRUMENT_PAGE_SIZE
+      const result = await fetchAllInstruments(
+        token,
+        INSTRUMENT_PAGE_SIZE,
+        skip,
+        search,
+      )
+      setInstruments(result.items)
+      setInstrumentTotal(result.total)
+      setInstrumentPage(page)
+      setInstrumentPageInput(String(page))
+    },
+    [token, instrumentSearchQuery],
+  )
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setInstrumentSearchQuery(instrumentSearchInput.trim())
+    }, 300)
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [instrumentSearchInput])
+
+  useEffect(() => {
+    if (!token) return
+    void loadInstrumentsPage(1, instrumentSearchQuery)
+  }, [token, instrumentSearchQuery, loadInstrumentsPage])
 
   useEffect(() => {
     if (!token) return
@@ -68,16 +115,22 @@ export default function DashboardPage() {
     return () => {
       cancelled = true
     }
-  }, [token, handleError])
+  }, [token, handleError, loadInstrumentsPage])
 
   useTradingSocket({
     userId: user?.id,
-    onRefresh: reload,
+    onRefresh: reloadOverview,
   })
 
   const running = bots.filter((b) => b.status === BotStatus.RUNNING).length
-  const successRate = tradeTotal === 0 ? 0 : Math.round((running / Math.max(bots.length, 1)) * 100)
   const stopped = Math.max(bots.length - running, 0)
+  const activeInstruments = instruments.filter((row) => row.isActive).length
+  const maxInstrumentPage = Math.max(
+    1,
+    Math.ceil(instrumentTotal / INSTRUMENT_PAGE_SIZE),
+  )
+  const hasPrevPage = instrumentPage > 1
+  const hasNextPage = instrumentPage * INSTRUMENT_PAGE_SIZE < instrumentTotal
   const formatTradeTime = (value: string) =>
     new Date(value).toLocaleString([], {
       month: 'short',
@@ -85,6 +138,73 @@ export default function DashboardPage() {
       hour: '2-digit',
       minute: '2-digit',
     })
+
+  async function onSyncInstruments() {
+    if (!token) return
+    setSyncingInstruments(true)
+    try {
+      await syncInstruments(token)
+      await loadInstrumentsPage(1)
+    } catch (e) {
+      handleError(e, 'Could not sync instruments')
+    } finally {
+      setSyncingInstruments(false)
+    }
+  }
+
+  async function onToggleInstrument(symbol: string, nextIsActive: boolean) {
+    if (!token) return
+    setTogglingSymbol(symbol)
+    try {
+      const updated = await setInstrumentActivation(token, symbol, nextIsActive)
+      setInstruments((prev) =>
+        prev.map((row) => (row.symbol === updated.symbol ? updated : row)),
+      )
+    } catch (e) {
+      handleError(e, 'Could not update instrument status')
+    } finally {
+      setTogglingSymbol(null)
+    }
+  }
+
+  async function onPrevInstrumentsPage() {
+    if (!token || !hasPrevPage) return
+    const nextPage = instrumentPage - 1
+    try {
+      await loadInstrumentsPage(nextPage)
+    } catch (e) {
+      handleError(e, 'Could not load previous instrument page')
+    }
+  }
+
+  async function onNextInstrumentsPage() {
+    if (!token || !hasNextPage) return
+    const nextPage = instrumentPage + 1
+    try {
+      await loadInstrumentsPage(nextPage)
+    } catch (e) {
+      handleError(e, 'Could not load next instrument page')
+    }
+  }
+
+  async function onGoToInstrumentPage() {
+    if (!token) return
+    const parsed = Number(instrumentPageInput)
+    if (!Number.isInteger(parsed)) {
+      setInstrumentPageInput(String(instrumentPage))
+      return
+    }
+    const target = Math.min(Math.max(parsed, 1), maxInstrumentPage)
+    if (target === instrumentPage) {
+      setInstrumentPageInput(String(target))
+      return
+    }
+    try {
+      await loadInstrumentsPage(target)
+    } catch (e) {
+      handleError(e, 'Could not load selected instrument page')
+    }
+  }
 
   if (loading) {
     return (
@@ -148,8 +268,8 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">{successRate}%</p>
-            <p className="text-xs text-muted-foreground">Bot runtime utilization</p>
+            <p className="text-2xl font-semibold">{activeInstruments}</p>
+            <p className="text-xs text-muted-foreground">Active tradable instruments</p>
           </CardContent>
         </Card>
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
@@ -167,6 +287,132 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Instrument catalog</CardTitle>
+          <Button
+            size="sm"
+            onClick={onSyncInstruments}
+            disabled={syncingInstruments}
+            className="cursor-pointer"
+          >
+            {syncingInstruments ? 'Syncing...' : 'Sync from provider'}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={instrumentSearchInput}
+              onChange={(e) => setInstrumentSearchInput(e.target.value)}
+              placeholder="Search symbol, name, base/quote..."
+              className="h-9 w-full max-w-sm rounded-md border border-border/70 bg-background px-3 text-sm"
+              aria-label="Search instruments"
+            />
+            {instrumentSearchQuery && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setInstrumentSearchInput('')
+                  setInstrumentSearchQuery('')
+                }}
+                className="cursor-pointer"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          {instruments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {instrumentSearchQuery
+                ? `No instruments match "${instrumentSearchQuery}".`
+                : 'No instruments in catalog yet. Run sync to import provider symbols.'}
+            </p>
+          ) : (
+            instruments.map((instrument) => (
+              <div
+                key={instrument.symbol}
+                className="flex items-center justify-between rounded-md border border-border/70 bg-background/60 px-3 py-2"
+              >
+                <div>
+                  <p className="font-mono text-sm">{instrument.symbol}</p>
+                  <p className="text-xs text-muted-foreground">{instrument.displayName}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={
+                      instrument.isActive
+                        ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                        : 'border-border/70 bg-background/40 text-muted-foreground'
+                    }
+                  >
+                    {instrument.isActive ? 'Active' : 'Inactive'}
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onToggleInstrument(instrument.symbol, !instrument.isActive)}
+                    disabled={togglingSymbol === instrument.symbol}
+                    className="cursor-pointer"
+                  >
+                    {instrument.isActive ? 'Deactivate' : 'Activate'}
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs text-muted-foreground">
+              Page {instrumentPage} · Showing {instruments.length} / {instrumentTotal}
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={maxInstrumentPage}
+                value={instrumentPageInput}
+                onChange={(e) => setInstrumentPageInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    void onGoToInstrumentPage()
+                  }
+                }}
+                className="h-8 w-16 rounded-md border border-border/70 bg-background px-2 text-xs"
+                aria-label="Instrument page number"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onGoToInstrumentPage}
+                className="cursor-pointer"
+              >
+                Go
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onPrevInstrumentsPage}
+                disabled={!hasPrevPage}
+                className="cursor-pointer"
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onNextInstrumentsPage}
+                disabled={!hasNextPage}
+                className="cursor-pointer"
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl lg:col-span-2">

@@ -302,6 +302,9 @@ JWT_EXPIRES_IN=7d
 PORT=3001
 NODE_ENV=development
 CORS_ORIGIN=http://localhost:3000
+INSTRUMENT_SYNC_PROVIDER=binance
+INSTRUMENT_SYNC_INTERVAL_MS=21600000
+BINANCE_METADATA_URL=https://api.binance.com
 ```
 
 ### Frontend `.env`

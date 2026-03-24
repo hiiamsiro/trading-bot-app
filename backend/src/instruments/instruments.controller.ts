@@ -1,4 +1,13 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -7,6 +16,8 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InstrumentsService } from './instruments.service';
+import { SetInstrumentActivationDto } from './dto/set-instrument-activation.dto';
+import { ListInstrumentsQueryDto } from './dto/list-instruments-query.dto';
 
 @ApiTags('instruments')
 @Controller('instruments')
@@ -24,9 +35,28 @@ export class InstrumentsController {
 
   @Get('admin/all')
   @ApiOperation({ summary: 'List all instruments for admin use' })
-  @ApiOkResponse({ description: 'Array of all instruments' })
-  async findAll() {
-    return this.instrumentsService.findAll();
+  @ApiOkResponse({ description: 'Paginated instrument catalog for admin use' })
+  async findAll(@Query() query: ListInstrumentsQueryDto) {
+    const take = query.take ?? 10;
+    const skip = query.skip ?? 0;
+    return this.instrumentsService.findAll(take, skip, query.search);
+  }
+
+  @Post('admin/sync')
+  @ApiOperation({ summary: 'Sync instruments from configured provider metadata API' })
+  @ApiOkResponse({ description: 'Sync result summary' })
+  async syncFromProvider() {
+    return this.instrumentsService.syncFromProvider();
+  }
+
+  @Patch('admin/:symbol/activation')
+  @ApiOperation({ summary: 'Activate or deactivate an instrument for trading' })
+  @ApiOkResponse({ description: 'Updated instrument' })
+  async setActivation(
+    @Param('symbol') symbol: string,
+    @Body() body: SetInstrumentActivationDto,
+  ) {
+    return this.instrumentsService.setActivationBySymbol(symbol, body.isActive);
   }
 
   @Get(':symbol')

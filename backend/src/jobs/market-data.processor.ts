@@ -26,11 +26,16 @@ export class MarketDataProcessor extends WorkerHost {
       where: { status: 'RUNNING' },
       select: { symbol: true },
     });
+    const activeInstruments = await this.prisma.instrument.findMany({
+      where: { isActive: true, status: 'ACTIVE' },
+      select: { symbol: true },
+    });
 
-    const symbols = new Set<string>([...fromEnv, ...running.map((b) => b.symbol)]);
-    if (symbols.size === 0) {
-      symbols.add('BTCUSD');
-    }
+    const symbols = new Set<string>([
+      ...fromEnv,
+      ...activeInstruments.map((i) => i.symbol),
+      ...running.map((b) => b.symbol),
+    ]);
 
     for (const symbol of symbols) {
       const tick = this.marketData.nextTick(symbol);

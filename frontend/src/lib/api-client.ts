@@ -5,6 +5,8 @@ import type {
   BotLogsResponse,
   CreateBotPayload,
   Instrument,
+  InstrumentCatalogResponse,
+  InstrumentSyncResult,
   Trade,
   UpdateBotPayload,
   User,
@@ -45,8 +47,23 @@ export async function fetchInstruments(token: string): Promise<Instrument[]> {
   return api.get<Instrument[]>('/instruments', token)
 }
 
-export async function fetchAllInstruments(token: string): Promise<Instrument[]> {
-  return api.get<Instrument[]>('/instruments/admin/all', token)
+export async function fetchAllInstruments(
+  token: string,
+  take = 10,
+  skip = 0,
+  search?: string,
+): Promise<InstrumentCatalogResponse> {
+  const queryParams = new URLSearchParams({
+    take: String(take),
+    skip: String(skip),
+  })
+  if (search?.trim()) {
+    queryParams.set('search', search.trim())
+  }
+  return api.get<InstrumentCatalogResponse>(
+    `/instruments/admin/all?${queryParams}`,
+    token,
+  )
 }
 
 export async function fetchInstrumentBySymbol(
@@ -54,6 +71,22 @@ export async function fetchInstrumentBySymbol(
   symbol: string,
 ): Promise<Instrument> {
   return api.get<Instrument>(`/instruments/${encodeURIComponent(symbol)}`, token)
+}
+
+export async function syncInstruments(token: string): Promise<InstrumentSyncResult> {
+  return api.post<InstrumentSyncResult>('/instruments/admin/sync', {}, token)
+}
+
+export async function setInstrumentActivation(
+  token: string,
+  symbol: string,
+  isActive: boolean,
+): Promise<Instrument> {
+  return api.patch<Instrument>(
+    `/instruments/admin/${encodeURIComponent(symbol)}/activation`,
+    { isActive },
+    token,
+  )
 }
 
 export async function createBot(
@@ -89,19 +122,19 @@ export async function fetchBotLogs(
   take = 50,
   skip = 0,
 ): Promise<BotLogsResponse> {
-  const q = new URLSearchParams({
+  const queryParams = new URLSearchParams({
     take: String(take),
     skip: String(skip),
   })
-  return api.get<BotLogsResponse>(`/bots/${botId}/logs?${q}`, token)
+  return api.get<BotLogsResponse>(`/bots/${botId}/logs?${queryParams}`, token)
 }
 
 export async function fetchTrades(
   token: string,
   botId?: string,
 ): Promise<Trade[]> {
-  const q = botId ? `?botId=${encodeURIComponent(botId)}` : ''
-  return api.get<Trade[]>(`/trades${q}`, token)
+  const queryString = botId ? `?botId=${encodeURIComponent(botId)}` : ''
+  return api.get<Trade[]>(`/trades${queryString}`, token)
 }
 
 export async function fetchTrade(token: string, id: string): Promise<Trade> {
