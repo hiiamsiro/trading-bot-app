@@ -39,27 +39,85 @@ export default function CreateBotPage() {
   const [longPeriod, setLongPeriod] = useState('20')
   const [rsiPeriod, setRsiPeriod] = useState('14')
   const [initialBalance, setInitialBalance] = useState('10000')
+  const [errors, setErrors] = useState<{
+    name?: string
+    symbol?: string
+    shortPeriod?: string
+    longPeriod?: string
+    rsiPeriod?: string
+    initialBalance?: string
+  }>({})
   const [submitting, setSubmitting] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!token) return
+    setErrors({})
+
+    const trimmedName = name.trim()
+    const normalizedSymbol = symbol.trim().toUpperCase()
+    const ib = Number(initialBalance)
+    const nextErrors: {
+      name?: string
+      symbol?: string
+      shortPeriod?: string
+      longPeriod?: string
+      rsiPeriod?: string
+      initialBalance?: string
+    } = {}
+
+    if (!trimmedName) {
+      nextErrors.name = 'Bot name is required.'
+    }
+    if (!/^[A-Z0-9]{3,15}$/.test(normalizedSymbol)) {
+      nextErrors.symbol =
+        'Symbol must be 3-15 uppercase letters or numbers (example: BTCUSD).'
+    }
+    if (!Number.isFinite(ib) || ib <= 0) {
+      nextErrors.initialBalance = 'Initial balance must be greater than 0.'
+    }
+
+    if (strategy === 'sma_crossover') {
+      const short = Number(shortPeriod)
+      const long = Number(longPeriod)
+      if (!Number.isInteger(short) || short < 1) {
+        nextErrors.shortPeriod =
+          'Short period must be an integer greater than or equal to 1.'
+      }
+      if (!Number.isInteger(long) || long < 2) {
+        nextErrors.longPeriod = 'Long period must be an integer greater than or equal to 2.'
+      }
+      if (Number.isInteger(short) && Number.isInteger(long) && short >= long) {
+        nextErrors.shortPeriod = 'Short period must be smaller than long period.'
+        nextErrors.longPeriod = 'Long period must be greater than short period.'
+      }
+    } else {
+      const period = Number(rsiPeriod)
+      if (!Number.isInteger(period) || period < 2) {
+        nextErrors.rsiPeriod = 'RSI period must be an integer greater than or equal to 2.'
+      }
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors)
+      return
+    }
+
     setSubmitting(true)
     try {
-      const ib = Number(initialBalance)
       const params: Record<string, unknown> = {
-        initialBalance: Number.isFinite(ib) && ib > 0 ? ib : 10000,
+        initialBalance: ib,
       }
       if (strategy === 'sma_crossover') {
-        params.shortPeriod = Number(shortPeriod) || 10
-        params.longPeriod = Number(longPeriod) || 20
+        params.shortPeriod = Number(shortPeriod)
+        params.longPeriod = Number(longPeriod)
       } else {
-        params.period = Number(rsiPeriod) || 14
+        params.period = Number(rsiPeriod)
       }
       const bot = await createBot(token, {
-        name: name.trim(),
+        name: trimmedName,
         description: description.trim() || undefined,
-        symbol: symbol.trim().toUpperCase(),
+        symbol: normalizedSymbol,
         strategyConfig: {
           strategy,
           params,
@@ -94,17 +152,17 @@ export default function CreateBotPage() {
           <CardTitle>Bot details</CardTitle>
           <CardDescription>Required fields are validated by the API.</CardDescription>
         </CardHeader>
-        <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit} noValidate>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
-                required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My BTC bot"
               />
+              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Description (optional)</Label>
@@ -112,17 +170,18 @@ export default function CreateBotPage() {
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                placeholder="Trend following bot for BTC (optional)"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="symbol">Symbol</Label>
               <Input
                 id="symbol"
-                required
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
                 placeholder="BTCUSD"
               />
+              {errors.symbol && <p className="text-sm text-destructive">{errors.symbol}</p>}
             </div>
             <div className="space-y-2">
               <Label>Strategy</Label>
@@ -149,7 +208,11 @@ export default function CreateBotPage() {
                     min={1}
                     value={shortPeriod}
                     onChange={(e) => setShortPeriod(e.target.value)}
+                    placeholder="10"
                   />
+                  {errors.shortPeriod && (
+                    <p className="text-sm text-destructive">{errors.shortPeriod}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="long">Long period</Label>
@@ -159,7 +222,11 @@ export default function CreateBotPage() {
                     min={2}
                     value={longPeriod}
                     onChange={(e) => setLongPeriod(e.target.value)}
+                    placeholder="20"
                   />
+                  {errors.longPeriod && (
+                    <p className="text-sm text-destructive">{errors.longPeriod}</p>
+                  )}
                 </div>
               </div>
             ) : (
@@ -171,7 +238,11 @@ export default function CreateBotPage() {
                   min={2}
                   value={rsiPeriod}
                   onChange={(e) => setRsiPeriod(e.target.value)}
+                  placeholder="14"
                 />
+                {errors.rsiPeriod && (
+                  <p className="text-sm text-destructive">{errors.rsiPeriod}</p>
+                )}
               </div>
             )}
             <div className="space-y-2">
@@ -183,7 +254,11 @@ export default function CreateBotPage() {
                 step="any"
                 value={initialBalance}
                 onChange={(e) => setInitialBalance(e.target.value)}
+                placeholder="10000"
               />
+              {errors.initialBalance && (
+                <p className="text-sm text-destructive">{errors.initialBalance}</p>
+              )}
             </div>
             <div className="flex gap-2 pt-2">
               <Button type="submit" disabled={submitting} className="cursor-pointer">

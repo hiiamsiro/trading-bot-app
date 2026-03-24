@@ -26,13 +26,34 @@ export function LoginForm() {
   const handleError = useHandleApiError()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
   const [submitting, setSubmitting] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setErrors({})
+    const trimmedEmail = email.trim()
+    const nextErrors: { email?: string; password?: string } = {}
+
+    if (!trimmedEmail) {
+      nextErrors.email = 'Email is required.'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      nextErrors.email = 'Please enter a valid email address.'
+    }
+    if (!password) {
+      nextErrors.password = 'Password is required.'
+    } else if (password.length < 6) {
+      nextErrors.password = 'Password must be at least 6 characters.'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors)
+      return
+    }
+
     setSubmitting(true)
     try {
-      const { user, token } = await loginRequest(email, password)
+      const { user, token } = await loginRequest(trimmedEmail, password)
       setAuth(user, token)
       const profile = await fetchMe(token)
       setAuth(profile, token)
@@ -55,7 +76,7 @@ export function LoginForm() {
           Use your email and password to access the dashboard.
         </CardDescription>
       </CardHeader>
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} noValidate>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -63,12 +84,12 @@ export function LoginForm() {
               id="email"
               type="email"
               autoComplete="email"
-              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="bg-background/70"
             />
+            {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -76,11 +97,12 @@ export function LoginForm() {
               id="password"
               type="password"
               autoComplete="current-password"
-              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
               className="bg-background/70"
             />
+            {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">

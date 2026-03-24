@@ -41,6 +41,7 @@ export default function EditBotPage() {
   const [description, setDescription] = useState('')
   const [symbol, setSymbol] = useState('')
   const [status, setStatus] = useState<BotStatus>(BotStatus.STOPPED)
+  const [errors, setErrors] = useState<{ name?: string; symbol?: string }>({})
   const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
@@ -71,12 +72,30 @@ export default function EditBotPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!token || !id) return
+    setErrors({})
+    const trimmedName = name.trim()
+    const normalizedSymbol = symbol.trim().toUpperCase()
+    const nextErrors: { name?: string; symbol?: string } = {}
+
+    if (!trimmedName) {
+      nextErrors.name = 'Bot name is required.'
+    }
+    if (!/^[A-Z0-9]{3,15}$/.test(normalizedSymbol)) {
+      nextErrors.symbol =
+        'Symbol must be 3-15 uppercase letters or numbers (example: BTCUSD).'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors)
+      return
+    }
+
     setSubmitting(true)
     try {
       await updateBot(token, id, {
-        name: name.trim(),
+        name: trimmedName,
         description: description.trim() || undefined,
-        symbol: symbol.trim().toUpperCase(),
+        symbol: normalizedSymbol,
         status,
       })
       router.replace(`/bots/${id}`)
@@ -126,16 +145,17 @@ export default function EditBotPage() {
           <CardTitle>Details</CardTitle>
           <CardDescription>Updates are sent to PUT /bots/:id</CardDescription>
         </CardHeader>
-        <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit} noValidate>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
-                required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                placeholder="Momentum BTC Bot"
               />
+              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
@@ -143,16 +163,18 @@ export default function EditBotPage() {
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                placeholder="Runs SMA crossover strategy on BTCUSD"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="symbol">Symbol</Label>
               <Input
                 id="symbol"
-                required
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
+                placeholder="BTCUSD"
               />
+              {errors.symbol && <p className="text-sm text-destructive">{errors.symbol}</p>}
             </div>
             <div className="space-y-2">
               <Label>Status</Label>

@@ -27,16 +27,38 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
   const [submitting, setSubmitting] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setErrors({})
+    const trimmedEmail = email.trim()
+    const trimmedName = name.trim()
+    const nextErrors: { email?: string; password?: string } = {}
+
+    if (!trimmedEmail) {
+      nextErrors.email = 'Email is required.'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      nextErrors.email = 'Please enter a valid email address.'
+    }
+    if (!password) {
+      nextErrors.password = 'Password is required.'
+    } else if (password.length < 6) {
+      nextErrors.password = 'Password must be at least 6 characters.'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors)
+      return
+    }
+
     setSubmitting(true)
     try {
       const { user, token } = await registerRequest(
-        email,
+        trimmedEmail,
         password,
-        name.trim() || undefined,
+        trimmedName || undefined,
       )
       setAuth(user, token)
       const profile = await fetchMe(token)
@@ -58,7 +80,7 @@ export default function RegisterPage() {
             Demo trading only - register to manage bots and view history.
           </CardDescription>
         </CardHeader>
-        <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit} noValidate>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name (optional)</Label>
@@ -78,12 +100,12 @@ export default function RegisterPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="bg-background/70"
               />
+              {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -91,13 +113,15 @@ export default function RegisterPage() {
                 id="password"
                 type="password"
                 autoComplete="new-password"
-                required
-                minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 6 characters"
                 className="bg-background/70"
               />
               <p className="text-xs text-muted-foreground">At least 6 characters.</p>
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password}</p>
+              )}
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
