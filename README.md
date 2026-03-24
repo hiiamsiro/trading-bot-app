@@ -347,6 +347,36 @@ docker compose logs -f postgres
 docker compose up -d --build
 ```
 
+### Update Existing Machine (Source Was Old)
+
+Use this flow when your machine already has Docker services/data, but local source code is behind (for example: new Prisma migrations were added on another machine).
+
+```bash
+# 1) Stop currently running services (keep local volumes/data)
+docker compose down
+
+# 2) Pull latest source
+git pull
+
+# 3) Rebuild and start services with updated source
+docker compose up -d --build
+
+# 4) Apply DB migrations and seed data
+docker compose exec backend npx prisma migrate deploy
+docker compose exec backend npx prisma db seed
+```
+
+If migration fails because local DB state is out of sync with migration history, reset local volumes and bootstrap again:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+docker compose exec backend npx prisma migrate deploy
+docker compose exec backend npx prisma db seed
+```
+
+`docker compose down -v` removes local PostgreSQL/Redis data. Use it only when you accept local data reset.
+
 ### Access a container shell
 
 ```bash

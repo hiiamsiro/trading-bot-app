@@ -5,9 +5,9 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { ApiError } from '@/lib/api'
-import { Bot, BotStatus } from '@/types'
+import { Bot, BotStatus, Instrument } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
-import { fetchBot, updateBot } from '@/lib/api-client'
+import { fetchBot, fetchInstruments, updateBot } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,6 +40,8 @@ export default function EditBotPage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [symbol, setSymbol] = useState('')
+  const [instruments, setInstruments] = useState<Instrument[]>([])
+  const [loadingInstruments, setLoadingInstruments] = useState(true)
   const [status, setStatus] = useState<BotStatus>(BotStatus.STOPPED)
   const [errors, setErrors] = useState<{ name?: string; symbol?: string }>({})
   const [submitting, setSubmitting] = useState(false)
@@ -48,11 +50,17 @@ export default function EditBotPage() {
     if (!token || !id) return
     setLoading(true)
     setNotFound(false)
+    setLoadingInstruments(true)
     try {
-      const b = await fetchBot(token, id)
+      const [b, instrumentRows] = await Promise.all([
+        fetchBot(token, id),
+        fetchInstruments(token),
+      ])
+      setInstruments(instrumentRows)
       setName(b.name)
       setDescription(b.description ?? '')
-      setSymbol(b.symbol)
+      const hasCurrentSymbol = instrumentRows.some((item) => item.symbol === b.symbol)
+      setSymbol(hasCurrentSymbol ? b.symbol : instrumentRows[0]?.symbol ?? '')
       setStatus(b.status)
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
@@ -62,6 +70,7 @@ export default function EditBotPage() {
       }
     } finally {
       setLoading(false)
+      setLoadingInstruments(false)
     }
   }, [token, id, handleError])
 
@@ -74,15 +83,13 @@ export default function EditBotPage() {
     if (!token || !id) return
     setErrors({})
     const trimmedName = name.trim()
-    const normalizedSymbol = symbol.trim().toUpperCase()
     const nextErrors: { name?: string; symbol?: string } = {}
 
     if (!trimmedName) {
       nextErrors.name = 'Bot name is required.'
     }
-    if (!/^[A-Z0-9]{3,15}$/.test(normalizedSymbol)) {
-      nextErrors.symbol =
-        'Symbol must be 3-15 uppercase letters or numbers (example: BTCUSD).'
+    if (!symbol) {
+      nextErrors.symbol = 'Please select an instrument.'
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -95,7 +102,7 @@ export default function EditBotPage() {
       await updateBot(token, id, {
         name: trimmedName,
         description: description.trim() || undefined,
-        symbol: normalizedSymbol,
+        symbol,
         status,
       })
       router.replace(`/bots/${id}`)
@@ -167,13 +174,21 @@ export default function EditBotPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="symbol">Symbol</Label>
-              <Input
-                id="symbol"
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                placeholder="BTCUSD"
-              />
+              <Label>Instrument</Label>
+              <Select value={symbol} onValueChange={setSymbol} disabled={loadingInstruments}>
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue
+                    placeholder={loadingInstruments ? 'Loading instruments...' : 'Select instrument'}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {instruments.map((instrument) => (
+                    <SelectItem key={instrument.symbol} value={instrument.symbol}>
+                      {instrument.symbol} - {instrument.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {errors.symbol && <p className="text-sm text-destructive">{errors.symbol}</p>}
             </div>
             <div className="space-y-2">
@@ -195,7 +210,11 @@ export default function EditBotPage() {
               </Select>
             </div>
             <div className="flex gap-2 pt-2">
-              <Button type="submit" disabled={submitting} className="cursor-pointer">
+              <Button
+                type="submit"
+                disabled={submitting || loadingInstruments || instruments.length === 0}
+                className="cursor-pointer"
+              >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save
               </Button>

@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
-import { createBot } from '@/lib/api-client'
+import { createBot, fetchInstruments } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Instrument } from '@/types'
 
 type StrategyKey = 'sma_crossover' | 'rsi'
 
@@ -33,7 +34,9 @@ export default function CreateBotPage() {
   const handleError = useHandleApiError()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [symbol, setSymbol] = useState('BTCUSD')
+  const [symbol, setSymbol] = useState('')
+  const [instruments, setInstruments] = useState<Instrument[]>([])
+  const [loadingInstruments, setLoadingInstruments] = useState(true)
   const [strategy, setStrategy] = useState<StrategyKey>('sma_crossover')
   const [shortPeriod, setShortPeriod] = useState('10')
   const [longPeriod, setLongPeriod] = useState('20')
@@ -49,13 +52,32 @@ export default function CreateBotPage() {
   }>({})
   const [submitting, setSubmitting] = useState(false)
 
+  useEffect(() => {
+    async function loadInstruments() {
+      if (!token) return
+      setLoadingInstruments(true)
+      try {
+        const items = await fetchInstruments(token)
+        setInstruments(items)
+        if (items.length > 0) {
+          setSymbol(items[0].symbol)
+        }
+      } catch (err) {
+        handleError(err, 'Could not load instruments')
+      } finally {
+        setLoadingInstruments(false)
+      }
+    }
+
+    loadInstruments()
+  }, [token, handleError])
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!token) return
     setErrors({})
 
     const trimmedName = name.trim()
-    const normalizedSymbol = symbol.trim().toUpperCase()
     const ib = Number(initialBalance)
     const nextErrors: {
       name?: string
@@ -69,9 +91,8 @@ export default function CreateBotPage() {
     if (!trimmedName) {
       nextErrors.name = 'Bot name is required.'
     }
-    if (!/^[A-Z0-9]{3,15}$/.test(normalizedSymbol)) {
-      nextErrors.symbol =
-        'Symbol must be 3-15 uppercase letters or numbers (example: BTCUSD).'
+    if (!symbol) {
+      nextErrors.symbol = 'Please select an instrument.'
     }
     if (!Number.isFinite(ib) || ib <= 0) {
       nextErrors.initialBalance = 'Initial balance must be greater than 0.'
@@ -117,7 +138,7 @@ export default function CreateBotPage() {
       const bot = await createBot(token, {
         name: trimmedName,
         description: description.trim() || undefined,
-        symbol: normalizedSymbol,
+        symbol,
         strategyConfig: {
           strategy,
           params,
@@ -174,13 +195,21 @@ export default function CreateBotPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="symbol">Symbol</Label>
-              <Input
-                id="symbol"
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                placeholder="BTCUSD"
-              />
+              <Label>Instrument</Label>
+              <Select value={symbol} onValueChange={setSymbol} disabled={loadingInstruments}>
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue
+                    placeholder={loadingInstruments ? 'Loading instruments...' : 'Select instrument'}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {instruments.map((instrument) => (
+                    <SelectItem key={instrument.symbol} value={instrument.symbol}>
+                      {instrument.symbol} - {instrument.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {errors.symbol && <p className="text-sm text-destructive">{errors.symbol}</p>}
             </div>
             <div className="space-y-2">
@@ -261,7 +290,11 @@ export default function CreateBotPage() {
               )}
             </div>
             <div className="flex gap-2 pt-2">
-              <Button type="submit" disabled={submitting} className="cursor-pointer">
+              <Button
+                type="submit"
+                disabled={submitting || loadingInstruments || instruments.length === 0}
+                className="cursor-pointer"
+              >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create
               </Button>

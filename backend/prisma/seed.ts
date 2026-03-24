@@ -4,6 +4,9 @@ import {
   TradeSide,
   TradeStatus,
   BotStatus,
+  InstrumentAssetClass,
+  InstrumentMarketType,
+  InstrumentStatus,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -20,8 +23,71 @@ async function upsertUser(email: string, name: string) {
   });
 }
 
+async function upsertInstrumentCatalog() {
+  const instruments = [
+    {
+      symbol: 'BTCUSD',
+      displayName: 'Bitcoin / US Dollar',
+      assetClass: InstrumentAssetClass.CRYPTO,
+      marketType: InstrumentMarketType.SPOT,
+      baseAsset: 'BTC',
+      quoteCurrency: 'USD',
+      exchange: 'BINANCE',
+      dataSource: 'BINANCE_WS',
+      sourceSymbol: 'btcusdt',
+      supportedIntervals: ['1m', '5m', '15m', '1h', '4h', '1d'],
+      pricePrecision: 2,
+      quantityPrecision: 6,
+      status: InstrumentStatus.ACTIVE,
+      isActive: true,
+    },
+    {
+      symbol: 'ETHUSD',
+      displayName: 'Ethereum / US Dollar',
+      assetClass: InstrumentAssetClass.CRYPTO,
+      marketType: InstrumentMarketType.SPOT,
+      baseAsset: 'ETH',
+      quoteCurrency: 'USD',
+      exchange: 'BINANCE',
+      dataSource: 'BINANCE_WS',
+      sourceSymbol: 'ethusdt',
+      supportedIntervals: ['1m', '5m', '15m', '1h', '4h', '1d'],
+      pricePrecision: 2,
+      quantityPrecision: 6,
+      status: InstrumentStatus.ACTIVE,
+      isActive: true,
+    },
+    {
+      symbol: 'XAUUSD',
+      displayName: 'Gold / US Dollar',
+      assetClass: InstrumentAssetClass.COMMODITY,
+      marketType: InstrumentMarketType.CFD,
+      baseAsset: 'XAU',
+      quoteCurrency: 'USD',
+      exchange: 'OANDA',
+      dataSource: 'TWELVE_DATA',
+      sourceSymbol: 'XAU/USD',
+      supportedIntervals: ['1m', '5m', '15m', '1h', '4h', '1d'],
+      pricePrecision: 2,
+      quantityPrecision: 3,
+      status: InstrumentStatus.ACTIVE,
+      isActive: true,
+    },
+  ];
+
+  for (const instrument of instruments) {
+    await prisma.instrument.upsert({
+      where: { symbol: instrument.symbol },
+      update: instrument,
+      create: instrument,
+    });
+  }
+}
+
 async function main() {
   console.log('Seeding database...');
+
+  await upsertInstrumentCatalog();
 
   const demo = await upsertUser('demo@example.com', 'Demo User');
   const demo2 = await upsertUser('demo2@example.com', 'Demo User Two');

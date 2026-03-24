@@ -4,6 +4,7 @@ import type {
   Bot,
   BotLogsResponse,
   CreateBotPayload,
+  Instrument,
   Trade,
   UpdateBotPayload,
   User,
@@ -38,6 +39,21 @@ export async function fetchBots(token: string): Promise<Bot[]> {
 
 export async function fetchBot(token: string, id: string): Promise<Bot> {
   return api.get<Bot>(`/bots/${id}`, token)
+}
+
+export async function fetchInstruments(token: string): Promise<Instrument[]> {
+  return api.get<Instrument[]>('/instruments', token)
+}
+
+export async function fetchAllInstruments(token: string): Promise<Instrument[]> {
+  return api.get<Instrument[]>('/instruments/admin/all', token)
+}
+
+export async function fetchInstrumentBySymbol(
+  token: string,
+  symbol: string,
+): Promise<Instrument> {
+  return api.get<Instrument>(`/instruments/${encodeURIComponent(symbol)}`, token)
 }
 
 export async function createBot(

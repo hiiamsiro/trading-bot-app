@@ -8,6 +8,7 @@ import { LogLevel, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from '../market-data/market-data.service';
 import { MarketDataGateway } from '../market-data/market-data.gateway';
+import { InstrumentsService } from '../instruments/instruments.service';
 import { CreateBotDto } from './dto/create-bot.dto';
 import { UpdateBotDto } from './dto/update-bot.dto';
 
@@ -17,6 +18,7 @@ export class BotsService {
     private readonly prisma: PrismaService,
     private readonly marketData: MarketDataService,
     private readonly marketGateway: MarketDataGateway,
+    private readonly instrumentsService: InstrumentsService,
   ) {}
 
   async findAll(userId: string) {
@@ -51,11 +53,14 @@ export class BotsService {
   }
 
   async create(createBotDto: CreateBotDto, userId: string) {
+    const normalizedSymbol = createBotDto.symbol.trim().toUpperCase();
+    await this.instrumentsService.assertActiveBySymbol(normalizedSymbol);
+
     return this.prisma.bot.create({
       data: {
         name: createBotDto.name,
         description: createBotDto.description,
-        symbol: createBotDto.symbol,
+        symbol: normalizedSymbol,
         userId,
         strategyConfig: createBotDto.strategyConfig
           ? {
@@ -74,13 +79,18 @@ export class BotsService {
 
   async update(id: string, updateBotDto: UpdateBotDto, userId: string) {
     const existing = await this.findOne(id, userId);
+    const normalizedSymbol = updateBotDto.symbol?.trim().toUpperCase();
+
+    if (normalizedSymbol) {
+      await this.instrumentsService.assertActiveBySymbol(normalizedSymbol);
+    }
 
     const updated = await this.prisma.bot.update({
       where: { id },
       data: {
         name: updateBotDto.name,
         description: updateBotDto.description,
-        symbol: updateBotDto.symbol,
+        symbol: normalizedSymbol,
         status: updateBotDto.status,
       },
       include: {

@@ -39,11 +39,51 @@ model Bot {
   @@map("bots")
 }
 
+model Instrument {
+  id                String           @id @default(uuid())
+  symbol            String           @unique
+  displayName       String
+  assetClass        InstrumentAssetClass
+  marketType        InstrumentMarketType
+  baseAsset         String?
+  quoteCurrency     String
+  exchange          String
+  dataSource        String
+  sourceSymbol      String?
+  supportedIntervals Json
+  pricePrecision    Int
+  quantityPrecision Int
+  status            InstrumentStatus @default(ACTIVE)
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([isActive])
+  @@index([assetClass, marketType])
+  @@map("instruments")
+}
+
 enum BotStatus {
   RUNNING
   STOPPED
   PAUSED
   ERROR
+}
+
+enum InstrumentAssetClass {
+  CRYPTO
+  COMMODITY
+}
+
+enum InstrumentMarketType {
+  SPOT
+  CFD
+}
+
+enum InstrumentStatus {
+  ACTIVE
+  MAINTENANCE
+  DISABLED
 }
 
 model StrategyConfig {

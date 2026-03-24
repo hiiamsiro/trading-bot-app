@@ -47,6 +47,42 @@ export interface Bot {
   executionSession?: ExecutionSession | null
 }
 
+export enum InstrumentAssetClass {
+  CRYPTO = 'CRYPTO',
+  COMMODITY = 'COMMODITY',
+}
+
+export enum InstrumentMarketType {
+  SPOT = 'SPOT',
+  CFD = 'CFD',
+}
+
+export enum InstrumentStatus {
+  ACTIVE = 'ACTIVE',
+  MAINTENANCE = 'MAINTENANCE',
+  DISABLED = 'DISABLED',
+}
+
+export interface Instrument {
+  id: string
+  symbol: string
+  displayName: string
+  assetClass: InstrumentAssetClass
+  marketType: InstrumentMarketType
+  baseAsset?: string | null
+  quoteCurrency: string
+  exchange: string
+  dataSource: string
+  sourceSymbol?: string | null
+  supportedIntervals: string[]
+  pricePrecision: number
+  quantityPrecision: number
+  status: InstrumentStatus
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface BotLog {
   id: string
   botId: string

@@ -8,6 +8,7 @@ import { BotsModule } from './bots/bots.module';
 import { TradesModule } from './trades/trades.module';
 import { MarketDataModule } from './market-data/market-data.module';
 import { JobsModule } from './jobs/jobs.module';
+import { InstrumentsModule } from './instruments/instruments.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { JobsModule } from './jobs/jobs.module';
     BotsModule,
     TradesModule,
     MarketDataModule,
+    InstrumentsModule,
     JobsModule,
   ],
 })
