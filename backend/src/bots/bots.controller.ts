@@ -1,9 +1,31 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ParseUUIDPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiNotFoundResponse,
+  ApiForbiddenResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { BotsService } from './bots.service';
 import { CreateBotDto } from './dto/create-bot.dto';
 import { UpdateBotDto } from './dto/update-bot.dto';
+import { ListBotLogsQueryDto } from './dto/list-bot-logs-query.dto';
+
+type AuthUserPayload = { userId: string; email: string };
 
 @ApiTags('bots')
 @Controller('bots')
@@ -13,36 +35,70 @@ export class BotsController {
   constructor(private readonly botsService: BotsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all bots for current user' })
-  async findAll(@Request() req) {
-    return this.botsService.findAll(req.user.userId);
+  @ApiOperation({ summary: 'List bots for the current user' })
+  @ApiOkResponse({ description: 'Array of bots owned by the user' })
+  async findAll(@CurrentUser() user: AuthUserPayload) {
+    return this.botsService.findAll(user.userId);
+  }
+
+  @Get(':id/logs')
+  @ApiOperation({ summary: 'List logs for a bot (newest first)' })
+  @ApiOkResponse({
+    description: 'Paginated bot log entries',
+  })
+  @ApiNotFoundResponse({ description: 'Bot not found' })
+  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
+  async findLogs(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: ListBotLogsQueryDto,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    const take = query.take ?? 50;
+    const skip = query.skip ?? 0;
+    return this.botsService.findLogs(id, user.userId, take, skip);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get bot by ID' })
-  async findOne(@Param('id') id: string, @Request() req) {
-    return this.botsService.findOne(id, req.user.userId);
+  @ApiNotFoundResponse({ description: 'Bot not found' })
+  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.botsService.findOne(id, user.userId);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create a new bot' })
-  async create(@Body() createBotDto: CreateBotDto, @Request() req) {
-    return this.botsService.create(createBotDto, req.user.userId);
+  @ApiOkResponse({ description: 'Created bot' })
+  async create(
+    @Body() createBotDto: CreateBotDto,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.botsService.create(createBotDto, user.userId);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update bot' })
+  @ApiNotFoundResponse({ description: 'Bot not found' })
+  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateBotDto: UpdateBotDto,
-    @Request() req,
+    @CurrentUser() user: AuthUserPayload,
   ) {
-    return this.botsService.update(id, updateBotDto, req.user.userId);
+    return this.botsService.update(id, updateBotDto, user.userId);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete bot' })
-  async remove(@Param('id') id: string, @Request() req) {
-    return this.botsService.remove(id, req.user.userId);
+  @ApiNotFoundResponse({ description: 'Bot not found' })
+  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.botsService.remove(id, user.userId);
   }
 }

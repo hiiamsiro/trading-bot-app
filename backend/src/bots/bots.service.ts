@@ -84,4 +84,30 @@ export class BotsService {
       where: { id },
     });
   }
+
+  async findLogs(
+    botId: string,
+    userId: string,
+    take: number,
+    skip: number,
+  ) {
+    await this.findOne(botId, userId);
+
+    const [items, total] = await Promise.all([
+      this.prisma.botLog.findMany({
+        where: { botId },
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
+      }),
+      this.prisma.botLog.count({ where: { botId } }),
+    ]);
+
+    return {
+      items,
+      total,
+      take,
+      skip,
+    };
+  }
 }

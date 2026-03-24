@@ -1,24 +1,29 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsEnum, MaxLength, MinLength } from 'class-validator';
 import { BotStatus } from '@prisma/client';
 
 export class UpdateBotDto {
-  @ApiProperty({ example: 'My Trading Bot', required: false })
+  @ApiPropertyOptional({ example: 'My Trading Bot' })
   @IsString()
   @IsOptional()
+  @MinLength(1)
+  @MaxLength(200)
   name?: string;
 
-  @ApiProperty({ example: 'Updated description', required: false })
+  @ApiPropertyOptional({ example: 'Updated description' })
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   description?: string;
 
-  @ApiProperty({ example: 'BTCUSD', required: false })
+  @ApiPropertyOptional({ example: 'BTCUSD' })
   @IsString()
   @IsOptional()
+  @MinLength(1)
+  @MaxLength(64)
   symbol?: string;
 
-  @ApiProperty({ enum: BotStatus, required: false })
+  @ApiPropertyOptional({ enum: BotStatus })
   @IsEnum(BotStatus)
   @IsOptional()
   status?: BotStatus;

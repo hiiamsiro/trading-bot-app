@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -6,15 +7,10 @@ export class TradesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(userId: string, botId?: string) {
-    const where: any = {
-      bot: {
-        userId,
-      },
+    const where: Prisma.TradeWhereInput = {
+      bot: { userId },
+      ...(botId ? { botId } : {}),
     };
-
-    if (botId) {
-      where.botId = botId;
-    }
 
     return this.prisma.trade.findMany({
       where,
