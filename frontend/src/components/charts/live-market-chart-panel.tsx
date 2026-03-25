@@ -23,27 +23,38 @@ type LiveMarketChartPanelProps = {
   instrumentSymbols: string[]
   /** Selected / default symbol (e.g. bot.symbol). */
   activeSymbol: string
+  /** Default timeframe (e.g. bot strategy interval). */
+  defaultInterval?: MarketKlineInterval
   title?: string
   chartHeight?: number
   className?: string
   showInstrumentSelect?: boolean
+  showIntervalSelect?: boolean
 }
 
 export function LiveMarketChartPanel({
   token,
   instrumentSymbols,
   activeSymbol,
+  defaultInterval,
   title = 'Market chart',
   chartHeight = 380,
   className,
   showInstrumentSelect = true,
+  showIntervalSelect = true,
 }: LiveMarketChartPanelProps) {
   const [symbol, setSymbol] = useState(activeSymbol)
-  const [interval, setInterval] = useState<MarketKlineInterval>('1m')
+  const [interval, setInterval] = useState<MarketKlineInterval>(defaultInterval ?? '1m')
 
   useEffect(() => {
     setSymbol(activeSymbol)
   }, [activeSymbol])
+
+  useEffect(() => {
+    if (defaultInterval) {
+      setInterval(defaultInterval)
+    }
+  }, [defaultInterval])
 
   const { bars, loading, error } = useMarketKlines(token, symbol, interval)
 
@@ -73,27 +84,44 @@ export function LiveMarketChartPanel({
                 </SelectContent>
               </Select>
             </div>
-          ) : null}
-          <div className="space-y-1.5">
-            <Label htmlFor="chart-interval" className="text-xs text-muted-foreground">
-              Timeframe
-            </Label>
-            <Select
-              value={interval}
-              onValueChange={(v) => setInterval(v as MarketKlineInterval)}
-            >
-              <SelectTrigger id="chart-interval" className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MARKET_KLINE_INTERVALS.map((iv) => (
-                  <SelectItem key={iv} value={iv}>
-                    {iv}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Instrument</Label>
+              <div className="flex h-10 w-[200px] items-center rounded-md border border-border/70 bg-background px-3 font-mono text-sm">
+                {symbol}
+              </div>
+            </div>
+          )}
+
+          {showIntervalSelect ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="chart-interval" className="text-xs text-muted-foreground">
+                Timeframe
+              </Label>
+              <Select
+                value={interval}
+                onValueChange={(v) => setInterval(v as MarketKlineInterval)}
+              >
+                <SelectTrigger id="chart-interval" className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MARKET_KLINE_INTERVALS.map((iv) => (
+                    <SelectItem key={iv} value={iv}>
+                      {iv}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Timeframe</Label>
+              <div className="flex h-10 w-[120px] items-center justify-center rounded-md border border-border/70 bg-background px-3 font-mono text-sm">
+                {interval}
+              </div>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
