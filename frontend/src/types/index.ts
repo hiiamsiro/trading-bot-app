@@ -165,3 +165,24 @@ export interface UpdateBotPayload {
   symbol?: string
   status?: BotStatus
 }
+
+export type MarketKlineInterval = '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
+
+export const MARKET_KLINE_INTERVALS: MarketKlineInterval[] = [
+  '1m',
+  '5m',
+  '15m',
+  '1h',
+  '4h',
+  '1d',
+]
+
+export interface MarketKline {
+  openTime: number
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+  closeTime: number
+}

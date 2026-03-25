@@ -1,15 +1,16 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Loader2, Play, Square, Trash2, Pencil, ShieldCheck } from 'lucide-react'
 import { ApiError } from '@/lib/api'
-import { Bot, BotStatus } from '@/types'
+import { Bot, BotStatus, Instrument } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
 import {
   deleteBot,
   fetchBot,
+  fetchInstruments,
   startBot,
   stopBot,
 } from '@/lib/api-client'
@@ -21,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { BotStatusBadge } from '@/components/bot-status-badge'
 import { toast } from '@/hooks/use-toast'
+import { LiveMarketChartPanel } from '@/components/charts/live-market-chart-panel'
 
 export default function BotDetailPage() {
   const params = useParams()
@@ -33,6 +35,7 @@ export default function BotDetailPage() {
   const [bot, setBot] = useState<Bot | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [instruments, setInstruments] = useState<Instrument[]>([])
 
   const load = useCallback(async () => {
     if (!token || !id) return
@@ -57,11 +60,35 @@ export default function BotDetailPage() {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (!token) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const list = await fetchInstruments(token)
+        if (!cancelled) setInstruments(list)
+      } catch {
+        if (!cancelled) setInstruments([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
   useTradingSocket({
     userId: user?.id,
     botId: id || undefined,
     onRefresh: load,
   })
+
+  const chartInstrumentSymbols = useMemo(() => {
+    const s = new Set(instruments.map((i) => i.symbol))
+    if (bot) {
+      s.add(bot.symbol)
+    }
+    return Array.from(s)
+  }, [instruments, bot])
 
   async function onStart() {
     if (!token || !id) return
@@ -141,10 +168,10 @@ export default function BotDetailPage() {
             <Link href="/bots">← Bots</Link>
           </Button>
           <h1 className="text-3xl font-semibold tracking-tight">{bot.name}</h1>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
             <BotStatusBadge status={bot.status} />
             <span className="font-mono">{bot.symbol}</span>
-          </p>
+          </div>
           <p className="mt-2 inline-flex items-center gap-1 text-xs text-amber-300">
             <ShieldCheck className="h-3.5 w-3.5" />
             Controlled execution and full session visibility
@@ -203,6 +230,13 @@ export default function BotDetailPage() {
       {bot.description && (
         <p className="text-sm text-muted-foreground">{bot.description}</p>
       )}
+
+      <LiveMarketChartPanel
+        token={token ?? undefined}
+        instrumentSymbols={chartInstrumentSymbols}
+        activeSymbol={bot.symbol}
+        title="Price action"
+      />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">

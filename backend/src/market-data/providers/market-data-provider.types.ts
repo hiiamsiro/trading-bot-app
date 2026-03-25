@@ -1,5 +1,14 @@
 export type MarketKlineInterval = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
 
+export const MARKET_KLINE_INTERVAL_VALUES: MarketKlineInterval[] = [
+  '1m',
+  '5m',
+  '15m',
+  '1h',
+  '4h',
+  '1d',
+];
+
 export type MarketDataAdapterSnapshot = {
   symbol: string;
   price: number;

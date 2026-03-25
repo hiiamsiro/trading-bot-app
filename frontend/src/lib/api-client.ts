@@ -7,6 +7,8 @@ import type {
   Instrument,
   InstrumentCatalogResponse,
   InstrumentSyncResult,
+  MarketKline,
+  MarketKlineInterval,
   Trade,
   UpdateBotPayload,
   User,
@@ -139,4 +141,18 @@ export async function fetchTrades(
 
 export async function fetchTrade(token: string, id: string): Promise<Trade> {
   return api.get<Trade>(`/trades/${id}`, token)
+}
+
+export async function fetchMarketKlines(
+  token: string,
+  symbol: string,
+  interval: MarketKlineInterval,
+  limit = 250,
+): Promise<MarketKline[]> {
+  const params = new URLSearchParams({
+    symbol: symbol.trim(),
+    interval,
+    limit: String(limit),
+  })
+  return api.get<MarketKline[]>(`/market-data/klines?${params}`, token)
 }

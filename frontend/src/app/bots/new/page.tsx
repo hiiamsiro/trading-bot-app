@@ -42,6 +42,7 @@ export default function CreateBotPage() {
   const [longPeriod, setLongPeriod] = useState('20')
   const [rsiPeriod, setRsiPeriod] = useState('14')
   const [initialBalance, setInitialBalance] = useState('10000')
+  const [orderQuantity, setOrderQuantity] = useState('0.01')
   const [errors, setErrors] = useState<{
     name?: string
     symbol?: string
@@ -49,6 +50,7 @@ export default function CreateBotPage() {
     longPeriod?: string
     rsiPeriod?: string
     initialBalance?: string
+    orderQuantity?: string
   }>({})
   const [submitting, setSubmitting] = useState(false)
 
@@ -79,6 +81,7 @@ export default function CreateBotPage() {
 
     const trimmedName = name.trim()
     const ib = Number(initialBalance)
+    const qty = Number(orderQuantity)
     const nextErrors: {
       name?: string
       symbol?: string
@@ -86,6 +89,7 @@ export default function CreateBotPage() {
       longPeriod?: string
       rsiPeriod?: string
       initialBalance?: string
+      orderQuantity?: string
     } = {}
 
     if (!trimmedName) {
@@ -96,6 +100,9 @@ export default function CreateBotPage() {
     }
     if (!Number.isFinite(ib) || ib <= 0) {
       nextErrors.initialBalance = 'Initial balance must be greater than 0.'
+    }
+    if (!Number.isFinite(qty) || qty <= 0) {
+      nextErrors.orderQuantity = 'Order quantity must be a number greater than 0.'
     }
 
     if (strategy === 'sma_crossover') {
@@ -287,6 +294,21 @@ export default function CreateBotPage() {
               />
               {errors.initialBalance && (
                 <p className="text-sm text-destructive">{errors.initialBalance}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="qty">Order quantity (base asset, demo)</Label>
+              <Input
+                id="qty"
+                type="number"
+                min={0.00000001}
+                step="any"
+                value={orderQuantity}
+                onChange={(e) => setOrderQuantity(e.target.value)}
+                placeholder="0.01"
+              />
+              {errors.orderQuantity && (
+                <p className="text-sm text-destructive">{errors.orderQuantity}</p>
               )}
             </div>
             <div className="flex gap-2 pt-2">

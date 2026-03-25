@@ -12,7 +12,9 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+# Bind-mount overwrites /app but anonymous volume keeps /app/node_modules from the image.
+# Run npm install on start so new dependencies (e.g. from an updated package.json on the host) are present.
+CMD ["sh", "-c", "npm install && exec npm run dev"]
 
 FROM base AS build
 

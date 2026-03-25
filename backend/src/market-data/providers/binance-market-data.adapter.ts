@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import WebSocket from 'ws';
+// `ws` is CJS (`module.exports = WebSocket`); default ESM import compiles to `.default` and breaks at runtime.
+import WebSocket = require('ws');
 import {
   MarketDataAdapter,
   MarketDataAdapterSnapshot,

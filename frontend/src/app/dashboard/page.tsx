@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Bot, Trade, BotStatus, Instrument } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
 import {
   fetchAllInstruments,
   fetchBots,
+  fetchInstruments,
   fetchTrades,
   setInstrumentActivation,
   syncInstruments,
@@ -27,6 +28,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { LiveMarketChartPanel } from '@/components/charts/live-market-chart-panel'
 
 export default function DashboardPage() {
   const token = useAuthStore((s) => s.token)
@@ -44,6 +46,7 @@ export default function DashboardPage() {
   const [instrumentSearchQuery, setInstrumentSearchQuery] = useState('')
   const [syncingInstruments, setSyncingInstruments] = useState(false)
   const [togglingSymbol, setTogglingSymbol] = useState<string | null>(null)
+  const [overviewInstruments, setOverviewInstruments] = useState<Instrument[]>([])
   const INSTRUMENT_PAGE_SIZE = 10
 
   const reloadOverview = useCallback(() => {
@@ -138,6 +141,21 @@ export default function DashboardPage() {
       hour: '2-digit',
       minute: '2-digit',
     })
+
+  const chartInstrumentSymbols = useMemo(() => {
+    const s = new Set<string>()
+    overviewInstruments.forEach((i) => s.add(i.symbol))
+    bots.forEach((b) => s.add(b.symbol))
+    return Array.from(s)
+  }, [overviewInstruments, bots])
+
+  const chartDefaultSymbol = useMemo(() => {
+    const running = bots.find((b) => b.status === BotStatus.RUNNING)?.symbol
+    if (running) return running
+    if (overviewInstruments[0]?.symbol) return overviewInstruments[0].symbol
+    if (bots[0]?.symbol) return bots[0].symbol
+    return ''
+  }, [bots, overviewInstruments])
 
   async function onSyncInstruments() {
     if (!token) return
@@ -287,6 +305,16 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {chartDefaultSymbol ? (
+        <LiveMarketChartPanel
+          token={token ?? undefined}
+          instrumentSymbols={chartInstrumentSymbols}
+          activeSymbol={chartDefaultSymbol}
+          title="Market overview"
+          chartHeight={320}
+        />
+      ) : null}
 
       <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
         <CardHeader className="flex flex-row items-center justify-between">

@@ -64,7 +64,7 @@ export class StrategyService {
     if (normalizedStrategy === 'ma_crossover' || normalizedStrategy === 'sma_crossover') {
       const shortPeriod = Number(safeParams.shortPeriod);
       const longPeriod = Number(safeParams.longPeriod);
-      const quantity = Number(safeParams.quantity);
+      const quantity = this.resolveOrderQuantity(safeParams.quantity);
       const stopLossPercent = this.optionalPositiveNumber(safeParams.stopLossPercent, 'stopLossPercent');
       const takeProfitPercent = this.optionalPositiveNumber(
         safeParams.takeProfitPercent,
@@ -109,7 +109,7 @@ export class StrategyService {
       const period = Number(safeParams.period);
       const oversold = safeParams.oversold != null ? Number(safeParams.oversold) : 30;
       const overbought = safeParams.overbought != null ? Number(safeParams.overbought) : 70;
-      const quantity = Number(safeParams.quantity);
+      const quantity = this.resolveOrderQuantity(safeParams.quantity);
       const stopLossPercent = this.optionalPositiveNumber(safeParams.stopLossPercent, 'stopLossPercent');
       const takeProfitPercent = this.optionalPositiveNumber(
         safeParams.takeProfitPercent,
@@ -194,6 +194,18 @@ export class StrategyService {
 
   private normalizeStrategyKey(strategyKey: string): string {
     return strategyKey.toLowerCase().replace(/-/g, '_');
+  }
+
+  /** Demo order size per signal when the client omits quantity (e.g. create-bot form). */
+  private resolveOrderQuantity(raw: unknown): number {
+    if (raw === undefined || raw === null || raw === '') {
+      return 0.01;
+    }
+    const quantity = Number(raw);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new Error('Invalid strategy config: quantity must be a number > 0');
+    }
+    return quantity;
   }
 
   private optionalPositiveNumber(value: unknown, fieldName: string): number | null {

@@ -174,11 +174,13 @@ export class MarketDataService implements OnModuleDestroy {
     instrument: string,
     interval: MarketKlineInterval = this.defaultInterval,
     limit?: number,
+    options?: { allowSyntheticFallback?: boolean },
   ): Promise<MarketKline[]> {
     const normalized = instrument.trim().toUpperCase();
     const state = this.getState(normalized);
     const sourceSymbol = await this.resolveSourceSymbol(normalized);
     const maxItems = limit && limit > 0 ? limit : state.maxHistory;
+    const allowSyntheticFallback = options?.allowSyntheticFallback !== false;
 
     try {
       const candles = await this.getProvider().getKlines(sourceSymbol, interval, maxItems);
@@ -195,6 +197,9 @@ export class MarketDataService implements OnModuleDestroy {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Kline fetch failed for ${normalized}: ${message}`);
+      if (!allowSyntheticFallback) {
+        throw error;
+      }
       const closes = state.closesByInterval.get(interval) ?? [];
       return closes.slice(-maxItems).map((close, index) => ({
         openTime: Date.now() - (maxItems - index) * 60_000,

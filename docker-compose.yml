@@ -84,7 +84,7 @@ services:
       # Do not mount anonymous /app/.next — it hides stale routes (e.g. 404 on /login after moving app routes)
     depends_on:
       - backend
-    command: npm run dev
+    command: sh -c "npm install && exec npm run dev"
 
 volumes:
   postgres_data:
