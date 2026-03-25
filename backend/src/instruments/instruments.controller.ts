@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { InstrumentsService } from './instruments.service';
 import { SetInstrumentActivationDto } from './dto/set-instrument-activation.dto';
 import { ListInstrumentsQueryDto } from './dto/list-instruments-query.dto';
@@ -20,6 +21,7 @@ export class InstrumentsController {
   }
 
   @Get('admin/all')
+  @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'List all instruments for admin use' })
   @ApiOkResponse({ description: 'Paginated instrument catalog for admin use' })
   async findAll(@Query() query: ListInstrumentsQueryDto) {
@@ -29,6 +31,7 @@ export class InstrumentsController {
   }
 
   @Post('admin/sync')
+  @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Sync instruments from configured provider metadata API' })
   @ApiOkResponse({ description: 'Sync result summary' })
   async syncFromProvider() {
@@ -36,6 +39,7 @@ export class InstrumentsController {
   }
 
   @Patch('admin/:symbol/activation')
+  @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Activate or deactivate an instrument for trading' })
   @ApiOkResponse({ description: 'Updated instrument' })
   async setActivation(@Param('symbol') symbol: string, @Body() body: SetInstrumentActivationDto) {

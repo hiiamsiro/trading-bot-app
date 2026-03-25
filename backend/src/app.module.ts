@@ -11,6 +11,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { InstrumentsModule } from './instruments/instruments.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { LogsModule } from './logs/logs.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { LogsModule } from './logs/logs.module';
     InstrumentsModule,
     DashboardModule,
     LogsModule,
+    AdminModule,
     JobsModule,
   ],
 })

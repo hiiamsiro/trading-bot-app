@@ -155,6 +155,71 @@ export interface DashboardSnapshot {
   recentErrors: DashboardActivityRow[]
 }
 
+export interface AdminRecentError {
+  id: string
+  botId: string
+  botName: string
+  botSymbol: string
+  botStatus: BotStatus
+  userId: string
+  userEmail: string
+  level: string
+  category: string
+  message: string
+  metadata?: Record<string, unknown> | null
+  createdAt: string
+}
+
+export interface AdminRecentTrade {
+  id: string
+  botId: string
+  botName: string
+  botSymbol: string
+  botStatus: BotStatus
+  userId: string
+  userEmail: string
+  symbol: string
+  side: TradeSide
+  quantity: number
+  price: number
+  totalValue: number
+  status: TradeStatus
+  executedAt: string | null
+  openReason?: string | null
+  exitPrice?: number | null
+  realizedPnl?: number | null
+  closedAt: string | null
+  closeReason?: string | null
+  createdAt: string
+}
+
+export interface AdminTopActiveBot {
+  botId: string
+  botName: string
+  symbol: string
+  status: BotStatus
+  userId: string
+  userEmail: string
+  tradeCount: number
+}
+
+export interface AdminTopActiveUser {
+  userId: string
+  email: string
+  tradeCount: number
+  activeBotCount: number
+}
+
+export interface AdminMonitoringSnapshot {
+  totals: { users: number; bots: number }
+  botStatusCounts: Record<BotStatus, number>
+  windowHours: number
+  recentErrors: AdminRecentError[]
+  recentTrades: AdminRecentTrade[]
+  topActiveBots: AdminTopActiveBot[]
+  topActiveUsers: AdminTopActiveUser[]
+}
+
 export enum TradeSide {
   BUY = 'BUY',
   SELL = 'SELL',

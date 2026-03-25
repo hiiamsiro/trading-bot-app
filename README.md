@@ -110,6 +110,8 @@ cp frontend/.env.example frontend/.env
 
 Adjust ports or secrets if needed. Set `NEXT_PUBLIC_WS_URL` to the **HTTP** base URL of the API (e.g. `http://localhost:3001`). Socket.IO uses that origin; you do not need a separate `ws://` URL.
 
+To access the admin monitoring page (`/admin`), set `ADMIN_EMAILS` in `backend/.env` (comma-separated list of allowed emails).
+
 3. **Build images** (after dependency or Dockerfile changes)
 
 ```bash

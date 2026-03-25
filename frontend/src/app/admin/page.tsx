@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { Bot, BotStatus, Trade, TradeStatus } from '@/types'
-import { useAuthStore } from '@/store/auth.store'
-import { fetchBots, fetchTrades } from '@/lib/api-client'
+import { Activity } from 'lucide-react'
+import { ApiError } from '@/lib/api'
+import { fetchAdminMonitoringSnapshot } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
+import { useAuthStore } from '@/store/auth.store'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Activity } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -17,64 +17,94 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
+import {
+  AdminMonitoringSnapshot,
+  AdminRecentError,
+  BotStatus,
+} from '@/types'
+
+function formatLocal(iso: string | null | undefined) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString()
+}
 
 export default function AdminMonitoringPage() {
   const token = useAuthStore((s) => s.token)
   const handleError = useHandleApiError()
   const [loading, setLoading] = useState(true)
-  const [bots, setBots] = useState<Bot[]>([])
-  const [trades, setTrades] = useState<Trade[]>([])
-  const [tradesTotal, setTradesTotal] = useState(0)
+  const [forbidden, setForbidden] = useState(false)
+  const [snapshot, setSnapshot] = useState<AdminMonitoringSnapshot | null>(null)
 
   useEffect(() => {
     if (!token) return
     let cancelled = false
     ;(async () => {
       setLoading(true)
+      setForbidden(false)
       try {
-        const [b, t] = await Promise.all([
-          fetchBots(token),
-          fetchTrades(token, { take: 200, skip: 0 }),
-        ])
+        const s = await fetchAdminMonitoringSnapshot(token, {
+          recentErrorsTake: 15,
+          recentTradesTake: 25,
+          topTake: 5,
+          windowHours: 24,
+        })
+        if (!cancelled) setSnapshot(s)
+      } catch (e: unknown) {
         if (!cancelled) {
-          setBots(b)
-          setTrades(t.items)
-          setTradesTotal(t.total)
-        }
-      } catch (e) {
-        if (!cancelled) {
+          if (e instanceof ApiError && e.status === 403) {
+            setForbidden(true)
+            setSnapshot(null)
+            return
+          }
           handleError(e)
         }
       } finally {
         if (!cancelled) setLoading(false)
       }
     })()
+
     return () => {
       cancelled = true
     }
   }, [token, handleError])
 
-  const stats = useMemo(() => {
-    const running = bots.filter((b) => b.status === BotStatus.RUNNING).length
-    const stopped = bots.filter((b) => b.status === BotStatus.STOPPED).length
-    const errored = bots.filter((b) => b.status === BotStatus.ERROR).length
-    const executed = trades.filter((x) => x.status === TradeStatus.EXECUTED).length
-    const closed = trades.filter((x) => x.status === TradeStatus.CLOSED).length
-    const openExecuted = trades.filter(
-      (x) => x.status === TradeStatus.EXECUTED && !x.closedAt,
-    ).length
-    const pnlSum = trades.reduce((acc, x) => acc + (x.realizedPnl ?? 0), 0)
-    return {
-      running,
-      stopped,
-      errored,
-      executed,
-      closed,
-      openExecuted,
-      pnlSum,
-    }
-  }, [bots, trades])
+  const botCounts = snapshot?.botStatusCounts
+  const runningBots = botCounts?.[BotStatus.RUNNING] ?? 0
+  const stoppedBots = botCounts?.[BotStatus.STOPPED] ?? 0
+  const pausedBots = botCounts?.[BotStatus.PAUSED] ?? 0
+  const errorBots = botCounts?.[BotStatus.ERROR] ?? 0
+
+  const recentActivity = useMemo(() => {
+    if (!snapshot) return []
+
+    const trades = snapshot.recentTrades.map((t) => ({
+      id: `trade:${t.id}`,
+      kind: 'trade' as const,
+      at: t.executedAt ?? t.createdAt,
+      userEmail: t.userEmail,
+      botName: t.botName,
+      botSymbol: t.botSymbol,
+      detail: `${t.side} ${t.quantity} ${t.symbol} @ ${t.price}`,
+      status: t.status,
+    }))
+
+    const errors = snapshot.recentErrors.map((e) => ({
+      id: `error:${e.id}`,
+      kind: 'error' as const,
+      at: e.createdAt,
+      userEmail: e.userEmail,
+      botName: e.botName,
+      botSymbol: e.botSymbol,
+      detail: e.message,
+      status: e.level,
+    }))
+
+    return [...errors, ...trades]
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+      .slice(0, 20)
+  }, [snapshot])
 
   if (loading) {
     return (
@@ -90,6 +120,38 @@ export default function AdminMonitoringPage() {
     )
   }
 
+  if (forbidden) {
+    return (
+      <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+        <CardHeader>
+          <CardTitle className="text-lg">Access denied</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Your account is not allowed to access platform monitoring.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Add your email to <code className="text-xs">ADMIN_EMAILS</code> in the backend
+            environment (comma-separated) and sign in again.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!snapshot) {
+    return (
+      <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+        <CardHeader>
+          <CardTitle className="text-lg">Monitoring</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No data available.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <div className="space-y-8">
       <div className="rounded-xl border border-border/70 bg-card/70 p-6">
@@ -98,105 +160,234 @@ export default function AdminMonitoringPage() {
           Monitoring
         </h1>
         <p className="mt-1 text-muted-foreground">
-          Workspace overview from live <code className="text-xs">/bots</code> and{' '}
-          <code className="text-xs">/trades</code> responses (your account).
+          Platform-wide monitoring snapshot (last {snapshot.windowHours}h activity window).
         </p>
-        <Badge className="mt-3 border border-amber-400/40 bg-amber-400/15 text-amber-300">
-          Trust and authority metrics
-        </Badge>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Badge variant="outline">Admin only</Badge>
+          <Badge className="border border-border/60 bg-muted/40 text-muted-foreground">
+            users: {snapshot.totals.users}
+          </Badge>
+          <Badge className="border border-border/60 bg-muted/40 text-muted-foreground">
+            bots: {snapshot.totals.bots}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Bots</CardTitle>
+            <CardTitle className="text-sm font-medium">Total users</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">{bots.length}</p>
+            <p className="text-2xl font-semibold">{snapshot.totals.users}</p>
+            <p className="text-xs text-muted-foreground">All registered accounts</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total bots</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold">{snapshot.totals.bots}</p>
             <p className="text-xs text-muted-foreground">
-              {stats.running} running · {stats.stopped} stopped
-              {stats.errored ? ` · ${stats.errored} error` : ''}
+              {runningBots} running · {stoppedBots} stopped · {pausedBots} paused · {errorBots}{' '}
+              error
             </p>
           </CardContent>
         </Card>
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Trades</CardTitle>
+            <CardTitle className="text-sm font-medium">Running bots</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">{tradesTotal}</p>
-            <p className="text-xs text-muted-foreground">
-              {stats.executed} executed · {stats.closed} closed (loaded page)
-            </p>
+            <p className="text-2xl font-semibold">{runningBots}</p>
+            <p className="text-xs text-muted-foreground">Current RUNNING state</p>
           </CardContent>
         </Card>
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Open positions</CardTitle>
+            <CardTitle className="text-sm font-medium">Error bots</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">{stats.openExecuted}</p>
-            <p className="text-xs text-muted-foreground">EXECUTED and not closed</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Realized P/L (sum)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-mono text-2xl font-semibold">{stats.pnlSum.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground">From trade records</p>
+            <p className="text-2xl font-semibold">{errorBots}</p>
+            <p className="text-xs text-muted-foreground">Current ERROR state</p>
           </CardContent>
         </Card>
       </div>
 
       <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Bots snapshot</CardTitle>
-          <Link
-            href="/bots"
-            className="cursor-pointer text-sm text-primary underline-offset-4 hover:underline"
-          >
-            Manage
-          </Link>
+        <CardHeader>
+          <CardTitle className="text-lg">Bot status summary</CardTitle>
         </CardHeader>
         <CardContent>
-          {bots.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No bots.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Name</TableHead>
-                  <TableHead>Symbol</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Session P/L</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bots.map((b) => (
-                  <TableRow key={b.id} className="transition-colors duration-200 hover:bg-muted/40">
-                    <TableCell className="font-medium">
-                      <Link href={`/bots/${b.id}`} className="cursor-pointer hover:underline">
-                        {b.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="font-mono">{b.symbol}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{b.status}</Badge>
-                    </TableCell>
-                    <TableCell className="font-mono">
-                      {b.executionSession
-                        ? b.executionSession.profitLoss.toFixed(2)
-                        : '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">RUNNING: {runningBots}</Badge>
+            <Badge variant="outline">STOPPED: {stoppedBots}</Badge>
+            <Badge variant="outline">PAUSED: {pausedBots}</Badge>
+            <Badge variant="outline">ERROR: {errorBots}</Badge>
+          </div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="text-lg">Recent errors</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {snapshot.recentErrors.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No errors in the recent window.</p>
+            ) : (
+              <ErrorsTable items={snapshot.recentErrors} />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="text-lg">Recent activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recentActivity.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recent activity.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>When</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Bot</TableHead>
+                    <TableHead>Detail</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentActivity.map((row) => (
+                    <TableRow key={row.id} className="hover:bg-muted/40">
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {formatLocal(row.at)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={row.kind === 'error' ? 'destructive' : 'outline'}>
+                          {row.kind}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[160px] truncate text-xs">{row.userEmail}</TableCell>
+                      <TableCell className="max-w-[180px] truncate text-xs">
+                        {row.botName}{' '}
+                        <span className="text-muted-foreground">({row.botSymbol})</span>
+                      </TableCell>
+                      <TableCell className="max-w-[320px] truncate text-xs">
+                        {row.detail}{' '}
+                        <span className="text-muted-foreground">({row.status})</span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="text-lg">Top active bots (last {snapshot.windowHours}h)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {snapshot.topActiveBots.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No bot activity.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Bot</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Trades</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {snapshot.topActiveBots.map((b) => (
+                    <TableRow key={b.botId} className="hover:bg-muted/40">
+                      <TableCell className="text-sm">
+                        {b.botName}{' '}
+                        <span className="font-mono text-xs text-muted-foreground">{b.symbol}</span>
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate text-xs">{b.userEmail}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{b.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">{b.tradeCount}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="text-lg">Top active users (last {snapshot.windowHours}h)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {snapshot.topActiveUsers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No user activity.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>User</TableHead>
+                    <TableHead className="text-right">Active bots</TableHead>
+                    <TableHead className="text-right">Trades</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {snapshot.topActiveUsers.map((u) => (
+                    <TableRow key={u.userId} className="hover:bg-muted/40">
+                      <TableCell className="max-w-[260px] truncate text-sm">{u.email}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">{u.activeBotCount}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">{u.tradeCount}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
+
+function ErrorsTable({ items }: { items: AdminRecentError[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="hover:bg-transparent">
+          <TableHead>When</TableHead>
+          <TableHead>User</TableHead>
+          <TableHead>Bot</TableHead>
+          <TableHead>Message</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {items.map((e) => (
+          <TableRow key={e.id} className="hover:bg-muted/40">
+            <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+              {formatLocal(e.createdAt)}
+            </TableCell>
+            <TableCell className="max-w-[160px] truncate text-xs">{e.userEmail}</TableCell>
+            <TableCell className="max-w-[180px] truncate text-xs">
+              {e.botName} <span className="text-muted-foreground">({e.botSymbol})</span>
+            </TableCell>
+            <TableCell className="max-w-[360px] truncate text-xs">{e.message}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+}
+

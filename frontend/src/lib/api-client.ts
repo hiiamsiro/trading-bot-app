@@ -1,5 +1,6 @@
 import { api } from '@/lib/api'
 import type {
+  AdminMonitoringSnapshot,
   AuthResponse,
   Bot,
   BotLogsResponse,
@@ -42,6 +43,35 @@ export async function fetchMe(token: string): Promise<User> {
 
 export async function fetchDashboard(token: string): Promise<DashboardSnapshot> {
   return api.get<DashboardSnapshot>('/dashboard', token)
+}
+
+export type AdminMonitoringQuery = {
+  recentErrorsTake?: number
+  recentTradesTake?: number
+  topTake?: number
+  windowHours?: number
+}
+
+export async function fetchAdminMonitoringSnapshot(
+  token: string,
+  query?: AdminMonitoringQuery,
+): Promise<AdminMonitoringSnapshot> {
+  const params = new URLSearchParams()
+  if (query?.recentErrorsTake != null) {
+    params.set('recentErrorsTake', String(query.recentErrorsTake))
+  }
+  if (query?.recentTradesTake != null) {
+    params.set('recentTradesTake', String(query.recentTradesTake))
+  }
+  if (query?.topTake != null) {
+    params.set('topTake', String(query.topTake))
+  }
+  if (query?.windowHours != null) {
+    params.set('windowHours', String(query.windowHours))
+  }
+
+  const queryString = params.size ? `?${params}` : ''
+  return api.get<AdminMonitoringSnapshot>(`/admin/monitoring${queryString}`, token)
 }
 
 export async function fetchBots(token: string): Promise<Bot[]> {
