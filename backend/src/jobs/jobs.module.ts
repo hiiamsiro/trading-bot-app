@@ -4,6 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { MarketDataModule } from '../market-data/market-data.module';
 import { DemoTradingModule } from '../demo-trading/demo-trading.module';
 import { InstrumentsModule } from '../instruments/instruments.module';
+import { BotsModule } from '../bots/bots.module';
 import { BotExecutionProcessor } from './bot-execution.processor';
 import { MarketDataProcessor } from './market-data.processor';
 import { MarketDataSchedulerService } from './market-data.scheduler';
@@ -15,6 +16,7 @@ import { InstrumentSyncSchedulerService } from './instrument-sync.scheduler';
     PrismaModule,
     MarketDataModule,
     DemoTradingModule,
+    BotsModule,
     InstrumentsModule,
     BullModule.registerQueue(
       {
