@@ -47,6 +47,7 @@ coverage/
 
 # Prisma
 prisma/migrations/**/migration.sql
+!backend/prisma/migrations/**/migration.sql
 
 # Misc
 .turbo

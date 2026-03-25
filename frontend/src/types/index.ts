@@ -100,7 +100,9 @@ export interface InstrumentCatalogResponse {
 export interface BotLog {
   id: string
   botId: string
+  botName?: string
   level: string
+  category: string
   message: string
   metadata?: Record<string, unknown> | null
   createdAt: string

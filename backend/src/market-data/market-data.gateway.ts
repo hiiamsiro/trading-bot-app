@@ -41,6 +41,7 @@ export class MarketDataGateway implements OnGatewayConnection, OnGatewayDisconne
     botId: string;
     userId: string;
     level: string;
+    category: string;
     message: string;
     metadata: unknown;
     createdAt: string;

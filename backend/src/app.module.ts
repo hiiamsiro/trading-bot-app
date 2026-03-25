@@ -10,6 +10,7 @@ import { MarketDataModule } from './market-data/market-data.module';
 import { JobsModule } from './jobs/jobs.module';
 import { InstrumentsModule } from './instruments/instruments.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { LogsModule } from './logs/logs.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     MarketDataModule,
     InstrumentsModule,
     DashboardModule,
+    LogsModule,
     JobsModule,
   ],
 })

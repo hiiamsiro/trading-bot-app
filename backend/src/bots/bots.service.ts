@@ -12,6 +12,7 @@ import { InstrumentsService } from '../instruments/instruments.service';
 import { StrategyService } from '../strategy/strategy.service';
 import { CreateBotDto } from './dto/create-bot.dto';
 import { UpdateBotDto } from './dto/update-bot.dto';
+import { ListBotLogsQueryDto } from './dto/list-bot-logs-query.dto';
 
 @Injectable()
 export class BotsService {
@@ -132,11 +133,13 @@ export class BotsService {
     level: LogLevel,
     message: string,
     metadata?: Record<string, unknown>,
+    category = 'system',
   ) {
     const row = await this.prisma.botLog.create({
       data: {
         botId,
         level,
+        category,
         message,
         metadata: metadata === undefined ? undefined : (metadata as object),
       },
@@ -152,6 +155,7 @@ export class BotsService {
         botId: row.botId,
         userId: owner.userId,
         level: row.level,
+        category: row.category,
         message: row.message,
         metadata: row.metadata,
         createdAt: row.createdAt.toISOString(),
@@ -218,10 +222,16 @@ export class BotsService {
       },
     });
 
-    await this.appendLog(id, LogLevel.INFO, 'Bot started', {
-      symbol: updated.symbol,
-      strategy: updated.strategyConfig?.strategy,
-    });
+    await this.appendLog(
+      id,
+      LogLevel.INFO,
+      'Bot started',
+      {
+        symbol: updated.symbol,
+        strategy: updated.strategyConfig?.strategy,
+      },
+      'lifecycle',
+    );
 
     this.marketGateway.emitBotStatus({
       botId: id,
@@ -253,11 +263,17 @@ export class BotsService {
         forceRefresh: true,
       });
       if (exitPrice === null) {
-        await this.appendLog(id, LogLevel.WARNING, 'Skipped position close on bot stop', {
-          tradeId: openTrade.id,
-          symbol: bot.symbol,
-          reason: 'live_price_unavailable',
-        });
+        await this.appendLog(
+          id,
+          LogLevel.WARNING,
+          'Skipped position close on bot stop',
+          {
+            tradeId: openTrade.id,
+            symbol: bot.symbol,
+            reason: 'live_price_unavailable',
+          },
+          'market_data',
+        );
       } else {
         const realizedPnl = (exitPrice - openTrade.price) * openTrade.quantity;
         const closed = await this.prisma.trade.update({
@@ -277,15 +293,21 @@ export class BotsService {
             currentBalance: { increment: realizedPnl },
           },
         });
-        await this.appendLog(id, LogLevel.INFO, 'Position closed on bot stop', {
-          tradeId: closed.id,
-          exitPrice,
-          realizedPnl,
-          execution: {
-            type: 'simulated',
-            priceSource: 'live_market',
+        await this.appendLog(
+          id,
+          LogLevel.INFO,
+          'Position closed on bot stop',
+          {
+            tradeId: closed.id,
+            exitPrice,
+            realizedPnl,
+            execution: {
+              type: 'simulated',
+              priceSource: 'live_market',
+            },
           },
-        });
+          'trade',
+        );
         this.marketGateway.emitNewTrade({
           ...closed,
           userId: bot.userId,
@@ -307,9 +329,15 @@ export class BotsService {
       },
     });
 
-    await this.appendLog(id, LogLevel.INFO, 'Bot stopped', {
-      symbol: updated.symbol,
-    });
+    await this.appendLog(
+      id,
+      LogLevel.INFO,
+      'Bot stopped',
+      {
+        symbol: updated.symbol,
+      },
+      'lifecycle',
+    );
 
     this.marketGateway.emitBotStatus({
       botId: id,
@@ -321,17 +349,35 @@ export class BotsService {
     return updated;
   }
 
-  async findLogs(botId: string, userId: string, take: number, skip: number) {
+  async findLogs(botId: string, userId: string, query: ListBotLogsQueryDto) {
     await this.findOne(botId, userId);
 
-    const [items, total] = await Promise.all([
+    const take = query.take ?? 50;
+    const skip = query.skip ?? 0;
+
+    const where: Prisma.BotLogWhereInput = {
+      botId,
+      ...(query.level ? { level: query.level } : {}),
+    };
+
+    const category = query.category?.trim();
+    if (category) {
+      where.category = { equals: category, mode: 'insensitive' };
+    }
+
+    const search = query.search?.trim();
+    if (search) {
+      where.message = { contains: search, mode: 'insensitive' };
+    }
+
+    const [total, items] = await this.prisma.$transaction([
+      this.prisma.botLog.count({ where }),
       this.prisma.botLog.findMany({
-        where: { botId },
+        where,
         orderBy: { createdAt: 'desc' },
         take,
         skip,
       }),
-      this.prisma.botLog.count({ where: { botId } }),
     ]);
 
     return {

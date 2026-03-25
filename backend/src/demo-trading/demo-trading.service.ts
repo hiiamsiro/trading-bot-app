@@ -77,10 +77,16 @@ export class DemoTradingService {
       where: { symbol: bot.symbol },
     });
     if (!instrument || !instrument.isActive || instrument.status !== 'ACTIVE') {
-      await this.botsService.appendLog(bot.id, LogLevel.WARNING, 'Skipped strategy evaluation', {
-        symbol: bot.symbol,
-        reason: 'active_instrument_not_found',
-      });
+      await this.botsService.appendLog(
+        bot.id,
+        LogLevel.WARNING,
+        'Skipped strategy evaluation',
+        {
+          symbol: bot.symbol,
+          reason: 'active_instrument_not_found',
+        },
+        'market_data',
+      );
       return;
     }
 
@@ -88,10 +94,16 @@ export class DemoTradingService {
       forceRefresh: true,
     });
     if (livePrice === null) {
-      await this.botsService.appendLog(bot.id, LogLevel.WARNING, 'Skipped strategy evaluation', {
-        symbol: bot.symbol,
-        reason: 'live_price_unavailable',
-      });
+      await this.botsService.appendLog(
+        bot.id,
+        LogLevel.WARNING,
+        'Skipped strategy evaluation',
+        {
+          symbol: bot.symbol,
+          reason: 'live_price_unavailable',
+        },
+        'market_data',
+      );
       return;
     }
 
@@ -138,17 +150,23 @@ export class DemoTradingService {
       closes,
     });
 
-    await this.botsService.appendLog(bot.id, LogLevel.DEBUG, 'Strategy signal evaluated', {
-      symbol: bot.symbol,
-      strategy: bot.strategyConfig.strategy,
-      interval,
-      signal: decision.signal,
-      reason: decision.reason,
-      requiredCandles,
-      closesCount: closes.length,
-      livePrice,
-      ...decision.metadata,
-    });
+    await this.botsService.appendLog(
+      bot.id,
+      LogLevel.DEBUG,
+      'Strategy signal evaluated',
+      {
+        symbol: bot.symbol,
+        strategy: bot.strategyConfig.strategy,
+        interval,
+        signal: decision.signal,
+        reason: decision.reason,
+        requiredCandles,
+        closesCount: closes.length,
+        livePrice,
+        ...decision.metadata,
+      },
+      'strategy',
+    );
 
     if (decision.signal === 'BUY' && !openTrade) {
       await this.openLong(bot, livePrice, params, decision);
@@ -188,11 +206,17 @@ export class DemoTradingService {
       select: { id: true },
     });
     if (existingOpenTrade) {
-      await this.botsService.appendLog(bot.id, LogLevel.WARNING, 'Skipped opening position', {
-        symbol: bot.symbol,
-        reason: 'open_position_already_exists',
-        activeTradeId: existingOpenTrade.id,
-      });
+      await this.botsService.appendLog(
+        bot.id,
+        LogLevel.WARNING,
+        'Skipped opening position',
+        {
+          symbol: bot.symbol,
+          reason: 'open_position_already_exists',
+          activeTradeId: existingOpenTrade.id,
+        },
+        'trade',
+      );
       return;
     }
 
@@ -226,21 +250,27 @@ export class DemoTradingService {
       data: { totalTrades: { increment: 1 } },
     });
 
-    await this.botsService.appendLog(bot.id, LogLevel.INFO, 'Opened demo long position', {
-      tradeId: trade.id,
-      symbol: bot.symbol,
-      quantity,
-      entryPrice,
-      stopLoss,
-      takeProfit,
-      signal: decision.signal,
-      signalReason: decision.reason,
-      signalMetadata: decision.metadata,
-      execution: {
-        type: 'simulated',
-        priceSource: 'live_market',
+    await this.botsService.appendLog(
+      bot.id,
+      LogLevel.INFO,
+      'Opened demo long position',
+      {
+        tradeId: trade.id,
+        symbol: bot.symbol,
+        quantity,
+        entryPrice,
+        stopLoss,
+        takeProfit,
+        signal: decision.signal,
+        signalReason: decision.reason,
+        signalMetadata: decision.metadata,
+        execution: {
+          type: 'simulated',
+          priceSource: 'live_market',
+        },
       },
-    });
+      'trade',
+    );
 
     this.gateway.emitNewTrade({
       ...trade,
@@ -276,21 +306,27 @@ export class DemoTradingService {
       },
     });
 
-    await this.botsService.appendLog(bot.id, LogLevel.INFO, 'Closed demo position', {
-      tradeId: trade.id,
-      symbol: bot.symbol,
-      entryPrice: trade.price,
-      exitPrice,
-      realizedPnl: pnl,
-      reason,
-      signal: decision?.signal,
-      signalReason: decision?.reason,
-      signalMetadata: decision?.metadata,
-      execution: {
-        type: 'simulated',
-        priceSource: 'live_market',
+    await this.botsService.appendLog(
+      bot.id,
+      LogLevel.INFO,
+      'Closed demo position',
+      {
+        tradeId: trade.id,
+        symbol: bot.symbol,
+        entryPrice: trade.price,
+        exitPrice,
+        realizedPnl: pnl,
+        reason,
+        signal: decision?.signal,
+        signalReason: decision?.reason,
+        signalMetadata: decision?.metadata,
+        execution: {
+          type: 'simulated',
+          priceSource: 'live_market',
+        },
       },
-    });
+      'trade',
+    );
 
     this.gateway.emitNewTrade({
       ...updated,
@@ -320,12 +356,18 @@ export class DemoTradingService {
       return false;
     }
 
-    await this.botsService.appendLog(bot.id, LogLevel.WARNING, 'Max daily loss reached', {
-      symbol: bot.symbol,
-      maxDailyLoss,
-      currentProfitLoss: session.profitLoss,
-      action: openTrade ? 'close_position_and_stop_bot' : 'stop_bot',
-    });
+    await this.botsService.appendLog(
+      bot.id,
+      LogLevel.WARNING,
+      'Max daily loss reached',
+      {
+        symbol: bot.symbol,
+        maxDailyLoss,
+        currentProfitLoss: session.profitLoss,
+        action: openTrade ? 'close_position_and_stop_bot' : 'stop_bot',
+      },
+      'risk',
+    );
 
     if (openTrade) {
       await this.closeTrade(bot, openTrade, livePrice, 'risk:max_daily_loss', {

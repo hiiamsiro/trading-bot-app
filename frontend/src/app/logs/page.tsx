@@ -1,11 +1,11 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { BotLog } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
-import { fetchBotLogs, fetchBots } from '@/lib/api-client'
+import { fetchBots, fetchLogs } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { useTradingSocket } from '@/hooks/use-trading-socket'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -31,6 +32,16 @@ import {
 import { ScrollText, Loader2, ShieldCheck } from 'lucide-react'
 
 const PAGE_SIZE = 50
+const ALL = 'all'
+const CATEGORY_OPTIONS = [
+  'lifecycle',
+  'strategy',
+  'trade',
+  'risk',
+  'market_data',
+  'execution',
+  'system',
+] as const
 
 function LogsContent() {
   const searchParams = useSearchParams()
@@ -40,10 +51,16 @@ function LogsContent() {
   const handleError = useHandleApiError()
   const [bots, setBots] = useState<{ id: string; name: string }[]>([])
   const [botsLoading, setBotsLoading] = useState(true)
-  const [botId, setBotId] = useState<string>('')
+  const [botId, setBotId] = useState<string>(ALL)
+  const [level, setLevel] = useState<string>(ALL)
+  const [category, setCategory] = useState<string>(ALL)
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [logs, setLogs] = useState<BotLog[]>([])
+  const [recentErrors, setRecentErrors] = useState<BotLog[]>([])
   const [total, setTotal] = useState(0)
   const [logsLoading, setLogsLoading] = useState(false)
+  const [errorsLoading, setErrorsLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const formatLogTime = (value: string) =>
     new Date(value).toLocaleString([], {
@@ -67,11 +84,11 @@ function LogsContent() {
         const fromQuery =
           botIdFromUrl && mapped.some((b) => b.id === botIdFromUrl)
             ? botIdFromUrl
-            : ''
+            : ALL
         setBotId((prev) => {
-          if (fromQuery) return fromQuery
-          if (prev && mapped.some((b) => b.id === prev)) return prev
-          return mapped[0]?.id ?? ''
+          if (fromQuery !== ALL) return fromQuery
+          if (prev !== ALL && mapped.some((b) => b.id === prev)) return prev
+          return ALL
         })
       } catch (e) {
         handleError(e)
@@ -84,54 +101,87 @@ function LogsContent() {
     }
   }, [token, botIdFromUrl, handleError])
 
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedSearch(search.trim())
+    }, 300)
+    return () => clearTimeout(handle)
+  }, [search])
+
+  const query = useMemo(() => {
+    return {
+      ...(botId !== ALL ? { botId } : {}),
+      ...(level !== ALL ? { level } : {}),
+      ...(category !== ALL ? { category } : {}),
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    }
+  }, [botId, level, category, debouncedSearch])
+
+  const errorQuery = useMemo(() => {
+    return { ...query, level: 'ERROR' }
+  }, [query])
+
   const refreshFirstPage = useCallback(() => {
-    if (!botId || !token) return
+    if (!token) return
     ;(async () => {
       try {
-        const res = await fetchBotLogs(token, botId, PAGE_SIZE, 0)
+        const [res, errorRes] = await Promise.all([
+          fetchLogs(token, { ...query, take: PAGE_SIZE, skip: 0 }),
+          fetchLogs(token, { ...errorQuery, take: 10, skip: 0 }),
+        ])
         setLogs(res.items)
         setTotal(res.total)
+        setRecentErrors(errorRes.items)
       } catch (e) {
         handleError(e)
       }
     })()
-  }, [token, botId, handleError])
+  }, [token, query, errorQuery, handleError])
 
   useEffect(() => {
-    if (!botId || !token) return
+    if (!token) return
     setLogs([])
+    setRecentErrors([])
     setTotal(0)
     let cancelled = false
     ;(async () => {
       setLogsLoading(true)
+      setErrorsLoading(true)
       try {
-        const res = await fetchBotLogs(token, botId, PAGE_SIZE, 0)
+        const [res, errorRes] = await Promise.all([
+          fetchLogs(token, { ...query, take: PAGE_SIZE, skip: 0 }),
+          fetchLogs(token, { ...errorQuery, take: 10, skip: 0 }),
+        ])
         if (!cancelled) {
           setLogs(res.items)
           setTotal(res.total)
+          setRecentErrors(errorRes.items)
         }
       } catch (e) {
         handleError(e)
       } finally {
-        if (!cancelled) setLogsLoading(false)
+        if (!cancelled) {
+          setLogsLoading(false)
+          setErrorsLoading(false)
+        }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [token, botId, handleError])
+  }, [token, query, errorQuery, handleError])
 
   useTradingSocket({
-    userId: botId ? user?.id : undefined,
-    botId: botId || undefined,
+    userId: user?.id,
+    botId: botId !== ALL ? botId : undefined,
     onRefresh: refreshFirstPage,
   })
 
   async function loadMore() {
-    if (!token || !botId || loadingMore || logs.length >= total) return
+    if (!token || loadingMore || logs.length >= total) return
     setLoadingMore(true)
     try {
-      const res = await fetchBotLogs(token, botId, PAGE_SIZE, logs.length)
+      const res = await fetchLogs(token, { ...query, take: PAGE_SIZE, skip: logs.length })
       setLogs((prev) => [...prev, ...res.items])
     } catch (e) {
       handleError(e)
@@ -171,20 +221,130 @@ function LogsContent() {
         </p>
       </div>
 
-      <div className="flex max-w-sm flex-col gap-2 rounded-lg border border-border/70 bg-card/70 p-4">
-        <Label htmlFor="bot">Bot</Label>
-        <Select value={botId} onValueChange={setBotId}>
-          <SelectTrigger id="bot" className="cursor-pointer">
-            <SelectValue placeholder="Select bot" />
-          </SelectTrigger>
-          <SelectContent>
-            {bots.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name}
-              </SelectItem>
+      <div className="grid gap-4 rounded-lg border border-border/70 bg-card/70 p-4 md:grid-cols-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="bot">Bot</Label>
+          <Select value={botId} onValueChange={setBotId}>
+            <SelectTrigger id="bot" className="cursor-pointer">
+              <SelectValue placeholder="All bots" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All bots</SelectItem>
+              {bots.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="level">Level</Label>
+          <Select value={level} onValueChange={setLevel}>
+            <SelectTrigger id="level" className="cursor-pointer">
+              <SelectValue placeholder="All levels" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All levels</SelectItem>
+              <SelectItem value="DEBUG">DEBUG</SelectItem>
+              <SelectItem value="INFO">INFO</SelectItem>
+              <SelectItem value="WARNING">WARNING</SelectItem>
+              <SelectItem value="ERROR">ERROR</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="category">Category</Label>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger id="category" className="cursor-pointer">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All categories</SelectItem>
+              {CATEGORY_OPTIONS.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="search">Search</Label>
+          <Input
+            id="search"
+            placeholder="Message contains..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border/70 bg-card/70 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-medium">Recent errors</h2>
+            <p className="text-xs text-muted-foreground">
+              Latest ERROR logs in the current filter scope.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="cursor-pointer"
+            onClick={() => setLevel('ERROR')}
+          >
+            Show only errors
+          </Button>
+        </div>
+
+        {errorsLoading ? (
+          <Skeleton className="mt-3 h-24 rounded-md" />
+        ) : recentErrors.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">No recent errors.</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {recentErrors.slice(0, 6).map((row) => (
+              <div
+                key={row.id}
+                className="rounded-md border border-border/70 bg-background/60 px-3 py-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {botId === ALL ? (
+                      <Link
+                        href={`/bots/${row.botId}`}
+                        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                      >
+                        {row.botName ?? row.botId.slice(0, 8)}
+                      </Link>
+                    ) : null}
+                    <Badge variant="outline" className="text-[10px]">
+                      {row.category}
+                    </Badge>
+                  </div>
+                  <span className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                    {formatLogTime(row.createdAt)}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-rose-200/90">{row.message}</p>
+                {row.metadata ? (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-muted-foreground">
+                      Metadata
+                    </summary>
+                    <pre className="mt-2 max-h-40 overflow-auto rounded bg-muted p-2 font-mono text-xs">
+                      {JSON.stringify(row.metadata, null, 2)}
+                    </pre>
+                  </details>
+                ) : null}
+              </div>
             ))}
-          </SelectContent>
-        </Select>
+          </div>
+        )}
       </div>
 
       {logsLoading ? (
@@ -205,7 +365,9 @@ function LogsContent() {
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead>Time</TableHead>
+                  {botId === ALL && <TableHead>Bot</TableHead>}
                   <TableHead>Level</TableHead>
+                  <TableHead>Category</TableHead>
                   <TableHead>Message</TableHead>
                 </TableRow>
               </TableHeader>
@@ -215,16 +377,34 @@ function LogsContent() {
                     <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                       {formatLogTime(row.createdAt)}
                     </TableCell>
+                    {botId === ALL && (
+                      <TableCell className="whitespace-nowrap">
+                        <Link
+                          href={`/bots/${row.botId}`}
+                          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                        >
+                          {row.botName ?? row.botId.slice(0, 8)}
+                        </Link>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Badge variant="outline">{row.level}</Badge>
                     </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{row.category}</Badge>
+                    </TableCell>
                     <TableCell className="max-w-md">
                       <span className="text-sm">{row.message}</span>
-                      {row.metadata && (
-                        <pre className="mt-1 max-h-24 overflow-auto rounded bg-muted p-2 font-mono text-xs">
-                          {JSON.stringify(row.metadata, null, 2)}
-                        </pre>
-                      )}
+                      {row.metadata ? (
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-xs text-muted-foreground">
+                            Metadata
+                          </summary>
+                          <pre className="mt-2 max-h-40 overflow-auto rounded bg-muted p-2 font-mono text-xs">
+                            {JSON.stringify(row.metadata, null, 2)}
+                          </pre>
+                        </details>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))}

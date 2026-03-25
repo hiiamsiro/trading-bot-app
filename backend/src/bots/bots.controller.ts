@@ -71,9 +71,7 @@ export class BotsController {
     @Query() query: ListBotLogsQueryDto,
     @CurrentUser() user: AuthUserPayload,
   ) {
-    const take = query.take ?? 50;
-    const skip = query.skip ?? 0;
-    return this.botsService.findLogs(id, user.userId, take, skip);
+    return this.botsService.findLogs(id, user.userId, query);
   }
 
   @Get(':id')

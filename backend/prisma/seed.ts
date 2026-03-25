@@ -174,12 +174,14 @@ async function main() {
       {
         botId: btcBot.id,
         level: LogLevel.INFO,
+        category: 'lifecycle',
         message: 'Bot session ended (seed)',
         metadata: { source: 'seed' },
       },
       {
         botId: btcBot.id,
         level: LogLevel.INFO,
+        category: 'trade',
         message: 'Opened demo long position',
         metadata: {
           symbol: 'BTCUSD',
@@ -190,12 +192,14 @@ async function main() {
       {
         botId: btcBot.id,
         level: LogLevel.DEBUG,
+        category: 'strategy',
         message: 'Strategy tick evaluated',
         metadata: { signal: 'HOLD' },
       },
       {
         botId: btcBot.id,
         level: LogLevel.WARNING,
+        category: 'market_data',
         message: 'Demo spread widened (simulated)',
         metadata: { symbol: 'BTCUSD' },
       },

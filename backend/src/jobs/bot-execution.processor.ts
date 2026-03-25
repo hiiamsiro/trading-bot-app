@@ -44,7 +44,7 @@ export class BotExecutionProcessor extends WorkerHost {
         botId: bot.id,
         symbol: bot.symbol,
         reason: message,
-      });
+      }, 'execution');
       this.marketGateway.emitBotStatus({
         botId: updatedBot.id,
         userId: updatedBot.userId,

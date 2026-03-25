@@ -642,6 +642,7 @@ export default function BotDetailPage() {
                     <TableRow className="hover:bg-transparent">
                       <TableHead>Time</TableHead>
                       <TableHead>Level</TableHead>
+                      <TableHead>Category</TableHead>
                       <TableHead>Message</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -663,12 +664,20 @@ export default function BotDetailPage() {
                         <TableCell>
                           <Badge variant="outline">{row.level}</Badge>
                         </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{row.category}</Badge>
+                        </TableCell>
                         <TableCell className="max-w-md">
                           <span className="text-sm">{row.message}</span>
                           {row.metadata ? (
-                            <pre className="mt-1 max-h-24 overflow-auto rounded bg-muted p-2 font-mono text-xs">
-                              {JSON.stringify(row.metadata, null, 2)}
-                            </pre>
+                            <details className="mt-2">
+                              <summary className="cursor-pointer text-xs text-muted-foreground">
+                                Metadata
+                              </summary>
+                              <pre className="mt-2 max-h-40 overflow-auto rounded bg-muted p-2 font-mono text-xs">
+                                {JSON.stringify(row.metadata, null, 2)}
+                              </pre>
+                            </details>
                           ) : null}
                         </TableCell>
                       </TableRow>

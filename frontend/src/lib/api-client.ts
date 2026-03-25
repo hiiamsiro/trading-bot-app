@@ -138,6 +138,31 @@ export async function fetchBotLogs(
   return api.get<BotLogsResponse>(`/bots/${botId}/logs?${queryParams}`, token)
 }
 
+export type ListLogsQuery = {
+  botId?: string
+  level?: string
+  category?: string
+  search?: string
+  take?: number
+  skip?: number
+}
+
+export async function fetchLogs(
+  token: string,
+  query?: ListLogsQuery,
+): Promise<BotLogsResponse> {
+  const params = new URLSearchParams()
+  if (query?.botId) params.set('botId', query.botId)
+  if (query?.level) params.set('level', query.level)
+  if (query?.category) params.set('category', query.category)
+  if (query?.search) params.set('search', query.search)
+  if (query?.take != null) params.set('take', String(query.take))
+  if (query?.skip != null) params.set('skip', String(query.skip))
+
+  const queryString = params.size ? `?${params}` : ''
+  return api.get<BotLogsResponse>(`/logs${queryString}`, token)
+}
+
 export async function fetchTrades(
   token: string,
   query?: ListTradesQuery,
