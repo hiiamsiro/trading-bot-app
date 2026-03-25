@@ -10,7 +10,9 @@ import type {
   InstrumentSyncResult,
   MarketKline,
   MarketKlineInterval,
+  ListTradesQuery,
   Trade,
+  TradeHistoryResponse,
   UpdateBotPayload,
   User,
 } from '@/types'
@@ -138,10 +140,21 @@ export async function fetchBotLogs(
 
 export async function fetchTrades(
   token: string,
-  botId?: string,
-): Promise<Trade[]> {
-  const queryString = botId ? `?botId=${encodeURIComponent(botId)}` : ''
-  return api.get<Trade[]>(`/trades${queryString}`, token)
+  query?: ListTradesQuery,
+): Promise<TradeHistoryResponse> {
+  const params = new URLSearchParams()
+  if (query?.botId) params.set('botId', query.botId)
+  if (query?.symbol) params.set('symbol', query.symbol)
+  if (query?.status) params.set('status', query.status)
+  if (query?.from) params.set('from', query.from)
+  if (query?.to) params.set('to', query.to)
+  if (query?.take != null) params.set('take', String(query.take))
+  if (query?.skip != null) params.set('skip', String(query.skip))
+  if (query?.sortBy) params.set('sortBy', query.sortBy)
+  if (query?.sortDir) params.set('sortDir', query.sortDir)
+
+  const queryString = params.size ? `?${params}` : ''
+  return api.get<TradeHistoryResponse>(`/trades${queryString}`, token)
 }
 
 export async function fetchTrade(token: string, id: string): Promise<Trade> {

@@ -25,6 +25,7 @@ export default function AdminMonitoringPage() {
   const [loading, setLoading] = useState(true)
   const [bots, setBots] = useState<Bot[]>([])
   const [trades, setTrades] = useState<Trade[]>([])
+  const [tradesTotal, setTradesTotal] = useState(0)
 
   useEffect(() => {
     if (!token) return
@@ -32,10 +33,14 @@ export default function AdminMonitoringPage() {
     ;(async () => {
       setLoading(true)
       try {
-        const [b, t] = await Promise.all([fetchBots(token), fetchTrades(token)])
+        const [b, t] = await Promise.all([
+          fetchBots(token),
+          fetchTrades(token, { take: 200, skip: 0 }),
+        ])
         if (!cancelled) {
           setBots(b)
-          setTrades(t)
+          setTrades(t.items)
+          setTradesTotal(t.total)
         }
       } catch (e) {
         if (!cancelled) {
@@ -119,9 +124,9 @@ export default function AdminMonitoringPage() {
             <CardTitle className="text-sm font-medium">Trades</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">{trades.length}</p>
+            <p className="text-2xl font-semibold">{tradesTotal}</p>
             <p className="text-xs text-muted-foreground">
-              {stats.executed} executed · {stats.closed} closed
+              {stats.executed} executed · {stats.closed} closed (loaded page)
             </p>
           </CardContent>
         </Card>

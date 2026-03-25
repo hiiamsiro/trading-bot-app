@@ -110,8 +110,8 @@ export default function BotDetailPage() {
     if (!token || !id) return
     setTradesLoading(true)
     try {
-      const data = await fetchTrades(token, id)
-      setTrades(data)
+      const res = await fetchTrades(token, { botId: id, take: 50, skip: 0 })
+      setTrades(res.items)
     } catch (e) {
       handleError(e)
     } finally {
@@ -683,4 +683,3 @@ export default function BotDetailPage() {
     </div>
   )
 }
-

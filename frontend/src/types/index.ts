@@ -166,6 +166,18 @@ export enum TradeStatus {
   CLOSED = 'CLOSED',
 }
 
+export enum TradeSortBy {
+  createdAt = 'createdAt',
+  executedAt = 'executedAt',
+  closedAt = 'closedAt',
+  realizedPnl = 'realizedPnl',
+  symbol = 'symbol',
+  status = 'status',
+  price = 'price',
+}
+
+export type SortDir = 'asc' | 'desc'
+
 export interface Trade {
   id: string
   botId: string
@@ -187,6 +199,25 @@ export interface Trade {
     name: string
     symbol: string
   }
+}
+
+export interface TradeHistoryResponse {
+  items: Trade[]
+  total: number
+  take: number
+  skip: number
+}
+
+export interface ListTradesQuery {
+  botId?: string
+  symbol?: string
+  status?: TradeStatus
+  from?: string
+  to?: string
+  take?: number
+  skip?: number
+  sortBy?: TradeSortBy
+  sortDir?: SortDir
 }
 
 export interface CreateBotPayload {

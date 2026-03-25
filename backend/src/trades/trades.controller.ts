@@ -3,7 +3,6 @@ import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
-  ApiQuery,
   ApiOkResponse,
   ApiNotFoundResponse,
   ApiForbiddenResponse,
@@ -11,6 +10,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { TradesService } from './trades.service';
+import { ListTradesQueryDto } from './dto/list-trades-query.dto';
 
 type AuthUserPayload = { userId: string; email: string };
 
@@ -25,14 +25,9 @@ export class TradesController {
   @ApiOperation({
     summary: 'List trades for bots owned by the current user',
   })
-  @ApiQuery({
-    name: 'botId',
-    required: false,
-    description: 'Filter by bot UUID',
-  })
-  @ApiOkResponse({ description: 'Trades with minimal bot info' })
-  async findAll(@CurrentUser() user: AuthUserPayload, @Query('botId') botId?: string) {
-    return this.tradesService.findAll(user.userId, botId);
+  @ApiOkResponse({ description: 'Paginated trades with minimal bot info' })
+  async findAll(@CurrentUser() user: AuthUserPayload, @Query() query: ListTradesQueryDto) {
+    return this.tradesService.findAll(user.userId, query);
   }
 
   @Get(':id')
