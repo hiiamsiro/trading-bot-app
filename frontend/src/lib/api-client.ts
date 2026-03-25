@@ -4,6 +4,7 @@ import type {
   Bot,
   BotLogsResponse,
   CreateBotPayload,
+  DashboardSnapshot,
   Instrument,
   InstrumentCatalogResponse,
   InstrumentSyncResult,
@@ -35,6 +36,10 @@ export async function registerRequest(
 
 export async function fetchMe(token: string): Promise<User> {
   return api.get<User>('/users/me', token)
+}
+
+export async function fetchDashboard(token: string): Promise<DashboardSnapshot> {
+  return api.get<DashboardSnapshot>('/dashboard', token)
 }
 
 export async function fetchBots(token: string): Promise<Bot[]> {

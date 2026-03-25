@@ -113,6 +113,46 @@ export interface BotLogsResponse {
   skip: number
 }
 
+export interface DashboardEquityPoint {
+  at: string
+  cumulativePnl: number
+}
+
+export interface DashboardMetrics {
+  totalBots: number
+  runningBots: number
+  stoppedBots: number
+  errorBots: number
+  totalTrades: number
+  closedTradesWithPnl: number
+  winningTrades: number
+  losingTrades: number
+  winRate: number | null
+  totalPnl: number
+  dailyPnl: number
+  averageWin: number | null
+  averageLoss: number | null
+  maxDrawdown: number
+}
+
+export interface DashboardActivityRow {
+  id: string
+  botId: string
+  level: string
+  message: string
+  createdAt: string
+  botName: string
+}
+
+export interface DashboardSnapshot {
+  botSymbols: string[]
+  metrics: DashboardMetrics
+  equityCurve: DashboardEquityPoint[]
+  recentTrades: Trade[]
+  recentActivities: DashboardActivityRow[]
+  recentErrors: DashboardActivityRow[]
+}
+
 export enum TradeSide {
   BUY = 'BUY',
   SELL = 'SELL',

@@ -9,6 +9,7 @@ import { TradesModule } from './trades/trades.module';
 import { MarketDataModule } from './market-data/market-data.module';
 import { JobsModule } from './jobs/jobs.module';
 import { InstrumentsModule } from './instruments/instruments.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { InstrumentsModule } from './instruments/instruments.module';
     TradesModule,
     MarketDataModule,
     InstrumentsModule,
+    DashboardModule,
     JobsModule,
   ],
 })

@@ -33,6 +33,7 @@ async function bootstrap() {
     .addTag('bots', 'Bot CRUD and execution logs')
     .addTag('trades', 'Read-only trade history')
     .addTag('market-data', 'Live and historical market candles')
+    .addTag('dashboard', 'Aggregated metrics and activity')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
