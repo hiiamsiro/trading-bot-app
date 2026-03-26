@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { fetchTrade } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { Badge } from '@/components/ui/badge'
+import { TradeStatusBadge } from '@/components/trade-status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -155,7 +156,7 @@ export default function TradeDetailPage() {
             <div>
               <p className="text-xs text-muted-foreground">Status</p>
               <p className="mt-1">
-                <Badge variant="outline">{trade.status}</Badge>
+                <TradeStatusBadge status={trade.status} />
               </p>
             </div>
             <div>
@@ -227,4 +228,3 @@ export default function TradeDetailPage() {
     </div>
   )
 }
-

@@ -9,7 +9,10 @@ import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { useTradingSocket } from '@/hooks/use-trading-socket'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
+import { TableSkeleton } from '@/components/table-skeleton'
 import { Badge } from '@/components/ui/badge'
+import { TradeStatusBadge } from '@/components/trade-status-badge'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   Table,
   TableBody,
@@ -37,6 +40,7 @@ export default function TradesPage() {
   const [loading, setLoading] = useState(true)
   const [trades, setTrades] = useState<Trade[]>([])
   const [total, setTotal] = useState(0)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [take, setTake] = useState(25)
   const [skip, setSkip] = useState(0)
   const [botId, setBotId] = useState<string>('all')
@@ -88,6 +92,7 @@ export default function TradesPage() {
     if (!token) return
     ;(async () => {
       try {
+        setLoadError(null)
         const res = await fetchTrades(token, {
           ...(botId === 'all' ? {} : { botId }),
           ...(symbol === 'all' ? {} : { symbol }),
@@ -102,6 +107,7 @@ export default function TradesPage() {
         setTrades(res.items)
         setTotal(res.total)
       } catch (e) {
+        setLoadError('Could not load trades. Please try again.')
         handleError(e)
       }
     })()
@@ -124,6 +130,7 @@ export default function TradesPage() {
     let cancelled = false
     ;(async () => {
       setLoading(true)
+      setLoadError(null)
       try {
         const res = await fetchTrades(token, {
           ...(botId === 'all' ? {} : { botId }),
@@ -142,6 +149,7 @@ export default function TradesPage() {
         }
       } catch (e) {
         if (!cancelled) {
+          setLoadError('Could not load trades. Please try again.')
           handleError(e)
         }
       } finally {
@@ -190,7 +198,36 @@ export default function TradesPage() {
       <div className="space-y-6">
         <Skeleton className="h-9 w-56" />
         <Skeleton className="h-12 w-full max-w-sm" />
-        <Skeleton className="h-72 rounded-lg" />
+        <TableSkeleton columns={10} rows={8} />
+      </div>
+    )
+  }
+
+  const hasFilters = Boolean(
+    botId !== 'all' || symbol !== 'all' || status !== 'all' || from || to,
+  )
+
+  if (loadError && trades.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Alert variant="destructive">
+          <AlertTitle>Could not load trades</AlertTitle>
+          <AlertDescription>{loadError}</AlertDescription>
+        </Alert>
+        <div className="flex flex-wrap gap-2">
+          <Button className="cursor-pointer" onClick={reloadTrades}>
+            Retry
+          </Button>
+          {hasFilters ? (
+            <Button
+              variant="outline"
+              className="cursor-pointer"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
       </div>
     )
   }
@@ -362,18 +399,32 @@ export default function TradesPage() {
         </div>
       </div>
 
-      {trades.length === 0 && !loading ? (
+      {trades.length === 0 && !loading && !loadError ? (
         <EmptyState
           icon={History}
-          title="No trades"
-          description="Trades appear when your running bot executes demo signals."
+          title={hasFilters ? 'No matching trades' : 'No trades yet'}
+          description={
+            hasFilters
+              ? 'Try clearing filters or widening the date range.'
+              : 'Trades appear when your running bot executes demo signals.'
+          }
         >
-          <Link
-            href="/bots"
-            className="cursor-pointer text-sm font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Go to bots
-          </Link>
+          {hasFilters ? (
+            <Button
+              variant="outline"
+              className="cursor-pointer"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
+          ) : (
+            <Link
+              href="/bots"
+              className="cursor-pointer text-sm font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Go to bots
+            </Link>
+          )}
         </EmptyState>
       ) : (
         <div className="space-y-3">
@@ -474,7 +525,9 @@ export default function TradesPage() {
                       <TableCell className="text-right font-mono">
                         {pnlPct != null ? `${pnlPct.toFixed(2)}%` : '—'}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{t.status}</TableCell>
+                      <TableCell>
+                        <TradeStatusBadge status={t.status} />
+                      </TableCell>
                       <TableCell className="max-w-[320px]">
                         <div className="truncate text-sm">
                           {t.openReason ? `Open: ${t.openReason}` : '—'}

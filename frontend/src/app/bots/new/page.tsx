@@ -7,6 +7,7 @@ import { Loader2, ShieldCheck } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { createBot, fetchInstruments } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
+import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -150,6 +151,10 @@ export default function CreateBotPage() {
           strategy,
           params,
         },
+      })
+      toast({
+        title: 'Bot created',
+        description: `${bot.name} • ${bot.symbol}`,
       })
       router.replace(`/bots/${bot.id}`)
     } catch (err) {

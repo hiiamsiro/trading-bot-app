@@ -36,10 +36,23 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { BotStatusBadge } from '@/components/bot-status-badge'
 import { toast } from '@/hooks/use-toast'
 import { LiveMarketChartPanel } from '@/components/charts/live-market-chart-panel'
 import { EquityCurveChart } from '@/components/charts/equity-curve-chart'
+import { LogLevelBadge } from '@/components/log-level-badge'
+import { TradeStatusBadge } from '@/components/trade-status-badge'
 import {
   Table,
   TableBody,
@@ -61,6 +74,7 @@ export default function BotDetailPage() {
   const [bot, setBot] = useState<Bot | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [instrument, setInstrument] = useState<Instrument | null>(null)
@@ -298,13 +312,13 @@ export default function BotDetailPage() {
     }
   }
 
-  async function onDelete() {
+  async function onDeleteConfirmed() {
     if (!token || !id) return
-    if (!confirm('Delete this bot permanently?')) return
     setActionLoading('delete')
     try {
       await deleteBot(token, id)
       toast({ title: 'Bot deleted' })
+      setDeleteDialogOpen(false)
       router.replace('/bots')
     } catch (e) {
       handleError(e)
@@ -408,19 +422,51 @@ export default function BotDetailPage() {
           <Button variant="outline" asChild className="cursor-pointer">
             <Link href={`/logs?botId=${id}`}>Logs</Link>
           </Button>
-          <Button
-            variant="destructive"
-            className="cursor-pointer"
-            onClick={onDelete}
-            disabled={!!actionLoading}
+          <AlertDialog
+            open={deleteDialogOpen}
+            onOpenChange={(open) => {
+              if (actionLoading === 'delete') return
+              setDeleteDialogOpen(open)
+            }}
           >
-            {actionLoading === 'delete' ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="mr-2 h-4 w-4" />
-            )}
-            Delete
-          </Button>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                className="cursor-pointer"
+                disabled={!!actionLoading}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete bot?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently removes <span className="font-medium text-foreground">{bot.name}</span> and its audit trail
+                  (logs, execution session, and trade history). This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={actionLoading === 'delete'}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  disabled={actionLoading === 'delete'}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    onDeleteConfirmed()
+                  }}
+                >
+                  {actionLoading === 'delete' && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Delete bot
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -603,6 +649,7 @@ export default function BotDetailPage() {
                     <TableRow className="hover:bg-transparent">
                       <TableHead>Time</TableHead>
                       <TableHead>Side</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Entry</TableHead>
                       <TableHead className="text-right">Exit</TableHead>
@@ -634,6 +681,9 @@ export default function BotDetailPage() {
                           >
                             {t.side}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <TradeStatusBadge status={t.status} />
                         </TableCell>
                         <TableCell className="text-right font-mono">{t.quantity}</TableCell>
                         <TableCell className="text-right font-mono">{t.price.toFixed(4)}</TableCell>
@@ -698,7 +748,7 @@ export default function BotDetailPage() {
                           })}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{row.level}</Badge>
+                          <LogLevelBadge level={row.level} />
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{row.category}</Badge>

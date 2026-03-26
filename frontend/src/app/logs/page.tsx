@@ -11,6 +11,7 @@ import { connectWebSocket } from '@/lib/websocket'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
+import { TableSkeleton } from '@/components/table-skeleton'
 import {
   Select,
   SelectContent,
@@ -20,7 +21,9 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { LogLevelBadge } from '@/components/log-level-badge'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   Table,
   TableBody,
@@ -64,6 +67,7 @@ function LogsContent() {
   const [recentErrors, setRecentErrors] = useState<BotLog[]>([])
   const [total, setTotal] = useState(0)
   const [logsLoading, setLogsLoading] = useState(false)
+  const [logsError, setLogsError] = useState<string | null>(null)
   const [errorsLoading, setErrorsLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const formatLogTime = (value: string) =>
@@ -125,10 +129,15 @@ function LogsContent() {
     return { ...query, level: 'ERROR' }
   }, [query])
 
-  const refreshFirstPage = useCallback(() => {
+  const refreshFirstPage = useCallback((showLoading = false) => {
     if (!token) return
     ;(async () => {
       try {
+        if (showLoading) {
+          setLogsLoading(true)
+          setErrorsLoading(true)
+        }
+        setLogsError(null)
         const [res, errorRes] = await Promise.all([
           fetchLogs(token, { ...query, take: PAGE_SIZE, skip: 0 }),
           fetchLogs(token, { ...errorQuery, take: 10, skip: 0 }),
@@ -137,7 +146,13 @@ function LogsContent() {
         setTotal(res.total)
         setRecentErrors(errorRes.items)
       } catch (e) {
+        setLogsError('Could not load logs. Please try again.')
         handleError(e)
+      } finally {
+        if (showLoading) {
+          setLogsLoading(false)
+          setErrorsLoading(false)
+        }
       }
     })()
   }, [token, query, errorQuery, handleError])
@@ -243,6 +258,7 @@ function LogsContent() {
     ;(async () => {
       setLogsLoading(true)
       setErrorsLoading(true)
+      setLogsError(null)
       try {
         const [res, errorRes] = await Promise.all([
           fetchLogs(token, { ...query, take: PAGE_SIZE, skip: 0 }),
@@ -254,6 +270,7 @@ function LogsContent() {
           setRecentErrors(errorRes.items)
         }
       } catch (e) {
+        if (!cancelled) setLogsError('Could not load logs. Please try again.')
         handleError(e)
       } finally {
         if (!cancelled) {
@@ -300,6 +317,18 @@ function LogsContent() {
     )
   }
 
+  const hasFilters = Boolean(
+    botId !== ALL || level !== ALL || category !== ALL || debouncedSearch,
+  )
+
+  const clearFilters = () => {
+    setBotId(ALL)
+    setLevel(ALL)
+    setCategory(ALL)
+    setSearch('')
+    setDebouncedSearch('')
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-border/70 bg-card/70 p-6">
@@ -313,65 +342,80 @@ function LogsContent() {
         </p>
       </div>
 
-      <div className="grid gap-4 rounded-lg border border-border/70 bg-card/70 p-4 md:grid-cols-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="bot">Bot</Label>
-          <Select value={botId} onValueChange={setBotId}>
-            <SelectTrigger id="bot" className="cursor-pointer">
-              <SelectValue placeholder="All bots" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All bots</SelectItem>
-              {bots.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="rounded-lg border border-border/70 bg-card/70 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-medium">Filters</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            className="cursor-pointer"
+            onClick={clearFilters}
+            disabled={!hasFilters}
+          >
+            Clear
+          </Button>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="level">Level</Label>
-          <Select value={level} onValueChange={setLevel}>
-            <SelectTrigger id="level" className="cursor-pointer">
-              <SelectValue placeholder="All levels" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All levels</SelectItem>
-              <SelectItem value="DEBUG">DEBUG</SelectItem>
-              <SelectItem value="INFO">INFO</SelectItem>
-              <SelectItem value="WARNING">WARNING</SelectItem>
-              <SelectItem value="ERROR">ERROR</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <div className="mt-3 grid gap-4 md:grid-cols-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="bot">Bot</Label>
+            <Select value={botId} onValueChange={setBotId}>
+              <SelectTrigger id="bot" className="cursor-pointer">
+                <SelectValue placeholder="All bots" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All bots</SelectItem>
+                {bots.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="category">Category</Label>
-          <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger id="category" className="cursor-pointer">
-              <SelectValue placeholder="All categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All categories</SelectItem>
-              {CATEGORY_OPTIONS.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="level">Level</Label>
+            <Select value={level} onValueChange={setLevel}>
+              <SelectTrigger id="level" className="cursor-pointer">
+                <SelectValue placeholder="All levels" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All levels</SelectItem>
+                <SelectItem value="DEBUG">DEBUG</SelectItem>
+                <SelectItem value="INFO">INFO</SelectItem>
+                <SelectItem value="WARNING">WARNING</SelectItem>
+                <SelectItem value="ERROR">ERROR</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="search">Search</Label>
-          <Input
-            id="search"
-            placeholder="Message contains..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="category">Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger id="category" className="cursor-pointer">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All categories</SelectItem>
+                {CATEGORY_OPTIONS.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="search">Search</Label>
+            <Input
+              id="search"
+              placeholder="Message contains..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
@@ -439,14 +483,56 @@ function LogsContent() {
         )}
       </div>
 
-      {logsLoading ? (
-        <Skeleton className="h-80 rounded-lg" />
+      {logsError && logs.length === 0 && !logsLoading ? (
+        <div className="space-y-4">
+          <Alert variant="destructive">
+            <AlertTitle>Could not load logs</AlertTitle>
+            <AlertDescription>{logsError}</AlertDescription>
+          </Alert>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              className="cursor-pointer"
+              onClick={() => refreshFirstPage(true)}
+            >
+              Retry
+            </Button>
+            {hasFilters ? (
+              <Button
+                variant="outline"
+                className="cursor-pointer"
+                onClick={clearFilters}
+              >
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : logsLoading ? (
+        <TableSkeleton columns={botId === ALL ? 5 : 4} rows={10} />
       ) : logs.length === 0 ? (
         <EmptyState
           icon={ScrollText}
-          title="No log entries"
-          description="Start the bot or wait for activity to produce logs."
-        />
+          title={hasFilters ? 'No matching logs' : 'No log entries yet'}
+          description={
+            hasFilters
+              ? 'Try clearing filters or adjusting your search.'
+              : 'Start the bot or wait for activity to produce logs.'
+          }
+        >
+          {hasFilters ? (
+            <Button
+              variant="outline"
+              className="cursor-pointer"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
+          ) : (
+            <Button asChild variant="outline" className="cursor-pointer">
+              <Link href="/bots">Go to bots</Link>
+            </Button>
+          )}
+        </EmptyState>
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
@@ -480,7 +566,7 @@ function LogsContent() {
                       </TableCell>
                     )}
                     <TableCell>
-                      <Badge variant="outline">{row.level}</Badge>
+                      <LogLevelBadge level={row.level} />
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{row.category}</Badge>

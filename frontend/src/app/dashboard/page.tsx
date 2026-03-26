@@ -14,10 +14,12 @@ import {
 } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { useTradingSocket } from '@/hooks/use-trading-socket'
+import { toast } from '@/hooks/use-toast'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   Activity,
   AlertCircle,
@@ -42,6 +44,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { LogLevelBadge } from '@/components/log-level-badge'
+import { TradeStatusBadge } from '@/components/trade-status-badge'
 import { LiveMarketChartPanel } from '@/components/charts/live-market-chart-panel'
 import { EquityCurveChart } from '@/components/charts/equity-curve-chart'
 
@@ -67,6 +71,7 @@ export default function DashboardPage() {
   const clearAuth = useAuthStore((s) => s.clearAuth)
   const handleError = useHandleApiError() 
   const [loading, setLoading] = useState(true) 
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [dashboard, setDashboard] = useState<DashboardSnapshot | null>(null) 
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [instrumentTotal, setInstrumentTotal] = useState(0)
@@ -89,6 +94,25 @@ export default function DashboardPage() {
         handleError(e)
       }
     })()
+  }, [token, handleError])
+
+  const loadInitial = useCallback(async () => {
+    if (!token) return
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const [d, active] = await Promise.all([
+        fetchDashboard(token),
+        fetchInstruments(token),
+      ])
+      setDashboard(d)
+      setOverviewInstruments(active.slice(0, 8))
+    } catch (e) {
+      setLoadError('Could not load dashboard. Please try again.')
+      handleError(e)
+    } finally {
+      setLoading(false)
+    }
   }, [token, handleError])
 
   const loadInstrumentsPage = useCallback(
@@ -124,31 +148,8 @@ export default function DashboardPage() {
   }, [token, instrumentSearchQuery, loadInstrumentsPage])
 
   useEffect(() => {
-    if (!token) return
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      try {
-        const [d, active] = await Promise.all([
-          fetchDashboard(token),
-          fetchInstruments(token),
-        ])
-        if (!cancelled) {
-          setDashboard(d)
-          setOverviewInstruments(active.slice(0, 8))
-        }
-      } catch (e) {
-        if (!cancelled) {
-          handleError(e)
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [token, handleError])
+    void loadInitial()
+  }, [loadInitial])
 
   useTradingSocket({
     token,
@@ -197,6 +198,7 @@ export default function DashboardPage() {
       await loadInstrumentsPage(1)
       const active = await fetchInstruments(token)
       setOverviewInstruments(active.slice(0, 8))
+      toast({ title: 'Instruments synced' })
     } catch (e) {
       handleError(e, 'Could not sync instruments')
     } finally {
@@ -212,6 +214,10 @@ export default function DashboardPage() {
       setInstruments((prev) =>
         prev.map((row) => (row.symbol === updated.symbol ? updated : row)),
       )
+      toast({
+        title: updated.isActive ? 'Instrument enabled' : 'Instrument disabled',
+        description: updated.symbol,
+      })
     } catch (e) {
       handleError(e, 'Could not update instrument status')
     } finally {
@@ -258,7 +264,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (loading || !dashboard || !m) {
+  if (loading) {
     return (
       <div className="space-y-8">
         <div>
@@ -271,6 +277,20 @@ export default function DashboardPage() {
           ))}
         </div>
         <Skeleton className="h-72 rounded-lg" />
+      </div>
+    )
+  }
+
+  if (loadError || !dashboard || !m) {
+    return (
+      <div className="space-y-4">
+        <Alert variant="destructive">
+          <AlertTitle>Could not load dashboard</AlertTitle>
+          <AlertDescription>{loadError ?? 'Please try again.'}</AlertDescription>
+        </Alert>
+        <Button className="cursor-pointer" onClick={loadInitial}>
+          Retry
+        </Button>
       </div>
     )
   }
@@ -651,7 +671,9 @@ export default function DashboardPage() {
                             {t.side}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{t.status}</TableCell>
+                        <TableCell>
+                          <TradeStatusBadge status={t.status} />
+                        </TableCell>
                         <TableCell
                           className={`text-right font-mono text-xs tabular-nums ${
                             t.status === TradeStatus.CLOSED && t.realizedPnl != null
@@ -695,9 +717,7 @@ export default function DashboardPage() {
                         {formatTradeTime(row.createdAt)}
                       </span>
                     </div>
-                    <Badge variant="outline" className="mt-1 text-[10px]">
-                      {row.level}
-                    </Badge>
+                    <LogLevelBadge level={row.level} className="mt-1 text-[10px]" />
                     <p className="mt-1 text-xs text-muted-foreground">{row.message}</p>
                   </div>
                 ))

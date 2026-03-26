@@ -9,6 +9,7 @@ import { Bot, BotStatus, Instrument } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
 import { fetchBot, fetchInstruments, updateBot } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
+import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -105,6 +106,7 @@ export default function EditBotPage() {
         symbol,
         status,
       })
+      toast({ title: 'Bot updated' })
       router.replace(`/bots/${id}`)
     } catch (e) {
       handleError(e, 'Could not update bot')

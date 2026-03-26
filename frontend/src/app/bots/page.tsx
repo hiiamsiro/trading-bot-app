@@ -10,6 +10,7 @@ import { useTradingSocket } from '@/hooks/use-trading-socket'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
+import { TableSkeleton } from '@/components/table-skeleton'
 import {
   Table,
   TableBody,
@@ -19,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { BotStatusBadge } from '@/components/bot-status-badge'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Plus, Bot as BotIcon, ShieldCheck } from 'lucide-react'
 
 export default function BotsListPage() {
@@ -27,46 +29,38 @@ export default function BotsListPage() {
   const handleError = useHandleApiError()
   const [loading, setLoading] = useState(true)
   const [bots, setBots] = useState<Bot[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
 
-  const reload = useCallback(() => {
-    if (!token) return
-    ;(async () => {
+  const loadBots = useCallback(
+    (showLoading: boolean) => {
+      if (!token) return
+      ;(async () => {
+        if (showLoading) setLoading(true)
+        setLoadError(null)
       try {
         const data = await fetchBots(token)
         setBots(data)
       } catch (e) {
+        setLoadError('Could not load bots. Please try again.')
         handleError(e)
+      } finally {
+        if (showLoading) setLoading(false)
       }
-    })()
-  }, [token, handleError])
+      })()
+    },
+    [token, handleError],
+  )
 
   useEffect(() => {
-    if (!token) return
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      try {
-        const data = await fetchBots(token)
-        if (!cancelled) setBots(data)
-      } catch (e) {
-        if (!cancelled) {
-          handleError(e)
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [token, handleError])
+    loadBots(true)
+  }, [loadBots])
 
   useTradingSocket({
     token,
     userId: user?.id,
     events: ['bot-status'],
     minRefreshIntervalMs: 1500,
-    onRefresh: reload,
+    onRefresh: () => loadBots(false),
   })
 
   if (loading) {
@@ -76,7 +70,26 @@ export default function BotsListPage() {
           <Skeleton className="h-9 w-40" />
           <Skeleton className="h-10 w-28" />
         </div>
-        <Skeleton className="h-72 rounded-lg" />
+        <TableSkeleton columns={5} rows={6} />
+      </div>
+    )
+  }
+
+  if (loadError && bots.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Alert variant="destructive">
+          <AlertTitle>Could not load bots</AlertTitle>
+          <AlertDescription>{loadError}</AlertDescription>
+        </Alert>
+        <div className="flex flex-wrap gap-2">
+          <Button className="cursor-pointer" onClick={() => loadBots(true)}>
+            Retry
+          </Button>
+          <Button asChild variant="outline" className="cursor-pointer">
+            <Link href="/bots/new">Create bot</Link>
+          </Button>
+        </div>
       </div>
     )
   }
