@@ -46,7 +46,7 @@ export class NotificationsService {
       this.prisma.notification.count({ where: { userId, isRead: false } }),
       this.prisma.notification.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take,
         skip,
       }),

@@ -35,32 +35,27 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: development
+      target: production
     container_name: trading-bot-backend
     restart: unless-stopped
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-trading_bot}?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       PORT: 3001
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      # Bind-mount (esp. Windows + Docker): native fs events often miss → enable polling so `nest start --watch` reloads
-      WATCHPACK_POLLING: "true"
-      CHOKIDAR_USEPOLLING: "true"
+      CORS_ORIGIN: ${CORS_ORIGIN:?Set CORS_ORIGIN in .env}
     ports:
       - "${BACKEND_PORT:-3001}:3001"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && exec node dist/main"
     healthcheck:
       test:
         [
@@ -78,27 +73,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: development
+      target: production
     container_name: trading-bot-frontend
     restart: unless-stopped
     environment:
-      NODE_ENV: development
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-http://localhost:3001}
-      WATCHPACK_POLLING: "true"
-      WATCHPACK_POLLING_INTERVAL: "1000"
-      CHOKIDAR_USEPOLLING: "true"
-      CHOKIDAR_INTERVAL: "1000"
+      NODE_ENV: production
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      # Do not mount anonymous /app/.next — it hides stale routes (e.g. 404 on /login after moving app routes)
     depends_on:
       backend:
         condition: service_healthy
-    command: sh -c "npm install && exec npm run dev"
     healthcheck:
       test:
         [

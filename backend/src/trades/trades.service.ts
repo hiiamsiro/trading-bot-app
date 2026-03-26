@@ -27,9 +27,9 @@ export class TradesService {
       ...(query.botId ? { botId: query.botId } : {}),
     };
 
-    const symbol = query.symbol?.trim();
+    const symbol = query.symbol?.trim().toUpperCase();
     if (symbol) {
-      where.symbol = { equals: symbol, mode: 'insensitive' };
+      where.symbol = symbol;
     }
 
     if (query.status) {
@@ -45,7 +45,10 @@ export class TradesService {
       };
     }
 
-    const orderBy = { [sortBy]: sortDir } as Prisma.TradeOrderByWithRelationInput;
+    const orderBy: Prisma.TradeOrderByWithRelationInput[] = [
+      { [sortBy]: sortDir } as Prisma.TradeOrderByWithRelationInput,
+      { id: sortDir } as Prisma.TradeOrderByWithRelationInput,
+    ];
 
     const [total, items] = await this.prisma.$transaction([
       this.prisma.trade.count({ where }),

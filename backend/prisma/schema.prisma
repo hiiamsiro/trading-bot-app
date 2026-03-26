@@ -37,6 +37,8 @@ model Bot {
   logs             BotLog[]
   executionSession ExecutionSession?
 
+  @@index([userId, createdAt])
+  @@index([userId, status])
   @@map("bots")
 }
 
@@ -60,6 +62,7 @@ model Instrument {
   updatedAt          DateTime            @updatedAt
 
   @@index([isActive])
+  @@index([isActive, status])
   @@index([assetClass, marketType])
   @@map("instruments")
 }
@@ -121,6 +124,11 @@ model Trade {
 
   bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
 
+  @@index([botId, createdAt])
+  @@index([botId, status, createdAt])
+  @@index([botId, symbol, createdAt])
+  @@index([createdAt, botId])
+  @@index([botId, closedAt])
   @@map("trades")
 }
 

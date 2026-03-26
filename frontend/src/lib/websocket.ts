@@ -1,7 +1,23 @@
 import { io, Socket } from 'socket.io-client'
 
-const WS_URL =
-  process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'
+function defaultWsUrl(): string {
+  if (typeof window === 'undefined') {
+    return 'http://localhost:3001'
+  }
+
+  try {
+    const url = new URL(window.location.href)
+    url.port = '3001'
+    url.pathname = ''
+    url.search = ''
+    url.hash = ''
+    return url.origin
+  } catch {
+    return 'http://localhost:3001'
+  }
+}
+
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || defaultWsUrl()
 
 let socket: Socket | null = null
 let currentToken: string | null = null

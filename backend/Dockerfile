@@ -17,7 +17,7 @@ RUN npx prisma generate
 EXPOSE 3001
 
 # Bind-mount + anonymous /app/node_modules: always install so new deps from host package.json are applied.
-CMD ["/bin/sh", "-c", "npm install && npx prisma generate && npx prisma db push && npx prisma db seed && npm run start:dev"]
+CMD ["/bin/sh", "-c", "npm install && npx prisma generate && npx prisma migrate deploy && npx prisma db seed && npm run start:dev"]
 
 FROM base AS build
 

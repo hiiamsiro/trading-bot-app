@@ -496,7 +496,7 @@ export class BotsService {
       this.prisma.botLog.count({ where }),
       this.prisma.botLog.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take,
         skip,
       }),

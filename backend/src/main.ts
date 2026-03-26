@@ -37,6 +37,7 @@ async function bootstrap() {
     .addTag('dashboard', 'Aggregated metrics and activity')
     .addTag('logs', 'Cross-bot log querying and filters')
     .addTag('notifications', 'In-app notifications for key bot and trade events')
+    .addTag('health', 'Service health checks')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

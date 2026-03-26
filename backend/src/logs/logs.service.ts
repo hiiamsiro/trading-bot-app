@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ListLogsQueryDto } from './dto/list-logs-query.dto';
@@ -33,7 +33,7 @@ export class LogsService {
         where,
         take,
         skip,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         include: {
           bot: { select: { name: true } },
         },
@@ -57,3 +57,4 @@ export class LogsService {
     };
   }
 }
+
