@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ListTradesQueryDto, SortDir, TradeSortBy } from './dto/list-trades-query.dto';
@@ -70,8 +70,8 @@ export class TradesService {
   }
 
   async findOne(id: string, userId: string) {
-    const trade = await this.prisma.trade.findUnique({
-      where: { id },
+    const trade = await this.prisma.trade.findFirst({
+      where: { id, bot: { userId } },
       include: {
         bot: true,
       },
@@ -79,10 +79,6 @@ export class TradesService {
 
     if (!trade) {
       throw new NotFoundException('Trade not found');
-    }
-
-    if (trade.bot.userId !== userId) {
-      throw new ForbiddenException('Access denied');
     }
 
     return trade;

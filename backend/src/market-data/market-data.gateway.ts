@@ -9,7 +9,9 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { verify } from 'jsonwebtoken';
+import { ConfigService } from '@nestjs/config';
 import { MarketDataService } from './market-data.service';
+import { resolveCorsOrigin } from '../common/cors';
 import {
   MARKET_KLINE_INTERVAL_VALUES,
   type MarketKlineInterval,
@@ -17,12 +19,15 @@ import {
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: resolveCorsOrigin(),
     credentials: true,
   },
 })
 export class MarketDataGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private readonly marketData: MarketDataService) {}
+  constructor(
+    private readonly marketData: MarketDataService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @WebSocketServer()
   server: Server;
@@ -96,13 +101,11 @@ export class MarketDataGateway implements OnGatewayConnection, OnGatewayDisconne
       return null;
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      return null;
-    }
+    const secret = this.configService.get<string>('JWT_SECRET');
+    if (!secret) return null;
 
     try {
-      const payload = verify(token, secret) as { sub?: unknown };
+      const payload = verify(token, secret, { algorithms: ['HS256'] }) as { sub?: unknown };
       const userId = payload?.sub;
       return typeof userId === 'string' && userId.length > 0 ? userId : null;
     } catch {

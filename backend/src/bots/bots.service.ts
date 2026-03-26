@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
 import { LogLevel, NotificationType, Prisma } from '@prisma/client';
@@ -38,8 +37,8 @@ export class BotsService {
   }
 
   async findOne(id: string, userId: string) {
-    const bot = await this.prisma.bot.findUnique({
-      where: { id },
+    const bot = await this.prisma.bot.findFirst({
+      where: { id, userId },
       include: {
         strategyConfig: true,
         executionSession: true,
@@ -48,10 +47,6 @@ export class BotsService {
 
     if (!bot) {
       throw new NotFoundException('Bot not found');
-    }
-
-    if (bot.userId !== userId) {
-      throw new ForbiddenException('Access denied');
     }
 
     return bot;

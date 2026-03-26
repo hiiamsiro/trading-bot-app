@@ -328,6 +328,8 @@ NEXT_PUBLIC_WS_URL=http://localhost:3001
 
 Use `http://` for `NEXT_PUBLIC_WS_URL` so Socket.IO can negotiate the transport.
 
+`CORS_ORIGIN` supports a comma-separated allowlist (for example `http://localhost:3000,http://127.0.0.1:3000`). Do not set it to `*` when cookies/credentials are enabled.
+
 ## Docker Commands
 
 Compose uses the v2 CLI: **`docker compose`** (space, not hyphen).

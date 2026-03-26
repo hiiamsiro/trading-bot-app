@@ -5,7 +5,6 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiNotFoundResponse,
-  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -34,7 +33,6 @@ export class TradesController {
   @ApiOperation({ summary: 'Get one trade by ID' })
   @ApiOkResponse({ description: 'Trade with bot relation' })
   @ApiNotFoundResponse({ description: 'Trade not found' })
-  @ApiForbiddenResponse({ description: 'Trade belongs to another user' })
   async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.tradesService.findOne(id, user.userId);
   }

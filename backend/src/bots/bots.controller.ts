@@ -16,7 +16,6 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiNotFoundResponse,
-  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -45,7 +44,6 @@ export class BotsController {
   @ApiOperation({ summary: 'Start bot (demo execution)' })
   @ApiOkResponse({ description: 'Bot is running' })
   @ApiNotFoundResponse({ description: 'Bot not found' })
-  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
   async start(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.botsService.start(id, user.userId);
   }
@@ -54,7 +52,6 @@ export class BotsController {
   @ApiOperation({ summary: 'Stop bot (demo execution)' })
   @ApiOkResponse({ description: 'Bot is stopped' })
   @ApiNotFoundResponse({ description: 'Bot not found' })
-  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
   async stop(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.botsService.stop(id, user.userId);
   }
@@ -65,7 +62,6 @@ export class BotsController {
     description: 'Paginated bot log entries',
   })
   @ApiNotFoundResponse({ description: 'Bot not found' })
-  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
   async findLogs(
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: ListBotLogsQueryDto,
@@ -77,7 +73,6 @@ export class BotsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get bot by ID' })
   @ApiNotFoundResponse({ description: 'Bot not found' })
-  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
   async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.botsService.findOne(id, user.userId);
   }
@@ -92,7 +87,6 @@ export class BotsController {
   @Put(':id')
   @ApiOperation({ summary: 'Update bot' })
   @ApiNotFoundResponse({ description: 'Bot not found' })
-  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateBotDto: UpdateBotDto,
@@ -104,7 +98,6 @@ export class BotsController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete bot' })
   @ApiNotFoundResponse({ description: 'Bot not found' })
-  @ApiForbiddenResponse({ description: 'Bot belongs to another user' })
   async remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.botsService.remove(id, user.userId);
   }
