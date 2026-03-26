@@ -7,7 +7,7 @@ import { BotLog } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
 import { fetchBots, fetchLogs } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
-import { useTradingSocket } from '@/hooks/use-trading-socket'
+import { connectWebSocket } from '@/lib/websocket'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
@@ -42,6 +42,10 @@ const CATEGORY_OPTIONS = [
   'execution',
   'system',
 ] as const
+
+function normalizeText(value: string) {
+  return value.trim().toLowerCase()
+}
 
 function LogsContent() {
   const searchParams = useSearchParams()
@@ -139,6 +143,98 @@ function LogsContent() {
   }, [token, query, errorQuery, handleError])
 
   useEffect(() => {
+    if (!token || !user?.id) return
+
+    const socket = connectWebSocket(token)
+    const currentUserId = user.id
+    const seen = new Set<string>()
+    const normalizedSearch = normalizeText(debouncedSearch)
+
+    const matchesBase = (row: BotLog) => {
+      if (botId !== ALL && row.botId !== botId) return false
+      if (category !== ALL && row.category !== category) return false
+      if (normalizedSearch) {
+        const haystack = normalizeText(row.message)
+        if (!haystack.includes(normalizedSearch)) return false
+      }
+      return true
+    }
+
+    const matchesMain = (row: BotLog) => {
+      if (!matchesBase(row)) return false
+      if (level !== ALL && row.level !== level) return false
+      return true
+    }
+
+    const matchesErrors = (row: BotLog) => {
+      if (!matchesBase(row)) return false
+      return row.level === 'ERROR'
+    }
+
+    const prependUnique = (prev: BotLog[], incoming: BotLog) => {
+      if (prev.some((row) => row.id === incoming.id)) return prev
+      return [incoming, ...prev]
+    }
+
+    const prependUniqueLimit = (prev: BotLog[], incoming: BotLog, limit: number) => {
+      const next = prependUnique(prev, incoming)
+      return next.length > limit ? next.slice(0, limit) : next
+    }
+
+    const handleBotLog = (payload: any) => {
+      if (!payload || typeof payload !== 'object') return
+      if (payload.userId !== currentUserId) return
+
+      const eventId =
+        typeof payload.eventId === 'string'
+          ? payload.eventId
+          : typeof payload.id === 'string'
+            ? `bot-log:${payload.id}`
+            : null
+      if (eventId) {
+        if (seen.has(eventId)) return
+        seen.add(eventId)
+        if (seen.size > 600) {
+          const first = seen.values().next().value as string | undefined
+          if (first) seen.delete(first)
+        }
+      }
+
+      const incoming: BotLog = {
+        id: String(payload.id ?? ''),
+        botId: String(payload.botId ?? ''),
+        level: String(payload.level ?? ''),
+        category: String(payload.category ?? ''),
+        message: String(payload.message ?? ''),
+        metadata: (payload.metadata ?? null) as any,
+        createdAt: String(payload.createdAt ?? ''),
+      }
+
+      if (!incoming.id || !incoming.botId || !incoming.createdAt) return
+
+      if (matchesMain(incoming)) {
+        setLogs((prev) => prependUnique(prev, incoming))
+        setTotal((prev) => prev + 1)
+      }
+
+      if (matchesErrors(incoming)) {
+        setRecentErrors((prev) => prependUniqueLimit(prev, incoming, 10))
+      }
+    }
+
+    const onConnect = () => {
+      refreshFirstPage()
+    }
+
+    socket.on('connect', onConnect)
+    socket.on('bot-log', handleBotLog)
+    return () => {
+      socket.off('connect', onConnect)
+      socket.off('bot-log', handleBotLog)
+    }
+  }, [token, user?.id, botId, level, category, debouncedSearch, refreshFirstPage])
+
+  useEffect(() => {
     if (!token) return
     setLogs([])
     setRecentErrors([])
@@ -171,12 +267,7 @@ function LogsContent() {
     }
   }, [token, query, errorQuery, handleError])
 
-  useTradingSocket({ 
-    token,
-    userId: user?.id, 
-    botId: botId !== ALL ? botId : undefined, 
-    onRefresh: refreshFirstPage, 
-  }) 
+
 
   async function loadMore() {
     if (!token || loadingMore || logs.length >= total) return

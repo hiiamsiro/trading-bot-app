@@ -11,8 +11,13 @@ export function connectWebSocket(token?: string | null): Socket {
   if (!socket) {
     currentToken = nextToken
     socket = io(WS_URL, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       autoConnect: true,
+      timeout: 10_000,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 5_000,
       ...(nextToken ? { auth: { token: nextToken } } : {}),
     })
 
@@ -22,6 +27,10 @@ export function connectWebSocket(token?: string | null): Socket {
 
     socket.on('disconnect', () => {
       console.log('WebSocket disconnected')
+    })
+
+    socket.on('connect_error', (error) => {
+      console.error('WebSocket connect error:', error)
     })
 
     socket.on('error', (error) => {

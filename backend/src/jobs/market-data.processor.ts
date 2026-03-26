@@ -17,28 +17,9 @@ export class MarketDataProcessor extends WorkerHost {
   }
 
   async process(_job: Job<Record<string, never>, void, string>): Promise<void> {
-    const fromEnv = (process.env.MARKET_DATA_SYMBOLS || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    const running = await this.prisma.bot.findMany({
-      where: { status: 'RUNNING' },
-      select: { symbol: true },
-    });
-    const activeInstruments = await this.prisma.instrument.findMany({
-      where: { isActive: true, status: 'ACTIVE' },
-      select: { symbol: true },
-    });
-
-    const symbols = new Set<string>([
-      ...fromEnv,
-      ...activeInstruments.map((i) => i.symbol),
-      ...running.map((b) => b.symbol),
-    ]);
-
-    for (const symbol of symbols) {
-      const snapshot = await this.marketData.getMarketSnapshot(symbol);
+    const subscriptions = this.gateway.getActiveMarketSubscriptions();
+    for (const { symbol, interval } of subscriptions) {
+      const snapshot = await this.marketData.getMarketSnapshot(symbol, interval);
       if (snapshot) {
         this.gateway.emitMarketData(snapshot);
       }

@@ -153,6 +153,9 @@ export default function DashboardPage() {
   useTradingSocket({
     token,
     userId: user?.id,
+    events: ['bot-status', 'new-trade', 'notification', 'bot-log'],
+    logLevels: ['INFO', 'WARNING', 'ERROR'],
+    minRefreshIntervalMs: 1500,
     onRefresh: reloadOverview,
   })
 

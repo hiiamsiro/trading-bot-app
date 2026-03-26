@@ -164,6 +164,9 @@ export default function BotDetailPage() {
     token,
     userId: user?.id,
     botId: id || undefined,
+    events: ['bot-status', 'new-trade', 'bot-log'],
+    logLevels: ['INFO', 'WARNING', 'ERROR'],
+    minRefreshIntervalMs: 1200,
     onRefresh: () => {
       loadBot()
       loadLogs()
@@ -217,21 +220,53 @@ export default function BotDetailPage() {
 
     const symbol = bot.symbol.trim().toUpperCase()
     const socket = connectWebSocket(token)
+    const subscription = { symbol, interval: '1m' as MarketKlineInterval }
+    const seen = new Set<string>()
 
-    const onMarketData = (data: { symbol?: string; price?: unknown; timestamp?: unknown }) => {
+    const subscribe = () => {
+      socket.emit('subscribe-market', subscription)
+    }
+
+    const onMarketData = (data: {
+      symbol?: string
+      interval?: string
+      price?: unknown
+      timestamp?: unknown
+      kline?: { close?: unknown }
+      eventId?: unknown
+    }) => {
       const incoming = data.symbol?.trim().toUpperCase()
       if (!incoming || incoming !== symbol) return
+      if (typeof data.interval === 'string' && data.interval !== subscription.interval) return
+      if (typeof data.eventId === 'string') {
+        if (seen.has(data.eventId)) return
+        seen.add(data.eventId)
+        if (seen.size > 200) {
+          const first = seen.values().next().value as string | undefined
+          if (first) seen.delete(first)
+        }
+      }
       if (typeof data.price === 'number' && Number.isFinite(data.price)) {
         setLivePrice(data.price)
+      } else if (
+        data.kline &&
+        typeof data.kline.close === 'number' &&
+        Number.isFinite(data.kline.close)
+      ) {
+        setLivePrice(data.kline.close)
       }
       if (typeof data.timestamp === 'string') {
         setLivePriceAt(data.timestamp)
       }
     }
 
+    subscribe()
+    socket.on('connect', subscribe)
     socket.on('market-data', onMarketData)
     return () => {
       socket.off('market-data', onMarketData)
+      socket.off('connect', subscribe)
+      socket.emit('unsubscribe-market', subscription)
     }
   }, [token, bot?.symbol])
 

@@ -64,6 +64,8 @@ export default function BotsListPage() {
   useTradingSocket({
     token,
     userId: user?.id,
+    events: ['bot-status'],
+    minRefreshIntervalMs: 1500,
     onRefresh: reload,
   })
 

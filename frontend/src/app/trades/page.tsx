@@ -156,6 +156,8 @@ export default function TradesPage() {
   useTradingSocket({
     token,
     userId: user?.id,
+    events: ['new-trade'],
+    minRefreshIntervalMs: 1500,
     onRefresh: reloadTrades,
   })
 

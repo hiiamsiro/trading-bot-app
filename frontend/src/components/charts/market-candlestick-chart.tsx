@@ -32,6 +32,7 @@ export function MarketCandlestickChart({
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const volumeRef = useRef<ISeriesApi<'Histogram'> | null>(null)
   const priceLineRef = useRef<IPriceLine | null>(null)
+  const lastFitCountRef = useRef<number>(0)
 
   useEffect(() => {
     const el = containerRef.current
@@ -134,7 +135,10 @@ export function MarketCandlestickChart({
     volumeSeries.setData(hasVolume ? marketKlinesToVolumeHistogramData(bars) : [])
 
     if (rows.length > 0) {
-      chart.timeScale().fitContent()
+      if (lastFitCountRef.current !== rows.length) {
+        chart.timeScale().fitContent()
+        lastFitCountRef.current = rows.length
+      }
     }
   }, [bars])
 

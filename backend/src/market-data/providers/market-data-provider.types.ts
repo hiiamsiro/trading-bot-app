@@ -15,6 +15,8 @@ export type MarketDataAdapterSnapshot = {
   timestamp: string;
   interval: MarketKlineInterval;
   close?: number;
+  kline?: MarketKline;
+  isFinal?: boolean;
 };
 
 export type MarketKline = {
@@ -32,6 +34,8 @@ export type MarketSnapshot = {
   price: number;
   timestamp: string;
   interval: MarketKlineInterval;
+  kline?: MarketKline;
+  isFinal?: boolean;
 };
 
 export interface MarketDataAdapter {

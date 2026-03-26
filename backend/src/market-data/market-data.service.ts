@@ -12,9 +12,11 @@ import {
 type SymbolState = {
   latestPrice: number | null;
   closesByInterval: Map<MarketKlineInterval, number[]>;
+  latestKlineByInterval: Map<MarketKlineInterval, MarketKline>;
   maxHistory: number;
   subscribedIntervals: Set<MarketKlineInterval>;
   latestTimestamp?: string;
+  latestFinalByInterval: Map<MarketKlineInterval, boolean | undefined>;
 };
 
 @Injectable()
@@ -49,8 +51,10 @@ export class MarketDataService implements OnModuleDestroy {
       state = {
         latestPrice: null,
         closesByInterval: new Map<MarketKlineInterval, number[]>(),
+        latestKlineByInterval: new Map<MarketKlineInterval, MarketKline>(),
         maxHistory: this.getMaxHistory(),
         subscribedIntervals: new Set<MarketKlineInterval>(),
+        latestFinalByInterval: new Map<MarketKlineInterval, boolean | undefined>(),
       };
       this.states.set(instrument, state);
     }
@@ -71,6 +75,10 @@ export class MarketDataService implements OnModuleDestroy {
     const state = this.getState(instrument);
     state.latestPrice = snapshot.price;
     state.latestTimestamp = snapshot.timestamp;
+    if (snapshot.kline) {
+      state.latestKlineByInterval.set(snapshot.interval, snapshot.kline);
+    }
+    state.latestFinalByInterval.set(snapshot.interval, snapshot.isFinal);
     if (snapshot.close !== undefined) {
       this.pushClose(instrument, snapshot.interval, snapshot.close);
     }
@@ -118,6 +126,7 @@ export class MarketDataService implements OnModuleDestroy {
       );
       const last = candles[candles.length - 1];
       if (last) {
+        state.latestKlineByInterval.set(interval, last);
         state.latestPrice = last.close;
         state.latestTimestamp = new Date(last.closeTime).toISOString();
       }
@@ -190,6 +199,7 @@ export class MarketDataService implements OnModuleDestroy {
       );
       const last = candles[candles.length - 1];
       if (last) {
+        state.latestKlineByInterval.set(interval, last);
         state.latestPrice = last.close;
         state.latestTimestamp = new Date(last.closeTime).toISOString();
       }
@@ -229,6 +239,8 @@ export class MarketDataService implements OnModuleDestroy {
       price,
       timestamp: state.latestTimestamp ?? new Date().toISOString(),
       interval,
+      kline: state.latestKlineByInterval.get(interval),
+      isFinal: state.latestFinalByInterval.get(interval),
     };
   }
 

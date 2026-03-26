@@ -21,8 +21,14 @@ type BinanceKlinePayload = {
   s?: string;
   k?: {
     i?: string;
-    c?: string;
+    t?: number;
     T?: number;
+    o?: string;
+    h?: string;
+    l?: string;
+    c?: string;
+    v?: string;
+    x?: boolean;
   };
 };
 
@@ -94,12 +100,32 @@ export class BinanceMarketDataAdapter implements MarketDataAdapter {
           return;
         }
         const close = this.parseNumber(payload.k.c);
+        const open =
+          payload.k.o !== undefined ? this.parseNumber(payload.k.o) : close;
+        const high =
+          payload.k.h !== undefined ? this.parseNumber(payload.k.h) : close;
+        const low =
+          payload.k.l !== undefined ? this.parseNumber(payload.k.l) : close;
+        const volume =
+          payload.k.v !== undefined ? this.parseNumber(payload.k.v) : 0;
+        const openTime = payload.k.t ?? (payload.E ?? Date.now());
+        const closeTime = payload.k.T ?? (payload.E ?? Date.now());
         const snapshot: MarketDataAdapterSnapshot = {
           symbol: this.normalizeSymbol(payload.s || symbol),
           price: close,
           close,
           interval,
           timestamp: new Date(payload.E || payload.k.T || Date.now()).toISOString(),
+          isFinal: payload.k.x,
+          kline: {
+            openTime,
+            open,
+            high,
+            low,
+            close,
+            volume,
+            closeTime,
+          },
         };
         state.listeners.forEach((listener) => listener(snapshot));
       } catch (error) {
