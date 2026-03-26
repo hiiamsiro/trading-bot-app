@@ -171,11 +171,12 @@ function LogsContent() {
     }
   }, [token, query, errorQuery, handleError])
 
-  useTradingSocket({
-    userId: user?.id,
-    botId: botId !== ALL ? botId : undefined,
-    onRefresh: refreshFirstPage,
-  })
+  useTradingSocket({ 
+    token,
+    userId: user?.id, 
+    botId: botId !== ALL ? botId : undefined, 
+    onRefresh: refreshFirstPage, 
+  }) 
 
   async function loadMore() {
     if (!token || loadingMore || logs.length >= total) return

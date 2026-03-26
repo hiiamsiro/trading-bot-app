@@ -161,6 +161,7 @@ export default function BotDetailPage() {
   }, [token, bot?.symbol])
 
   useTradingSocket({
+    token,
     userId: user?.id,
     botId: id || undefined,
     onRefresh: () => {
@@ -215,7 +216,7 @@ export default function BotDetailPage() {
     if (!token || !bot?.symbol) return
 
     const symbol = bot.symbol.trim().toUpperCase()
-    const socket = connectWebSocket()
+    const socket = connectWebSocket(token)
 
     const onMarketData = (data: { symbol?: string; price?: unknown; timestamp?: unknown }) => {
       const incoming = data.symbol?.trim().toUpperCase()

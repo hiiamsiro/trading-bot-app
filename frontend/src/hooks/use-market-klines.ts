@@ -67,7 +67,7 @@ export function useMarketKlines(
   useEffect(() => {
     if (!token || !normalizedSymbol) return
 
-    const socket = connectWebSocket()
+    const socket = connectWebSocket(token)
 
     const onMarketData = (data: MarketDataSocketPayload) => {
       const incoming = data.symbol?.trim().toUpperCase()

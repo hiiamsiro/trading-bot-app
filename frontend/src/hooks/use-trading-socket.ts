@@ -9,19 +9,20 @@ type WsPayload = {
 }
 
 export function useTradingSocket(options: {
+  token?: string | null
   userId?: string
   /** When set, only events for this bot trigger refresh (bot detail / logs). */
   botId?: string
   onRefresh: () => void
 }) {
-  const { userId, botId, onRefresh } = options
+  const { token, userId, botId, onRefresh } = options
   const refreshRef = useRef(onRefresh)
   refreshRef.current = onRefresh
 
   useEffect(() => {
-    if (!userId) return
+    if (!token || !userId) return
 
-    const socket = connectWebSocket()
+    const socket = connectWebSocket(token)
 
     const handle = (data: WsPayload) => {
       if (data.userId !== userId) return
@@ -40,5 +41,5 @@ export function useTradingSocket(options: {
       socket.off('bot-log', handle)
       socket.off('notification', handle)
     }
-  }, [userId, botId])
+  }, [token, userId, botId])
 }

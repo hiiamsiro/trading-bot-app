@@ -14,6 +14,7 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react'
+import { RedirectToDashboardIfAuth } from '@/components/auth/redirect-to-dashboard-if-auth'
 
 const priceCards = [
   { pair: 'BTC/USDT', price: '$68,244.13', change: '+2.31%', points: [36, 40, 38, 46, 49, 53, 56, 59] },
@@ -83,6 +84,8 @@ function MiniChart({ points }: { points: number[] }) {
 
 export default function Home() {
   return (
+    <>
+      <RedirectToDashboardIfAuth />
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <section className="relative overflow-hidden border-b border-white/10">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(245,158,11,0.18),transparent_35%),radial-gradient(circle_at_85%_5%,rgba(139,92,246,0.22),transparent_30%),radial-gradient(circle_at_50%_90%,rgba(59,130,246,0.12),transparent_35%)]" />
@@ -307,5 +310,6 @@ export default function Home() {
         </div>
       </section>
     </main>
+    </>
   )
 }

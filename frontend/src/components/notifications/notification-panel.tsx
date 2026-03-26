@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Bell, Check, CheckCheck } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
@@ -60,17 +60,27 @@ export function NotificationPanel() {
 
   const hasMore = items.length < total
 
+  const itemsLengthRef = useRef(0)
+  useEffect(() => {
+    itemsLengthRef.current = items.length
+  }, [items.length])
+
   const loadNotifications = useCallback(
     async (reset = false) => {
       if (!token) return
       setLoading(true)
       try {
-        const skip = reset ? 0 : items.length
+        const skip = reset ? 0 : itemsLengthRef.current
         const res = await fetchNotifications(token, {
           take: PAGE_SIZE,
           skip,
         })
-        setItems((prev) => (reset ? res.items : [...prev, ...res.items]))
+        setItems((prev) => {
+          if (reset) return res.items
+          const existing = new Set(prev.map((row) => row.id))
+          const incoming = res.items.filter((row) => !existing.has(row.id))
+          return [...prev, ...incoming]
+        })
         setTotal(res.total)
         setUnreadCount(res.unreadCount)
       } catch (e) {
@@ -79,7 +89,7 @@ export function NotificationPanel() {
         setLoading(false)
       }
     },
-    [handleError, items.length, token],
+    [handleError, token],
   )
 
   useEffect(() => {
@@ -105,7 +115,8 @@ export function NotificationPanel() {
 
   useEffect(() => {
     if (!user?.id) return
-    const socket = connectWebSocket()
+    if (!token) return
+    const socket = connectWebSocket(token)
 
     const handleNotification = (payload: NotificationEventPayload) => {
       if (!payload || payload.userId !== user.id) return
@@ -126,18 +137,18 @@ export function NotificationPanel() {
     return () => {
       socket.off('notification', handleNotification)
     }
-  }, [user?.id])
+  }, [token, user?.id])
 
-  async function onMarkOneRead(notificationId: string, isRead: boolean) {
+  async function onToggleRead(row: InAppNotification) {
     if (!token) return
     try {
-      const updated = await markNotificationRead(token, notificationId, { isRead })
-      setItems((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
+      const updated = await markNotificationRead(token, row.id, { isRead: !row.isRead })
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
       setUnreadCount((prev) => {
-        if (updated.isRead) {
-          return Math.max(0, prev - 1)
+        if (row.isRead === updated.isRead) {
+          return prev
         }
-        return prev + 1
+        return updated.isRead ? Math.max(0, prev - 1) : prev + 1
       })
     } catch (e) {
       handleError(e)
@@ -191,7 +202,7 @@ export function NotificationPanel() {
             <div>
               <p className="text-sm font-semibold">Notifications</p>
               <p className="text-xs text-muted-foreground">
-                {unreadCount} unread · {total} total
+                {unreadCount} unread | {total} total
               </p>
             </div>
             <Button
@@ -262,7 +273,7 @@ export function NotificationPanel() {
                       size="sm"
                       variant="ghost"
                       className="h-7 px-2 text-xs"
-                      onClick={() => onMarkOneRead(row.id, !row.isRead)}
+                      onClick={() => onToggleRead(row)}
                     >
                       <Check className="mr-1 h-3.5 w-3.5" />
                       {row.isRead ? 'Unread' : 'Read'}

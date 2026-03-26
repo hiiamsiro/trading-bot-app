@@ -62,6 +62,7 @@ export default function BotsListPage() {
   }, [token, handleError])
 
   useTradingSocket({
+    token,
     userId: user?.id,
     onRefresh: reload,
   })

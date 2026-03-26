@@ -154,6 +154,7 @@ export default function TradesPage() {
   }, [token, botId, symbol, status, from, to, take, skip, sortBy, sortDir, handleError])
 
   useTradingSocket({
+    token,
     userId: user?.id,
     onRefresh: reloadTrades,
   })

@@ -1,9 +1,10 @@
-'use client'
-
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { Instrument, TradeStatus, type DashboardSnapshot } from '@/types'
-import { useAuthStore } from '@/store/auth.store'
+'use client' 
+ 
+import { useCallback, useEffect, useMemo, useState } from 'react' 
+import Link from 'next/link' 
+import { useRouter } from 'next/navigation'
+import { Instrument, TradeStatus, type DashboardSnapshot } from '@/types' 
+import { useAuthStore } from '@/store/auth.store' 
 import {
   fetchAllInstruments,
   fetchDashboard,
@@ -22,13 +23,14 @@ import {
   AlertCircle,
   BarChart3,
   Bot as BotIcon,
-  DollarSign,
-  History,
-  Percent,
-  Target,
-  TimerReset,
-  TrendingDown,
-  TrendingUp,
+  DollarSign, 
+  History, 
+  LogOut,
+  Percent, 
+  Target, 
+  TimerReset, 
+  TrendingDown, 
+  TrendingUp, 
   Zap,
 } from 'lucide-react'
 import {
@@ -58,12 +60,14 @@ function formatPct(value: number | null) {
   return `${value.toFixed(1)}%`
 }
 
-export default function DashboardPage() {
-  const token = useAuthStore((s) => s.token)
-  const user = useAuthStore((s) => s.user)
-  const handleError = useHandleApiError()
-  const [loading, setLoading] = useState(true)
-  const [dashboard, setDashboard] = useState<DashboardSnapshot | null>(null)
+export default function DashboardPage() { 
+  const router = useRouter()
+  const token = useAuthStore((s) => s.token) 
+  const user = useAuthStore((s) => s.user) 
+  const clearAuth = useAuthStore((s) => s.clearAuth)
+  const handleError = useHandleApiError() 
+  const [loading, setLoading] = useState(true) 
+  const [dashboard, setDashboard] = useState<DashboardSnapshot | null>(null) 
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [instrumentTotal, setInstrumentTotal] = useState(0)
   const [instrumentPage, setInstrumentPage] = useState(1)
@@ -147,6 +151,7 @@ export default function DashboardPage() {
   }, [token, handleError])
 
   useTradingSocket({
+    token,
     userId: user?.id,
     onRefresh: reloadOverview,
   })
@@ -267,23 +272,34 @@ export default function DashboardPage() {
     )
   }
 
-  const totalBots = m.totalBots
+  const totalBots = m.totalBots 
 
-  return (
-    <div className="space-y-8">
-      <div className="rounded-xl border border-border/70 bg-card/70 p-6 shadow-sm backdrop-blur-xl">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+  const onSignOut = () => {
+    clearAuth()
+    router.replace('/login')
+  }
+ 
+  return ( 
+    <div className="space-y-8"> 
+      <div className="rounded-xl border border-border/70 bg-card/70 p-6 shadow-sm backdrop-blur-xl"> 
+        <div className="flex flex-wrap items-center justify-between gap-4"> 
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-            <p className="mt-1 text-muted-foreground">
-              Welcome back{user?.name ? `, ${user.name}` : ''}. Performance from stored trades; PnL uses closed positions with realized PnL.
-            </p>
+            <p className="mt-1 text-muted-foreground"> 
+              Welcome back{user?.name ? `, ${user.name}` : ''}. Performance from stored trades; PnL uses closed positions with realized PnL. 
+            </p> 
+          </div> 
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Badge className="border border-primary/40 bg-primary/15 px-3 py-1 text-primary"> 
+              Live monitoring enabled 
+            </Badge> 
+            <Button variant="outline" size="sm" className="gap-2" onClick={onSignOut}>
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
           </div>
-          <Badge className="border border-primary/40 bg-primary/15 px-3 py-1 text-primary">
-            Live monitoring enabled
-          </Badge>
-        </div>
-      </div>
+        </div> 
+      </div> 
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
