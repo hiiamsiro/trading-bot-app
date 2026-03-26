@@ -142,10 +142,16 @@ This starts **PostgreSQL** (`5432`), **Redis** (`6379`), the **backend** (`3001`
 
 | Email | Password |
 |-------|----------|
-| demo@example.com | password123 |
-| demo2@example.com | password123 |
+| admin@example.com | password123 |
+| user@example.com | password123 |
 
-The first account gets sample bots, trades, and logs. The seed script is idempotent: if a bot named **Demo BTC Bot** already exists for `demo@example.com`, it skips creating demo bots/trades again.
+`admin@example.com` is intended for the monitoring page (`/admin`) â€” add it to `ADMIN_EMAILS` in the backend environment. The seed script is idempotent: if **BTC Momentum Runner** already exists for `user@example.com` (and **Admin Liquidity Watch** exists for `admin@example.com`), it skips recreating the demo scenarios.
+
+To force a clean re-seed (remove and recreate the two demo accounts + their bots/trades/logs), run:
+
+```bash
+docker compose exec backend npm run prisma:seed -- --reset
+```
 
 If migrations or seed fail (for example after a bad volume state), run them manually:
 
