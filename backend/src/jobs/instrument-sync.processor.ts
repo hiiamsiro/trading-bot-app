@@ -11,7 +11,8 @@ export class InstrumentSyncProcessor extends WorkerHost {
     super();
   }
 
-  async process(_job: Job<Record<string, never>, void, string>): Promise<void> {
+  async process(job: Job<Record<string, never>, void, string>): Promise<void> {
+    void job;
     const result = await this.instrumentsService.syncFromProvider();
     this.logger.log(
       `Instrument sync completed provider=${result.provider} fetched=${result.totalFetched} created=${result.created} updated=${result.updated}`,

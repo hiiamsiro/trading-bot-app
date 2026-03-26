@@ -192,7 +192,15 @@ npm run prisma:migrate
 npm run prisma:generate
 ```
 
-5. **Start backend**
+5. **Run backend tests**
+
+```bash
+npm test
+# or watch mode
+npm run test:watch
+```
+
+6. **Start backend**
 
 ```bash
 npm run start:dev

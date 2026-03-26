@@ -16,7 +16,8 @@ export class MarketDataProcessor extends WorkerHost {
     super();
   }
 
-  async process(_job: Job<Record<string, never>, void, string>): Promise<void> {
+  async process(job: Job<Record<string, never>, void, string>): Promise<void> {
+    void job;
     const subscriptions = this.gateway.getActiveMarketSubscriptions();
     for (const { symbol, interval } of subscriptions) {
       const snapshot = await this.marketData.getMarketSnapshot(symbol, interval);

@@ -26,10 +26,7 @@ export function resolveCorsOrigin():
     );
   }
 
-  const allowlist = trimmed
-    .split(',')
-    .map(normalizeOrigin)
-    .filter(Boolean);
+  const allowlist = trimmed.split(',').map(normalizeOrigin).filter(Boolean);
 
   if (allowlist.length === 0) {
     return fallback;
