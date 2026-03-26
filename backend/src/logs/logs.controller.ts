@@ -21,4 +21,3 @@ export class LogsController {
     return this.logsService.findAll(user.userId, query);
   }
 }
-

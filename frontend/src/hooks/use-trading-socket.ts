@@ -32,11 +32,13 @@ export function useTradingSocket(options: {
     socket.on('bot-status', handle)
     socket.on('new-trade', handle)
     socket.on('bot-log', handle)
+    socket.on('notification', handle)
 
     return () => {
       socket.off('bot-status', handle)
       socket.off('new-trade', handle)
       socket.off('bot-log', handle)
+      socket.off('notification', handle)
     }
   }, [userId, botId])
 }

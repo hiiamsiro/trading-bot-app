@@ -117,8 +117,7 @@ export class DashboardService {
       })
       .reduce((s, t) => s + (t.realizedPnl ?? 0), 0);
 
-    const winRate =
-      closedWithPnl > 0 ? (winning.length / closedWithPnl) * 100 : null;
+    const winRate = closedWithPnl > 0 ? (winning.length / closedWithPnl) * 100 : null;
 
     const averageWin =
       winning.length > 0

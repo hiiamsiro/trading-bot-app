@@ -65,7 +65,10 @@ export class StrategyService {
       const shortPeriod = Number(safeParams.shortPeriod);
       const longPeriod = Number(safeParams.longPeriod);
       const quantity = this.resolveOrderQuantity(safeParams.quantity);
-      const stopLossPercent = this.optionalPositiveNumber(safeParams.stopLossPercent, 'stopLossPercent');
+      const stopLossPercent = this.optionalPositiveNumber(
+        safeParams.stopLossPercent,
+        'stopLossPercent',
+      );
       const takeProfitPercent = this.optionalPositiveNumber(
         safeParams.takeProfitPercent,
         'takeProfitPercent',
@@ -80,9 +83,7 @@ export class StrategyService {
         throw new Error('Invalid strategy config: longPeriod must be an integer >= 2');
       }
       if (shortPeriod >= longPeriod) {
-        throw new Error(
-          'Invalid strategy config: shortPeriod must be smaller than longPeriod',
-        );
+        throw new Error('Invalid strategy config: shortPeriod must be smaller than longPeriod');
       }
       if (!Number.isFinite(quantity) || quantity <= 0) {
         throw new Error('Invalid strategy config: quantity must be a number > 0');
@@ -110,7 +111,10 @@ export class StrategyService {
       const oversold = safeParams.oversold != null ? Number(safeParams.oversold) : 30;
       const overbought = safeParams.overbought != null ? Number(safeParams.overbought) : 70;
       const quantity = this.resolveOrderQuantity(safeParams.quantity);
-      const stopLossPercent = this.optionalPositiveNumber(safeParams.stopLossPercent, 'stopLossPercent');
+      const stopLossPercent = this.optionalPositiveNumber(
+        safeParams.stopLossPercent,
+        'stopLossPercent',
+      );
       const takeProfitPercent = this.optionalPositiveNumber(
         safeParams.takeProfitPercent,
         'takeProfitPercent',
@@ -125,7 +129,9 @@ export class StrategyService {
         throw new Error('Invalid strategy config: oversold and overbought must be numbers');
       }
       if (oversold <= 0 || oversold >= 100 || overbought <= 0 || overbought >= 100) {
-        throw new Error('Invalid strategy config: oversold and overbought must be between 0 and 100');
+        throw new Error(
+          'Invalid strategy config: oversold and overbought must be between 0 and 100',
+        );
       }
       if (oversold >= overbought) {
         throw new Error('Invalid strategy config: oversold must be smaller than overbought');
@@ -156,7 +162,14 @@ export class StrategyService {
   }
 
   isSupportedInterval(value: string): value is MarketKlineInterval {
-    return value === '1m' || value === '5m' || value === '15m' || value === '1h' || value === '4h' || value === '1d';
+    return (
+      value === '1m' ||
+      value === '5m' ||
+      value === '15m' ||
+      value === '1h' ||
+      value === '4h' ||
+      value === '1d'
+    );
   }
 
   evaluate(input: StrategyInput): StrategyDecision {

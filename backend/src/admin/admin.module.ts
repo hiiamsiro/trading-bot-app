@@ -7,4 +7,3 @@ import { AdminService } from './admin.service';
   providers: [AdminService],
 })
 export class AdminModule {}
-

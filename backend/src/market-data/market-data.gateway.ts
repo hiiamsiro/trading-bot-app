@@ -48,4 +48,20 @@ export class MarketDataGateway implements OnGatewayConnection, OnGatewayDisconne
   }) {
     this.server.emit('bot-log', data);
   }
+
+  emitNotification(data: {
+    id: string;
+    userId: string;
+    botId: string | null;
+    tradeId: string | null;
+    type: string;
+    title: string;
+    message: string;
+    metadata: unknown;
+    isRead: boolean;
+    readAt: string | null;
+    createdAt: string;
+  }) {
+    this.server.emit('notification', data);
+  }
 }

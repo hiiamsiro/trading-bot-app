@@ -15,7 +15,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  bots Bot[]
+  bots          Bot[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -40,23 +41,23 @@ model Bot {
 }
 
 model Instrument {
-  id                String           @id @default(uuid())
-  symbol            String           @unique
-  displayName       String
-  assetClass        InstrumentAssetClass
-  marketType        InstrumentMarketType
-  baseAsset         String?
-  quoteCurrency     String
-  exchange          String
-  dataSource        String
-  sourceSymbol      String?
+  id                 String              @id @default(uuid())
+  symbol             String              @unique
+  displayName        String
+  assetClass         InstrumentAssetClass
+  marketType         InstrumentMarketType
+  baseAsset          String?
+  quoteCurrency      String
+  exchange           String
+  dataSource         String
+  sourceSymbol       String?
   supportedIntervals Json
-  pricePrecision    Int
-  quantityPrecision Int
-  status            InstrumentStatus @default(ACTIVE)
-  isActive          Boolean          @default(true)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  pricePrecision     Int
+  quantityPrecision  Int
+  status             InstrumentStatus    @default(ACTIVE)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([isActive])
   @@index([assetClass, marketType])
@@ -100,23 +101,23 @@ model StrategyConfig {
 }
 
 model Trade {
-  id            String    @id @default(uuid())
-  botId         String
-  symbol        String
-  side          TradeSide
-  quantity      Float
-  price         Float
-  totalValue    Float
-  status        TradeStatus @default(PENDING)
-  executedAt    DateTime?
-  openReason    String?
-  exitPrice     Float?
-  realizedPnl   Float?
-  stopLoss      Float?
-  takeProfit    Float?
-  closedAt      DateTime?
-  closeReason   String?
-  createdAt     DateTime    @default(now())
+  id          String      @id @default(uuid())
+  botId       String
+  symbol      String
+  side        TradeSide
+  quantity    Float
+  price       Float
+  totalValue  Float
+  status      TradeStatus @default(PENDING)
+  executedAt  DateTime?
+  openReason  String?
+  exitPrice   Float?
+  realizedPnl Float?
+  stopLoss    Float?
+  takeProfit  Float?
+  closedAt    DateTime?
+  closeReason String?
+  createdAt   DateTime    @default(now())
 
   bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
 
@@ -160,16 +161,46 @@ enum LogLevel {
 }
 
 model ExecutionSession {
-  id              String    @id @default(uuid())
-  botId           String    @unique
-  startedAt       DateTime  @default(now())
-  endedAt         DateTime?
-  totalTrades     Int       @default(0)
-  profitLoss      Float     @default(0)
-  initialBalance  Float
-  currentBalance  Float
+  id             String   @id @default(uuid())
+  botId          String   @unique
+  startedAt      DateTime @default(now())
+  endedAt        DateTime?
+  totalTrades    Int      @default(0)
+  profitLoss     Float    @default(0)
+  initialBalance Float
+  currentBalance Float
 
   bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
 
   @@map("execution_sessions")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  botId     String?
+  tradeId   String?
+  type      NotificationType
+  title     String
+  message   String
+  metadata  Json?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  BOT_STARTED
+  BOT_STOPPED
+  BOT_ERROR
+  TRADE_OPENED
+  TRADE_CLOSED
+  STOP_LOSS_HIT
+  TAKE_PROFIT_HIT
 }

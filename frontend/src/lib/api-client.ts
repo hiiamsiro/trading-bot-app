@@ -11,11 +11,16 @@ import type {
   InstrumentSyncResult,
   MarketKline,
   MarketKlineInterval,
+  ListNotificationsQuery,
   ListTradesQuery,
+  MarkAllNotificationsReadResponse,
+  MarkNotificationReadPayload,
+  NotificationsResponse,
   Trade,
   TradeHistoryResponse,
   UpdateBotPayload,
   User,
+  InAppNotification,
 } from '@/types'
 
 export async function loginRequest(
@@ -191,6 +196,37 @@ export async function fetchLogs(
 
   const queryString = params.size ? `?${params}` : ''
   return api.get<BotLogsResponse>(`/logs${queryString}`, token)
+}
+
+export async function fetchNotifications(
+  token: string,
+  query?: ListNotificationsQuery,
+): Promise<NotificationsResponse> {
+  const params = new URLSearchParams()
+  if (query?.isRead != null) params.set('isRead', String(query.isRead))
+  if (query?.take != null) params.set('take', String(query.take))
+  if (query?.skip != null) params.set('skip', String(query.skip))
+
+  const queryString = params.size ? `?${params}` : ''
+  return api.get<NotificationsResponse>(`/notifications${queryString}`, token)
+}
+
+export async function markNotificationRead(
+  token: string,
+  notificationId: string,
+  payload: MarkNotificationReadPayload = { isRead: true },
+): Promise<InAppNotification> {
+  return api.patch<InAppNotification>(
+    `/notifications/${notificationId}/read`,
+    payload,
+    token,
+  )
+}
+
+export async function markAllNotificationsRead(
+  token: string,
+): Promise<MarkAllNotificationsReadResponse> {
+  return api.post<MarkAllNotificationsReadResponse>('/notifications/read-all', {}, token)
 }
 
 export async function fetchTrades(

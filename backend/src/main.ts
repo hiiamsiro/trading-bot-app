@@ -35,6 +35,7 @@ async function bootstrap() {
     .addTag('market-data', 'Live and historical market candles')
     .addTag('dashboard', 'Aggregated metrics and activity')
     .addTag('logs', 'Cross-bot log querying and filters')
+    .addTag('notifications', 'In-app notifications for key bot and trade events')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

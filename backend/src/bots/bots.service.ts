@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { LogLevel, Prisma } from '@prisma/client';
+import { LogLevel, NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from '../market-data/market-data.service';
 import { MarketDataGateway } from '../market-data/market-data.gateway';
@@ -13,6 +13,7 @@ import { StrategyService } from '../strategy/strategy.service';
 import { CreateBotDto } from './dto/create-bot.dto';
 import { UpdateBotDto } from './dto/update-bot.dto';
 import { ListBotLogsQueryDto } from './dto/list-bot-logs-query.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BotsService {
@@ -22,6 +23,7 @@ export class BotsService {
     private readonly marketGateway: MarketDataGateway,
     private readonly instrumentsService: InstrumentsService,
     private readonly strategyService: StrategyService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async findAll(userId: string) {
@@ -165,6 +167,112 @@ export class BotsService {
     return row;
   }
 
+  async createNotification(input: {
+    userId: string;
+    botId?: string;
+    tradeId?: string;
+    type: NotificationType;
+    title: string;
+    message: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    const notification = await this.notificationsService.create(input);
+
+    this.marketGateway.emitNotification({
+      id: notification.id,
+      userId: notification.userId,
+      botId: notification.botId,
+      tradeId: notification.tradeId,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      metadata: notification.metadata,
+      isRead: notification.isRead,
+      readAt: notification.readAt ? notification.readAt.toISOString() : null,
+      createdAt: notification.createdAt.toISOString(),
+    });
+
+    return notification;
+  }
+
+  async notifyBotEvent(input: {
+    userId: string;
+    botId: string;
+    symbol: string;
+    type: 'BOT_STARTED' | 'BOT_STOPPED' | 'BOT_ERROR';
+    reason?: string;
+  }) {
+    const titleByType: Record<'BOT_STARTED' | 'BOT_STOPPED' | 'BOT_ERROR', string> = {
+      BOT_STARTED: 'Bot started',
+      BOT_STOPPED: 'Bot stopped',
+      BOT_ERROR: 'Bot error',
+    };
+
+    const messageByType: Record<'BOT_STARTED' | 'BOT_STOPPED' | 'BOT_ERROR', string> = {
+      BOT_STARTED: `${input.symbol} bot is now running.`,
+      BOT_STOPPED: `${input.symbol} bot has been stopped.`,
+      BOT_ERROR: input.reason
+        ? `${input.symbol} bot entered error state: ${input.reason}`
+        : `${input.symbol} bot entered error state.`,
+    };
+
+    return this.createNotification({
+      userId: input.userId,
+      botId: input.botId,
+      type: input.type,
+      title: titleByType[input.type],
+      message: messageByType[input.type],
+      metadata: {
+        symbol: input.symbol,
+        reason: input.reason,
+      },
+    });
+  }
+
+  async notifyTradeEvent(input: {
+    userId: string;
+    botId: string;
+    tradeId: string;
+    symbol: string;
+    type: 'TRADE_OPENED' | 'TRADE_CLOSED' | 'STOP_LOSS_HIT' | 'TAKE_PROFIT_HIT';
+    realizedPnl?: number;
+    closeReason?: string;
+  }) {
+    const titleByType: Record<
+      'TRADE_OPENED' | 'TRADE_CLOSED' | 'STOP_LOSS_HIT' | 'TAKE_PROFIT_HIT',
+      string
+    > = {
+      TRADE_OPENED: 'Trade opened',
+      TRADE_CLOSED: 'Trade closed',
+      STOP_LOSS_HIT: 'Stop loss hit',
+      TAKE_PROFIT_HIT: 'Take profit hit',
+    };
+
+    const messageByType: Record<
+      'TRADE_OPENED' | 'TRADE_CLOSED' | 'STOP_LOSS_HIT' | 'TAKE_PROFIT_HIT',
+      string
+    > = {
+      TRADE_OPENED: `${input.symbol} position opened.`,
+      TRADE_CLOSED: `${input.symbol} position closed${input.realizedPnl != null ? ` (${input.realizedPnl >= 0 ? '+' : ''}${input.realizedPnl.toFixed(2)} PnL)` : ''}.`,
+      STOP_LOSS_HIT: `${input.symbol} position closed by stop loss${input.realizedPnl != null ? ` (${input.realizedPnl >= 0 ? '+' : ''}${input.realizedPnl.toFixed(2)} PnL)` : ''}.`,
+      TAKE_PROFIT_HIT: `${input.symbol} position closed by take profit${input.realizedPnl != null ? ` (${input.realizedPnl >= 0 ? '+' : ''}${input.realizedPnl.toFixed(2)} PnL)` : ''}.`,
+    };
+
+    return this.createNotification({
+      userId: input.userId,
+      botId: input.botId,
+      tradeId: input.tradeId,
+      type: input.type,
+      title: titleByType[input.type],
+      message: messageByType[input.type],
+      metadata: {
+        symbol: input.symbol,
+        realizedPnl: input.realizedPnl,
+        closeReason: input.closeReason,
+      },
+    });
+  }
+
   async start(id: string, userId: string) {
     const bot = await this.findOne(id, userId);
     if (bot.status === 'RUNNING') {
@@ -240,6 +348,13 @@ export class BotsService {
       symbol: updated.symbol,
     });
 
+    await this.notifyBotEvent({
+      userId: updated.userId,
+      botId: updated.id,
+      symbol: updated.symbol,
+      type: NotificationType.BOT_STARTED,
+    });
+
     return updated;
   }
 
@@ -312,6 +427,15 @@ export class BotsService {
           ...closed,
           userId: bot.userId,
         });
+        await this.notifyTradeEvent({
+          userId: bot.userId,
+          botId: bot.id,
+          tradeId: closed.id,
+          symbol: bot.symbol,
+          type: NotificationType.TRADE_CLOSED,
+          realizedPnl,
+          closeReason: 'bot_stopped',
+        });
       }
     }
 
@@ -344,6 +468,13 @@ export class BotsService {
       userId: updated.userId,
       status: updated.status,
       symbol: updated.symbol,
+    });
+
+    await this.notifyBotEvent({
+      userId: updated.userId,
+      botId: updated.id,
+      symbol: updated.symbol,
+      type: NotificationType.BOT_STOPPED,
     });
 
     return updated;

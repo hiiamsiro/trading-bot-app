@@ -35,59 +35,53 @@ export class AdminService {
 
     const tradeGroupTake = Math.max(topTake, TOP_USERS_BOT_SCAN_LIMIT);
 
-    const [
-      totalUsers,
-      totalBots,
-      botGroup,
-      recentErrors,
-      recentTrades,
-      tradesByBot,
-    ] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.bot.count(),
-      this.prisma.bot.groupBy({
-        by: ['status'],
-        _count: { _all: true },
-      }),
-      this.prisma.botLog.findMany({
-        where: { level: LogLevel.ERROR },
-        take: recentErrorsTake,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          bot: {
-            select: {
-              id: true,
-              name: true,
-              symbol: true,
-              status: true,
-              user: { select: { id: true, email: true } },
+    const [totalUsers, totalBots, botGroup, recentErrors, recentTrades, tradesByBot] =
+      await Promise.all([
+        this.prisma.user.count(),
+        this.prisma.bot.count(),
+        this.prisma.bot.groupBy({
+          by: ['status'],
+          _count: { _all: true },
+        }),
+        this.prisma.botLog.findMany({
+          where: { level: LogLevel.ERROR },
+          take: recentErrorsTake,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            bot: {
+              select: {
+                id: true,
+                name: true,
+                symbol: true,
+                status: true,
+                user: { select: { id: true, email: true } },
+              },
             },
           },
-        },
-      }),
-      this.prisma.trade.findMany({
-        take: recentTradesTake,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          bot: {
-            select: {
-              id: true,
-              name: true,
-              symbol: true,
-              status: true,
-              user: { select: { id: true, email: true } },
+        }),
+        this.prisma.trade.findMany({
+          take: recentTradesTake,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            bot: {
+              select: {
+                id: true,
+                name: true,
+                symbol: true,
+                status: true,
+                user: { select: { id: true, email: true } },
+              },
             },
           },
-        },
-      }),
-      this.prisma.trade.groupBy({
-        by: ['botId'],
-        where: { createdAt: { gte: windowStart } },
-        _count: { botId: true },
-        orderBy: { _count: { botId: 'desc' } },
-        take: tradeGroupTake,
-      }),
-    ]);
+        }),
+        this.prisma.trade.groupBy({
+          by: ['botId'],
+          where: { createdAt: { gte: windowStart } },
+          _count: { botId: true },
+          orderBy: { _count: { botId: 'desc' } },
+          take: tradeGroupTake,
+        }),
+      ]);
 
     const botStatusCounts = statusCounts(botGroup);
 

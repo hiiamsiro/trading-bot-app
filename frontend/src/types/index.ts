@@ -115,6 +115,51 @@ export interface BotLogsResponse {
   skip: number
 }
 
+export type InAppNotificationType =
+  | 'BOT_STARTED'
+  | 'BOT_STOPPED'
+  | 'BOT_ERROR'
+  | 'TRADE_OPENED'
+  | 'TRADE_CLOSED'
+  | 'STOP_LOSS_HIT'
+  | 'TAKE_PROFIT_HIT'
+
+export interface InAppNotification {
+  id: string
+  userId: string
+  botId?: string | null
+  tradeId?: string | null
+  type: InAppNotificationType
+  title: string
+  message: string
+  metadata?: Record<string, unknown> | null
+  isRead: boolean
+  readAt?: string | null
+  createdAt: string
+}
+
+export interface NotificationsResponse {
+  items: InAppNotification[]
+  total: number
+  unreadCount: number
+  take: number
+  skip: number
+}
+
+export interface MarkAllNotificationsReadResponse {
+  updatedCount: number
+}
+
+export interface MarkNotificationReadPayload {
+  isRead?: boolean
+}
+
+export interface ListNotificationsQuery {
+  isRead?: boolean
+  take?: number
+  skip?: number
+}
+
 export interface DashboardEquityPoint {
   at: string
   cumulativePnl: number

@@ -1,16 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { LogLevel } from '@prisma/client';
 import { Type } from 'class-transformer';
-import {
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Max,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 export class ListLogsQueryDto {
   @ApiPropertyOptional({ description: 'Filter by bot UUID' })
@@ -50,4 +41,3 @@ export class ListLogsQueryDto {
   @Min(0)
   skip?: number;
 }
-

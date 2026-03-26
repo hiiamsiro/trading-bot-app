@@ -86,4 +86,3 @@ export class ListTradesQueryDto {
   @IsEnum(SortDir)
   sortDir?: SortDir;
 }
-

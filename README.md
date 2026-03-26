@@ -76,6 +76,8 @@ trading-bot-app/
 - **trades** - Trade execution history
 - **bot_logs** - Bot activity logs
 - **execution_sessions** - Bot execution sessions with P&L tracking
+- **notifications** - In-app user notifications with read/unread tracking
+- **notifications** - In-app user notifications with read/unread tracking
 
 ### Enums
 
@@ -83,6 +85,8 @@ trading-bot-app/
 - **TradeSide**: BUY, SELL
 - **TradeStatus**: PENDING, EXECUTED, CANCELLED, FAILED
 - **LogLevel**: INFO, WARNING, ERROR, DEBUG
+- **NotificationType**: BOT_STARTED, BOT_STOPPED, BOT_ERROR, TRADE_OPENED, TRADE_CLOSED, STOP_LOSS_HIT, TAKE_PROFIT_HIT
+- **NotificationType**: BOT_STARTED, BOT_STOPPED, BOT_ERROR, TRADE_OPENED, TRADE_CLOSED, STOP_LOSS_HIT, TAKE_PROFIT_HIT
 
 ## Getting Started
 
@@ -274,6 +278,9 @@ Connect the client to the same **HTTP** origin as the API (for example `http://l
 - `bot-status` — `{ botId, userId, status, symbol }`
 - `new-trade` — Trade fields from Prisma plus `userId` and `botId`
 - `bot-log` — Log row fields plus `userId` (emitted when a log line is written)
+- `notification` — Notification payload with `userId`, `type`, read-state, and optional `botId`/`tradeId`
+- Notifications are created for: bot started/stopped/error, trade opened/closed, stop loss hit, and take profit hit
+- Read APIs: `GET /notifications`, `PATCH /notifications/:id/read`, `POST /notifications/read-all`
 
 ## Environment Variables
 

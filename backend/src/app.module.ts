@@ -12,6 +12,7 @@ import { InstrumentsModule } from './instruments/instruments.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { LogsModule } from './logs/logs.module';
 import { AdminModule } from './admin/admin.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AdminModule } from './admin/admin.module';
     DashboardModule,
     LogsModule,
     AdminModule,
+    NotificationsModule,
     JobsModule,
   ],
 })

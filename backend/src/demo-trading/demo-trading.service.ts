@@ -4,6 +4,7 @@ import {
   ExecutionSession,
   Instrument,
   LogLevel,
+  NotificationType,
   StrategyConfig,
   Trade,
   TradeSide,
@@ -276,6 +277,14 @@ export class DemoTradingService {
       ...trade,
       userId: bot.userId,
     });
+
+    await this.botsService.notifyTradeEvent({
+      userId: bot.userId,
+      botId: bot.id,
+      tradeId: trade.id,
+      symbol: bot.symbol,
+      type: NotificationType.TRADE_OPENED,
+    });
   }
 
   private async closeTrade(
@@ -331,6 +340,23 @@ export class DemoTradingService {
     this.gateway.emitNewTrade({
       ...updated,
       userId: bot.userId,
+    });
+
+    const notificationType =
+      reason === 'risk:stop_loss'
+        ? NotificationType.STOP_LOSS_HIT
+        : reason === 'risk:take_profit'
+          ? NotificationType.TAKE_PROFIT_HIT
+          : NotificationType.TRADE_CLOSED;
+
+    await this.botsService.notifyTradeEvent({
+      userId: bot.userId,
+      botId: bot.id,
+      tradeId: updated.id,
+      symbol: bot.symbol,
+      type: notificationType,
+      realizedPnl: pnl,
+      closeReason: reason,
     });
   }
 

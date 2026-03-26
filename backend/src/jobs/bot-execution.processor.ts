@@ -1,6 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { LogLevel } from '@prisma/client';
+import { LogLevel, NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DemoTradingService } from '../demo-trading/demo-trading.service';
 import { BotsService } from '../bots/bots.service';
@@ -40,16 +40,29 @@ export class BotExecutionProcessor extends WorkerHost {
         data: { status: 'ERROR' },
         select: { id: true, userId: true, symbol: true, status: true },
       });
-      await this.botsService.appendLog(bot.id, LogLevel.ERROR, 'Bot execution failed', {
-        botId: bot.id,
-        symbol: bot.symbol,
-        reason: message,
-      }, 'execution');
+      await this.botsService.appendLog(
+        bot.id,
+        LogLevel.ERROR,
+        'Bot execution failed',
+        {
+          botId: bot.id,
+          symbol: bot.symbol,
+          reason: message,
+        },
+        'execution',
+      );
       this.marketGateway.emitBotStatus({
         botId: updatedBot.id,
         userId: updatedBot.userId,
         symbol: updatedBot.symbol,
         status: updatedBot.status,
+      });
+      await this.botsService.notifyBotEvent({
+        userId: updatedBot.userId,
+        botId: updatedBot.id,
+        symbol: updatedBot.symbol,
+        type: NotificationType.BOT_ERROR,
+        reason: message,
       });
     }
   }

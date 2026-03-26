@@ -19,4 +19,3 @@ export class AdminController {
     return this.adminService.getMonitoringSnapshot(query);
   }
 }
-

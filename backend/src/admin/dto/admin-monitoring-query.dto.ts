@@ -35,4 +35,3 @@ export class AdminMonitoringQueryDto {
   @Max(720)
   windowHours?: number;
 }
-
