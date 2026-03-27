@@ -8,12 +8,21 @@ export type StrategyDecision = {
   metadata: Record<string, unknown>;
 };
 
+export type TimeframeCloses = {
+  /** Primary / entry timeframe (e.g. "1m") */
+  entry: number[];
+  /** Secondary / trend timeframe (e.g. "1h") */
+  trend: number[];
+};
+
 type StrategyInput = {
   strategyKey: string;
   instrument: string;
+  /** Primary / entry timeframe used for this evaluation */
   interval: MarketKlineInterval;
   params: Record<string, unknown>;
-  closes: number[];
+  /** Candle closes keyed by role */
+  closes: TimeframeCloses;
 };
 
 export type StrategyValidationResult = {
@@ -75,6 +84,12 @@ export class StrategyService {
       );
       const maxDailyLoss = this.optionalPositiveNumber(safeParams.maxDailyLoss, 'maxDailyLoss');
       const interval = this.optionalTrimmedString(safeParams.interval);
+      const trendInterval = this.optionalTrimmedString(safeParams.trendInterval);
+      if (trendInterval && !this.isSupportedInterval(trendInterval)) {
+        throw new Error(
+          `Invalid strategy config: trendInterval "${trendInterval}" is not supported. Supported: 1m, 5m, 15m, 1h, 4h, 1d`,
+        );
+      }
 
       if (!Number.isInteger(shortPeriod) || shortPeriod < 1) {
         throw new Error('Invalid strategy config: shortPeriod must be an integer >= 1');
@@ -102,6 +117,7 @@ export class StrategyService {
           ...(takeProfitPercent != null ? { takeProfitPercent } : {}),
           ...(maxDailyLoss != null ? { maxDailyLoss } : {}),
           ...(interval ? { interval } : {}),
+          ...(trendInterval ? { trendInterval } : {}),
         },
       };
     }
@@ -121,6 +137,12 @@ export class StrategyService {
       );
       const maxDailyLoss = this.optionalPositiveNumber(safeParams.maxDailyLoss, 'maxDailyLoss');
       const interval = this.optionalTrimmedString(safeParams.interval);
+      const trendInterval = this.optionalTrimmedString(safeParams.trendInterval);
+      if (trendInterval && !this.isSupportedInterval(trendInterval)) {
+        throw new Error(
+          `Invalid strategy config: trendInterval "${trendInterval}" is not supported. Supported: 1m, 5m, 15m, 1h, 4h, 1d`,
+        );
+      }
 
       if (!Number.isInteger(period) || period < 2) {
         throw new Error('Invalid strategy config: period must be an integer >= 2');
@@ -154,6 +176,7 @@ export class StrategyService {
           ...(takeProfitPercent != null ? { takeProfitPercent } : {}),
           ...(maxDailyLoss != null ? { maxDailyLoss } : {}),
           ...(interval ? { interval } : {}),
+          ...(trendInterval ? { trendInterval } : {}),
         },
       };
     }
@@ -191,18 +214,41 @@ export class StrategyService {
     };
   }
 
-  getRequiredCandles(strategyKey: string, params: Record<string, unknown>): number {
+  /**
+   * Returns the number of candles needed for each timeframe role.
+   * Single-timeframe bots only need `entry` candles.
+   * Multi-timeframe bots also need `trend` candles (for the higher timeframe).
+   */
+  getRequiredCandles(
+    strategyKey: string,
+    params: Record<string, unknown>,
+  ): { entry: number; trend: number } {
     const key = this.normalizeStrategyKey(strategyKey);
     if (key === 'ma_crossover' || key === 'sma_crossover') {
       const shortPeriod = Number(params.shortPeriod) || 10;
       const longPeriod = Number(params.longPeriod) || 20;
-      return Math.max(longPeriod + 2, shortPeriod + 2);
+      const entry = Math.max(longPeriod + 2, shortPeriod + 2);
+      return { entry, trend: entry };
     }
     if (key === 'rsi') {
       const period = Number(params.period) || 14;
-      return period + 2;
+      const entry = period + 2;
+      return { entry, trend: entry };
     }
-    return 2;
+    return { entry: 2, trend: 2 };
+  }
+
+  /**
+   * Returns all intervals the strategy will consume (for live subscription bootstrapping).
+   */
+  getRequiredIntervals(params: Record<string, unknown>): MarketKlineInterval[] {
+    const entry = this.optionalTrimmedString(params.interval) ?? '1m';
+    const trend = this.optionalTrimmedString(params.trendInterval);
+    const intervals: MarketKlineInterval[] = [entry as MarketKlineInterval];
+    if (trend && trend !== entry) {
+      intervals.push(trend as MarketKlineInterval);
+    }
+    return intervals;
   }
 
   private normalizeStrategyKey(strategyKey: string): string {
@@ -253,6 +299,9 @@ export class StrategyService {
     const { params, closes, instrument, interval } = input;
     const shortPeriod = Number(params.shortPeriod) || 10;
     const longPeriod = Number(params.longPeriod) || 20;
+    const trendInterval = this.optionalTrimmedString(params.trendInterval);
+    const hasTrend = trendInterval && closes.trend.length > 0;
+
     if (shortPeriod >= longPeriod) {
       return {
         signal: 'HOLD',
@@ -263,15 +312,15 @@ export class StrategyService {
           interval,
           shortPeriod,
           longPeriod,
-          closesCount: closes.length,
+          closesCount: closes.entry.length,
         },
       };
     }
     const min = longPeriod + 2;
-    if (closes.length < min) {
+    if (closes.entry.length < min) {
       return {
         signal: 'HOLD',
-        reason: `Insufficient candle history for SMA crossover (${closes.length}/${min})`,
+        reason: `Insufficient candle history for SMA crossover (${closes.entry.length}/${min})`,
         metadata: {
           strategy: 'sma_crossover',
           instrument,
@@ -279,14 +328,17 @@ export class StrategyService {
           shortPeriod,
           longPeriod,
           requiredCandles: min,
-          closesCount: closes.length,
+          closesCount: closes.entry.length,
         },
       };
     }
-    const prevShort = sma(closes.slice(0, -1), shortPeriod);
-    const prevLong = sma(closes.slice(0, -1), longPeriod);
-    const currShort = sma(closes, shortPeriod);
-    const currLong = sma(closes, longPeriod);
+
+    const entryCloses = closes.entry;
+    const prevShort = sma(entryCloses.slice(0, -1), shortPeriod);
+    const prevLong = sma(entryCloses.slice(0, -1), longPeriod);
+    const currShort = sma(entryCloses, shortPeriod);
+    const currLong = sma(entryCloses, longPeriod);
+
     if ([prevShort, prevLong, currShort, currLong].some((v) => Number.isNaN(v))) {
       return {
         signal: 'HOLD',
@@ -297,18 +349,52 @@ export class StrategyService {
           interval,
           shortPeriod,
           longPeriod,
-          closesCount: closes.length,
+          closesCount: entryCloses.length,
         },
       };
     }
+
+    // Multi-timeframe trend filter
+    let trendBullish = true;
+    if (hasTrend) {
+      const trendLong = sma(closes.trend, longPeriod);
+      if (!Number.isNaN(trendLong)) {
+        // Use last entry close vs trend SMA to determine direction
+        const lastEntryClose = entryCloses[entryCloses.length - 1];
+        trendBullish = lastEntryClose > trendLong;
+      }
+    }
+
     if (prevShort <= prevLong && currShort > currLong) {
+      if (hasTrend && !trendBullish) {
+        return {
+          signal: 'HOLD',
+          reason: `MA crossover bullish but trend bearish (trend interval ${trendInterval})`,
+          metadata: {
+            strategy: 'sma_crossover',
+            instrument,
+            interval,
+            trendInterval,
+            trendBullish,
+            shortPeriod,
+            longPeriod,
+            prevShort,
+            prevLong,
+            currShort,
+            currLong,
+          },
+        };
+      }
       return {
         signal: 'BUY',
-        reason: `MA(${shortPeriod}) crossed above MA(${longPeriod})`,
+        reason: `MA(${shortPeriod}) crossed above MA(${longPeriod})` +
+          (hasTrend ? ` [trend confirmed: ${trendInterval}]` : ''),
         metadata: {
           strategy: 'sma_crossover',
           instrument,
           interval,
+          trendInterval,
+          trendBullish,
           shortPeriod,
           longPeriod,
           prevShort,
@@ -319,13 +405,35 @@ export class StrategyService {
       };
     }
     if (prevShort >= prevLong && currShort < currLong) {
+      if (hasTrend && trendBullish) {
+        return {
+          signal: 'HOLD',
+          reason: `MA crossover bearish but trend bullish (trend interval ${trendInterval})`,
+          metadata: {
+            strategy: 'sma_crossover',
+            instrument,
+            interval,
+            trendInterval,
+            trendBullish,
+            shortPeriod,
+            longPeriod,
+            prevShort,
+            prevLong,
+            currShort,
+            currLong,
+          },
+        };
+      }
       return {
         signal: 'SELL',
-        reason: `MA(${longPeriod}) crossed below MA(${shortPeriod})`,
+        reason: `MA(${longPeriod}) crossed below MA(${shortPeriod})` +
+          (hasTrend ? ` [trend confirmed: ${trendInterval}]` : ''),
         metadata: {
           strategy: 'sma_crossover',
           instrument,
           interval,
+          trendInterval,
+          trendBullish,
           shortPeriod,
           longPeriod,
           prevShort,
@@ -344,6 +452,8 @@ export class StrategyService {
         interval,
         shortPeriod,
         longPeriod,
+        trendInterval,
+        trendBullish,
         prevShort,
         prevLong,
         currShort,
@@ -355,6 +465,8 @@ export class StrategyService {
   private rsiStrategy(input: StrategyInput): StrategyDecision {
     const { params, closes, instrument, interval } = input;
     const period = Number(params.period) || 14;
+    const trendInterval = this.optionalTrimmedString(params.trendInterval);
+    const hasTrend = trendInterval && closes.trend.length > 0;
     const oversold =
       params.oversold != null && !Number.isNaN(Number(params.oversold))
         ? Number(params.oversold)
@@ -363,10 +475,10 @@ export class StrategyService {
       params.overbought != null && !Number.isNaN(Number(params.overbought))
         ? Number(params.overbought)
         : 70;
-    if (closes.length < period + 2) {
+    if (closes.entry.length < period + 2) {
       return {
         signal: 'HOLD',
-        reason: `Insufficient candle history for RSI (${closes.length}/${period + 2})`,
+        reason: `Insufficient candle history for RSI (${closes.entry.length}/${period + 2})`,
         metadata: {
           strategy: 'rsi',
           instrument,
@@ -375,12 +487,13 @@ export class StrategyService {
           oversold,
           overbought,
           requiredCandles: period + 2,
-          closesCount: closes.length,
+          closesCount: closes.entry.length,
         },
       };
     }
-    const prevR = rsi(closes.slice(0, -1), period);
-    const currR = rsi(closes, period);
+    const entryCloses = closes.entry;
+    const prevR = rsi(entryCloses.slice(0, -1), period);
+    const currR = rsi(entryCloses, period);
     if (Number.isNaN(prevR) || Number.isNaN(currR)) {
       return {
         signal: 'HOLD',
@@ -392,18 +505,49 @@ export class StrategyService {
           period,
           oversold,
           overbought,
-          closesCount: closes.length,
+          closesCount: entryCloses.length,
         },
       };
     }
+
+    // Multi-timeframe trend filter: use trend RSI > 50 as bullish
+    let trendBullish = true;
+    if (hasTrend) {
+      const trendR = rsi(closes.trend, period);
+      if (!Number.isNaN(trendR)) {
+        trendBullish = trendR > 50;
+      }
+    }
+
     if (prevR > oversold && currR <= oversold) {
+      if (hasTrend && !trendBullish) {
+        return {
+          signal: 'HOLD',
+          reason: `RSI oversold but trend bearish (trend interval ${trendInterval})`,
+          metadata: {
+            strategy: 'rsi',
+            instrument,
+            interval,
+            trendInterval,
+            trendBullish,
+            period,
+            oversold,
+            overbought,
+            prevRsi: prevR,
+            currRsi: currR,
+          },
+        };
+      }
       return {
         signal: 'BUY',
-        reason: `RSI = ${currR.toFixed(1)} (oversold, threshold ${oversold})`,
+        reason: `RSI = ${currR.toFixed(1)} (oversold, threshold ${oversold})` +
+          (hasTrend ? ` [trend confirmed: ${trendInterval}]` : ''),
         metadata: {
           strategy: 'rsi',
           instrument,
           interval,
+          trendInterval,
+          trendBullish,
           period,
           oversold,
           overbought,
@@ -413,13 +557,34 @@ export class StrategyService {
       };
     }
     if (prevR < overbought && currR >= overbought) {
+      if (hasTrend && trendBullish) {
+        return {
+          signal: 'HOLD',
+          reason: `RSI overbought but trend bullish (trend interval ${trendInterval})`,
+          metadata: {
+            strategy: 'rsi',
+            instrument,
+            interval,
+            trendInterval,
+            trendBullish,
+            period,
+            oversold,
+            overbought,
+            prevRsi: prevR,
+            currRsi: currR,
+          },
+        };
+      }
       return {
         signal: 'SELL',
-        reason: `RSI = ${currR.toFixed(1)} (overbought, threshold ${overbought})`,
+        reason: `RSI = ${currR.toFixed(1)} (overbought, threshold ${overbought})` +
+          (hasTrend ? ` [trend confirmed: ${trendInterval}]` : ''),
         metadata: {
           strategy: 'rsi',
           instrument,
           interval,
+          trendInterval,
+          trendBullish,
           period,
           oversold,
           overbought,
@@ -435,6 +600,8 @@ export class StrategyService {
         strategy: 'rsi',
         instrument,
         interval,
+        trendInterval,
+        trendBullish,
         period,
         oversold,
         overbought,

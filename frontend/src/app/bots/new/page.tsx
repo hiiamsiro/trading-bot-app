@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Instrument } from '@/types'
+import { Instrument, MARKET_KLINE_INTERVALS } from '@/types'
 
 type StrategyKey = 'sma_crossover' | 'rsi'
 
@@ -42,6 +42,8 @@ export default function CreateBotPage() {
   const [shortPeriod, setShortPeriod] = useState('10')
   const [longPeriod, setLongPeriod] = useState('20')
   const [rsiPeriod, setRsiPeriod] = useState('14')
+  const [interval, setInterval] = useState('1m')
+  const [trendInterval, setTrendInterval] = useState('')
   const [initialBalance, setInitialBalance] = useState('10000')
   const [orderQuantity, setOrderQuantity] = useState('0.01')
   const [errors, setErrors] = useState<{
@@ -143,6 +145,8 @@ export default function CreateBotPage() {
       } else {
         params.period = Number(rsiPeriod)
       }
+      if (interval) params.interval = interval
+      if (trendInterval && trendInterval !== '__none__') params.trendInterval = trendInterval
       const bot = await createBot(token, {
         name: trimmedName,
         description: description.trim() || undefined,
@@ -238,6 +242,36 @@ export default function CreateBotPage() {
                   <SelectItem value="rsi">RSI</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="interval">Entry timeframe</Label>
+              <Select value={interval} onValueChange={setInterval}>
+                <SelectTrigger id="interval" className="cursor-pointer">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MARKET_KLINE_INTERVALS.map((iv) => (
+                    <SelectItem key={iv} value={iv}>{iv}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="trendInterval">Trend timeframe (optional)</Label>
+              <Select value={trendInterval} onValueChange={setTrendInterval}>
+                <SelectTrigger id="trendInterval" className="cursor-pointer">
+                  <SelectValue placeholder="None (single TF)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None (single TF)</SelectItem>
+                  {MARKET_KLINE_INTERVALS.map((iv) => (
+                    <SelectItem key={iv} value={iv}>{iv}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Use a higher timeframe (e.g. 1h) to filter entries by trend direction.
+              </p>
             </div>
             {strategy === 'sma_crossover' ? (
               <div className="grid gap-4 sm:grid-cols-2">

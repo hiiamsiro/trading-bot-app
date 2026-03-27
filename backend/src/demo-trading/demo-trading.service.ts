@@ -93,6 +93,22 @@ export class DemoTradingService {
     return requested;
   }
 
+  /**
+   * Resolves the optional trend (higher) timeframe from strategy params.
+   * Returns null when no trend interval is configured (single-timeframe mode).
+   */
+  private parseTrendInterval(params: Record<string, unknown>): MarketKlineInterval | null {
+    const raw = params.trendInterval ?? null;
+    if (typeof raw !== 'string' || raw.trim().length === 0) {
+      return null;
+    }
+    const normalized = raw.trim().toLowerCase() as MarketKlineInterval;
+    if (!this.strategy.isSupportedInterval(normalized)) {
+      return null;
+    }
+    return normalized;
+  }
+
   async processTick(bot: BotWithStrategy): Promise<void> {
     if (bot.status !== 'RUNNING' || !bot.strategyConfig) {
       return;
@@ -166,13 +182,21 @@ export class DemoTradingService {
 
     const interval = this.resolveInterval(instrument, params);
     const requiredCandles = this.strategy.getRequiredCandles(bot.strategyConfig.strategy, params);
-    const closes = await this.marketData.getCloses(bot.symbol, requiredCandles, interval);
+    const trendInterval = this.parseTrendInterval(params);
+
+    const [entryCloses, trendCloses] = await Promise.all([
+      this.marketData.getCloses(bot.symbol, requiredCandles.entry, interval),
+      trendInterval
+        ? this.marketData.getCloses(bot.symbol, requiredCandles.trend, trendInterval)
+        : Promise.resolve([]),
+    ]);
+
     const decision = this.strategy.evaluate({
       strategyKey: bot.strategyConfig.strategy,
       instrument: bot.symbol,
       interval,
       params,
-      closes,
+      closes: { entry: entryCloses, trend: trendCloses },
     });
 
     await this.botsService.appendLog(
@@ -183,10 +207,12 @@ export class DemoTradingService {
         symbol: bot.symbol,
         strategy: bot.strategyConfig.strategy,
         interval,
+        trendInterval,
         signal: decision.signal,
         reason: decision.reason,
         requiredCandles,
-        closesCount: closes.length,
+        entryClosesCount: entryCloses.length,
+        trendClosesCount: trendCloses.length,
         livePrice,
         ...decision.metadata,
       },

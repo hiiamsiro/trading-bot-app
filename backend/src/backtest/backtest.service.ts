@@ -95,7 +95,7 @@ export class BacktestService {
     const validated = this.strategyService.validateConfig(strategyKey, strategyParams);
     const requiredCandles = this.strategyService.getRequiredCandles(strategyKey, validated.normalizedParams);
 
-    const results = this.simulate(symbol, interval, validated.normalizedStrategy, validated.normalizedParams, allCandles, requiredCandles, initialBalance);
+    const results = this.simulate(symbol, interval, validated.normalizedStrategy, validated.normalizedParams, allCandles, requiredCandles.entry, initialBalance);
     return results;
   }
 
@@ -235,7 +235,7 @@ export class BacktestService {
           instrument: symbol,
           interval,
           params,
-          closes,
+          closes: { entry: closes, trend: [] },
         });
 
         if (decision.signal === 'BUY') {

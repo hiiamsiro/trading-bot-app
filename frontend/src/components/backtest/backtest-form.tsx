@@ -31,6 +31,8 @@ export interface BacktestFormValues {
   rsiPeriod: string
   oversold: string
   overbought: string
+  // multi-timeframe
+  trendInterval: string
   // shared
   quantity: string
   stopLossPercent: string
@@ -68,6 +70,7 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
   const [stopLossPercent, setStopLossPercent] = useState('')
   const [takeProfitPercent, setTakeProfitPercent] = useState('')
   const [maxDailyLoss, setMaxDailyLoss] = useState('')
+  const [trendInterval, setTrendInterval] = useState('')
 
   useEffect(() => {
     if (!token) return
@@ -88,6 +91,7 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
   }, [token, handleError, symbol])
 
   function buildParams(): Record<string, unknown> {
+    const activeTrend = trendInterval && trendInterval !== '__none__' ? trendInterval : undefined
     if (strategy === 'sma_crossover') {
       return {
         shortPeriod: parseInt(shortPeriod, 10),
@@ -97,6 +101,7 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
         ...(takeProfitPercent ? { takeProfitPercent: parseFloat(takeProfitPercent) } : {}),
         ...(maxDailyLoss ? { maxDailyLoss: parseFloat(maxDailyLoss) } : {}),
         interval,
+        ...(activeTrend ? { trendInterval: activeTrend } : {}),
       }
     }
     return {
@@ -108,6 +113,7 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       ...(takeProfitPercent ? { takeProfitPercent: parseFloat(takeProfitPercent) } : {}),
       ...(maxDailyLoss ? { maxDailyLoss: parseFloat(maxDailyLoss) } : {}),
       interval,
+      ...(activeTrend ? { trendInterval: activeTrend } : {}),
     }
   }
 
@@ -126,6 +132,7 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       rsiPeriod,
       oversold,
       overbought,
+      trendInterval,
       quantity,
       stopLossPercent,
       takeProfitPercent,
@@ -167,6 +174,23 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              {MARKET_KLINE_INTERVALS.map((iv) => (
+                <SelectItem key={iv} value={iv}>
+                  {iv}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="trendInterval">Trend timeframe (optional)</Label>
+          <Select value={trendInterval} onValueChange={setTrendInterval}>
+            <SelectTrigger id="trendInterval">
+              <SelectValue placeholder="None (single TF)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">None (single TF)</SelectItem>
               {MARKET_KLINE_INTERVALS.map((iv) => (
                 <SelectItem key={iv} value={iv}>
                   {iv}
