@@ -127,6 +127,8 @@ docker compose down -v
 docker compose up -d --build
 ```
 
+If you see `P3009` (failed migration) or Postgres logs like `type "TradeStatus" does not exist`, it usually means migrations did not run cleanly on a fresh DB. Resetting volumes with `docker compose down -v` is the fastest way to recover.
+
 ## Important Notes
 
 This is a demo application for paper trading only:
