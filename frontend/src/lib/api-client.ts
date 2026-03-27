@@ -2,6 +2,7 @@ import { api } from '@/lib/api'
 import type {
   AdminMonitoringSnapshot,
   AuthResponse,
+  BacktestResult,
   Bot,
   BotLogsResponse,
   CreateBotPayload,
@@ -16,6 +17,7 @@ import type {
   MarkAllNotificationsReadResponse,
   MarkNotificationReadPayload,
   NotificationsResponse,
+  RunBacktestPayload,
   Trade,
   TradeHistoryResponse,
   UpdateBotPayload,
@@ -264,4 +266,13 @@ export async function fetchMarketKlines(
     limit: String(limit),
   })
   return api.get<MarketKline[]>(`/market-data/klines?${params}`, token)
+}
+
+// ─── Backtest ─────────────────────────────────────────────────────────────────
+
+export async function runBacktest(
+  token: string,
+  payload: RunBacktestPayload,
+): Promise<{ id: string; status: string; result: BacktestResult }> {
+  return api.post<{ id: string; status: string; result: BacktestResult }>('/backtest', payload, token)
 }

@@ -9,6 +9,7 @@ import {
   ScrollText,
   Activity,
   LogOut,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import { useRouter } from 'next/navigation'
 const nav = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/bots', label: 'Bots', icon: Bot },
+  { href: '/backtest', label: 'Backtest', icon: BarChart3 },
   { href: '/trades', label: 'Trade history', icon: History },
   { href: '/logs', label: 'Logs', icon: ScrollText },
   { href: '/admin', label: 'Monitoring', icon: Activity },

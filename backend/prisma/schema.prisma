@@ -214,3 +214,30 @@ enum NotificationType {
   STOP_LOSS_HIT
   TAKE_PROFIT_HIT
 }
+
+model Backtest {
+  id        String   @id @default(uuid())
+  userId    String
+  symbol    String
+  interval  String
+  strategy  String
+  params    Json
+  fromDate  DateTime
+  toDate    DateTime
+  status    BacktestStatus @default(PENDING)
+  metrics   Json?
+  trades    Json?
+  equityCurve Json?
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("backtests")
+}
+
+enum BacktestStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}

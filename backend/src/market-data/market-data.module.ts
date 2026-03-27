@@ -9,6 +9,6 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [MarketDataController],
   providers: [MarketDataGateway, MarketDataService, BinanceMarketDataAdapter],
-  exports: [MarketDataService, MarketDataGateway],
+  exports: [MarketDataService, MarketDataGateway, BinanceMarketDataAdapter],
 })
 export class MarketDataModule {}

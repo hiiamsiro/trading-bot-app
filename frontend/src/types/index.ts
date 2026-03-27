@@ -394,3 +394,57 @@ export interface MarketKline {
   volume: number
   closeTime: number
 }
+
+// ─── Backtest ─────────────────────────────────────────────────────────────────
+
+export interface BacktestMetrics {
+  totalTrades: number
+  winningTrades: number
+  losingTrades: number
+  winRate: number | null
+  totalPnl: number
+  maxDrawdown: number
+  initialBalance: number
+  finalBalance: number
+  averageWin: number | null
+  averageLoss: number | null
+}
+
+export interface BacktestTrade {
+  id: number
+  entryTime: number
+  entryPrice: number
+  quantity: number
+  side: string
+  exitTime: number | null
+  exitPrice: number | null
+  pnl: number | null
+  closeReason: string | null
+}
+
+export interface BacktestEquityPoint {
+  at: string
+  cumulativePnl: number
+}
+
+export interface BacktestResult {
+  metrics: BacktestMetrics
+  trades: BacktestTrade[]
+  equityCurve: BacktestEquityPoint[]
+}
+
+export interface RunBacktestPayload {
+  symbol: string
+  interval: string
+  strategy: string
+  params?: Record<string, unknown>
+  fromDate: string
+  toDate: string
+  initialBalance?: number
+}
+
+export interface RunBacktestResponse {
+  id: string
+  status: string
+  result: BacktestResult
+}
