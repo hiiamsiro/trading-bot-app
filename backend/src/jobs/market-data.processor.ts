@@ -20,9 +20,13 @@ export class MarketDataProcessor extends WorkerHost {
     void job;
     const subscriptions = this.gateway.getActiveMarketSubscriptions();
     for (const { symbol, interval } of subscriptions) {
-      const snapshot = await this.marketData.getMarketSnapshot(symbol, interval);
-      if (snapshot) {
-        this.gateway.emitMarketData(snapshot);
+      try {
+        const snapshot = await this.marketData.getMarketSnapshot(symbol, interval);
+        if (snapshot) {
+          this.gateway.emitMarketData(snapshot);
+        }
+      } catch {
+        // Skip individual subscription failures — continue processing remaining subscriptions
       }
     }
 

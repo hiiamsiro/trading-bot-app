@@ -35,35 +35,40 @@ export class BotExecutionProcessor extends WorkerHost {
       await this.demoTrading.processTick(bot);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown bot execution error';
-      const updatedBot = await this.prisma.bot.update({
-        where: { id: bot.id },
-        data: { status: 'ERROR' },
-        select: { id: true, userId: true, symbol: true, status: true },
-      });
-      await this.botsService.appendLog(
-        bot.id,
-        LogLevel.ERROR,
-        'Bot execution failed',
-        {
-          botId: bot.id,
-          symbol: bot.symbol,
+      try {
+        const updatedBot = await this.prisma.bot.update({
+          where: { id: bot.id },
+          data: { status: 'ERROR' },
+          select: { id: true, userId: true, symbol: true, status: true },
+        });
+        await this.botsService.appendLog(
+          bot.id,
+          LogLevel.ERROR,
+          'Bot execution failed',
+          {
+            botId: bot.id,
+            symbol: bot.symbol,
+            reason: message,
+          },
+          'execution',
+        );
+        this.marketGateway.emitBotStatus({
+          botId: updatedBot.id,
+          userId: updatedBot.userId,
+          symbol: updatedBot.symbol,
+          status: updatedBot.status,
+        });
+        await this.botsService.notifyBotEvent({
+          userId: updatedBot.userId,
+          botId: updatedBot.id,
+          symbol: updatedBot.symbol,
+          type: NotificationType.BOT_ERROR,
           reason: message,
-        },
-        'execution',
-      );
-      this.marketGateway.emitBotStatus({
-        botId: updatedBot.id,
-        userId: updatedBot.userId,
-        symbol: updatedBot.symbol,
-        status: updatedBot.status,
-      });
-      await this.botsService.notifyBotEvent({
-        userId: updatedBot.userId,
-        botId: updatedBot.id,
-        symbol: updatedBot.symbol,
-        type: NotificationType.BOT_ERROR,
-        reason: message,
-      });
+        });
+      } catch (recoveryError) {
+        // Re-throw so BullMQ retry mechanism handles recovery failures
+        throw recoveryError;
+      }
     }
   }
 }

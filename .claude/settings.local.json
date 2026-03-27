@@ -9,7 +9,8 @@
       "Bash(npx tsc:*)",
       "Bash(cd e:/Workspace/Build In Public/trading-bot-app/frontend)",
       "Bash(cd e:/Workspace/Build In Public/trading-bot-app)",
-      "Bash(docker compose exec backend npx ts-node -e \":*)"
+      "Bash(docker compose exec backend npx ts-node -e \":*)",
+      "Bash(python -c \":*)"
     ]
   }
 }

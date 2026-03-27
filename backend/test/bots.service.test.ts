@@ -300,8 +300,10 @@ test('BotsService.stop closes open trade when live price is available', async ()
   const tradeUpdateData = prisma.trade.update.calls[0][0].data;
   assert.equal(tradeUpdateData.status, 'CLOSED');
   assert.equal(tradeUpdateData.closeReason, 'bot_stopped');
-  assert.equal(tradeUpdateData.exitPrice, 120);
-  assert.equal(tradeUpdateData.realizedPnl, 40);
+  // Slippage reduces exit price slightly for BUY close (0–5 bps below 120)
+  assert.ok(tradeUpdateData.exitPrice >= 119.94 && tradeUpdateData.exitPrice <= 120);
+  // PnL = (exitPrice − entryPrice) × quantity = (≈120 − 100) × 2 = ≈40
+  assert.ok(tradeUpdateData.realizedPnl >= 39.88 && tradeUpdateData.realizedPnl <= 40);
   assert.ok(tradeUpdateData.closedAt instanceof Date);
 
   assert.equal(marketGateway.emitNewTrade.calls.length, 1);
