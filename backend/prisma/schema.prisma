@@ -113,13 +113,15 @@ model Trade {
   totalValue  Float
   status      TradeStatus @default(PENDING)
   executedAt  DateTime?
-  openReason  String?
-  exitPrice   Float?
-  realizedPnl Float?
-  stopLoss    Float?
-  takeProfit  Float?
-  closedAt    DateTime?
-  closeReason String?
+  openReason      String?
+  openExplanation Json?
+  exitPrice       Float?
+  realizedPnl     Float?
+  stopLoss        Float?
+  takeProfit      Float?
+  closedAt        DateTime?
+  closeReason     String?
+  closeExplanation Json?
   createdAt   DateTime    @default(now())
 
   bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)

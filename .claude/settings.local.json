@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm run:*)",
-      "Bash(npm:*)"
+      "Bash(npm:*)",
+      "Bash(docker compose:*)"
     ]
   }
 }

@@ -304,7 +304,7 @@ export class StrategyService {
     if (prevShort <= prevLong && currShort > currLong) {
       return {
         signal: 'BUY',
-        reason: 'Bullish SMA crossover detected',
+        reason: `MA(${shortPeriod}) crossed above MA(${longPeriod})`,
         metadata: {
           strategy: 'sma_crossover',
           instrument,
@@ -321,7 +321,7 @@ export class StrategyService {
     if (prevShort >= prevLong && currShort < currLong) {
       return {
         signal: 'SELL',
-        reason: 'Bearish SMA crossover detected',
+        reason: `MA(${longPeriod}) crossed below MA(${shortPeriod})`,
         metadata: {
           strategy: 'sma_crossover',
           instrument,
@@ -399,7 +399,7 @@ export class StrategyService {
     if (prevR > oversold && currR <= oversold) {
       return {
         signal: 'BUY',
-        reason: 'RSI crossed into oversold zone',
+        reason: `RSI = ${currR.toFixed(1)} (oversold, threshold ${oversold})`,
         metadata: {
           strategy: 'rsi',
           instrument,
@@ -415,7 +415,7 @@ export class StrategyService {
     if (prevR < overbought && currR >= overbought) {
       return {
         signal: 'SELL',
-        reason: 'RSI crossed into overbought zone',
+        reason: `RSI = ${currR.toFixed(1)} (overbought, threshold ${overbought})`,
         metadata: {
           strategy: 'rsi',
           instrument,

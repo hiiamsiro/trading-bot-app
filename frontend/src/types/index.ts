@@ -290,6 +290,29 @@ export enum TradeSortBy {
 
 export type SortDir = 'asc' | 'desc'
 
+export interface TradeExplanation {
+  strategy?: string
+  instrument?: string
+  interval?: string
+  shortPeriod?: number
+  longPeriod?: number
+  prevShort?: number
+  prevLong?: number
+  currShort?: number
+  currLong?: number
+  period?: number
+  oversold?: number
+  overbought?: number
+  prevRsi?: number
+  currRsi?: number
+  trigger?: string
+  maxDailyLoss?: number
+  checkedPrice?: number
+  stopLoss?: number | null
+  takeProfit?: number | null
+  [key: string]: unknown
+}
+
 export interface Trade {
   id: string
   botId: string
@@ -301,11 +324,13 @@ export interface Trade {
   status: TradeStatus
   executedAt?: string | null
   openReason?: string | null
+  openExplanation?: TradeExplanation | null
   createdAt: string
   exitPrice?: number | null
   realizedPnl?: number | null
   closedAt?: string | null
   closeReason?: string | null
+  closeExplanation?: TradeExplanation | null
   bot?: {
     id: string
     name: string

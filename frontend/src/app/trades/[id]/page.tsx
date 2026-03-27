@@ -10,6 +10,7 @@ import { fetchTrade } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { Badge } from '@/components/ui/badge'
 import { TradeStatusBadge } from '@/components/trade-status-badge'
+import { TradeExplanationCard } from '@/components/trade-explanation-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -190,20 +191,19 @@ export default function TradeDetailPage() {
         </CardContent>
       </Card>
 
+      <TradeExplanationCard
+        openExplanation={trade.openExplanation}
+        closeExplanation={trade.closeExplanation}
+        openReason={trade.openReason}
+        closeReason={trade.closeReason}
+      />
+
       <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
         <CardHeader>
-          <CardTitle className="text-lg">Reasons & timestamps</CardTitle>
+          <CardTitle className="text-lg">Timestamps</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <p className="text-xs text-muted-foreground">Open reason</p>
-              <p className="mt-1">{trade.openReason ?? '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Close reason</p>
-              <p className="mt-1">{trade.closeReason ?? '—'}</p>
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <p className="text-xs text-muted-foreground">Created at</p>
               <p className="mt-1 font-mono">

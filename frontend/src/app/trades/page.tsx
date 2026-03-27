@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { TradeSortBy, TradeStatus, type SortDir, type Trade } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
@@ -31,7 +31,8 @@ import {
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { History, ShieldCheck } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { History, ShieldCheck, ChevronDown, ChevronRight } from 'lucide-react'
 
 export default function TradesPage() {
   const token = useAuthStore((s) => s.token)
@@ -54,6 +55,11 @@ export default function TradesPage() {
   const [to, setTo] = useState('')
   const [sortBy, setSortBy] = useState<TradeSortBy>(TradeSortBy.createdAt)
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id))
+  }, [])
   const formatTradeTime = (value: string) =>
     new Date(value).toLocaleString([], {
       month: 'short',
@@ -478,10 +484,17 @@ export default function TradesPage() {
                       ? (t.realizedPnl / entryValue) * 100
                       : null
 
+                  const isExpanded = expandedId === t.id
+                  const hasExplanation = Boolean(t.openExplanation || t.closeExplanation)
+
                   return (
+                    <React.Fragment key={t.id}>
                     <TableRow
-                      key={t.id}
-                      className="transition-colors duration-200 hover:bg-muted/40"
+                      className={cn(
+                        'transition-colors duration-200 hover:bg-muted/40 cursor-pointer',
+                        isExpanded && 'bg-muted/30',
+                      )}
+                      onClick={() => hasExplanation ? toggleExpand(t.id) : undefined}
                     >
                       <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                         {formatTradeTime(t.createdAt)}
@@ -529,16 +542,92 @@ export default function TradesPage() {
                         <TradeStatusBadge status={t.status} />
                       </TableCell>
                       <TableCell className="max-w-[320px]">
-                        <div className="truncate text-sm">
-                          {t.openReason ? `Open: ${t.openReason}` : '—'}
+                        <div className="flex items-center gap-1.5">
+                          {hasExplanation && (
+                            isExpanded
+                              ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          )}
+                          <div className="truncate text-sm">
+                            {t.openReason ? `${t.openReason.replace(/^(strategy:|risk:)/, '')}` : '—'}
+                          </div>
                         </div>
                         {t.closeReason ? (
                           <div className="truncate text-xs text-muted-foreground">
-                            Exit: {t.closeReason}
+                            Exit: {t.closeReason.replace(/^(strategy:|risk:)/, '')}
                           </div>
                         ) : null}
                       </TableCell>
                     </TableRow>
+                    {isExpanded && hasExplanation && (
+                      <TableRow className="hover:bg-transparent border-0">
+                        <TableCell colSpan={11} className="bg-muted/10 px-4 py-3">
+                          <div className="space-y-2">
+                            {t.openExplanation && Object.keys(t.openExplanation).length > 0 && (
+                              <div className="rounded border border-border/50 bg-muted/20 p-3">
+                                <p className="mb-2 text-xs font-semibold text-muted-foreground">Position opened</p>
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
+                                  {t.openExplanation.shortPeriod != null && t.openExplanation.longPeriod != null && (
+                                    <>
+                                      <div><span className="text-xs text-muted-foreground">MA({t.openExplanation.shortPeriod}) prev</span><p className="font-mono text-xs">{t.openExplanation.prevShort?.toFixed(4) ?? '—'}</p></div>
+                                      <div><span className="text-xs text-muted-foreground">MA({t.openExplanation.longPeriod}) prev</span><p className="font-mono text-xs">{t.openExplanation.prevLong?.toFixed(4) ?? '—'}</p></div>
+                                      <div><span className="text-xs text-muted-foreground">MA({t.openExplanation.shortPeriod}) curr</span><p className="font-mono text-xs">{t.openExplanation.currShort?.toFixed(4) ?? '—'}</p></div>
+                                      <div><span className="text-xs text-muted-foreground">MA({t.openExplanation.longPeriod}) curr</span><p className="font-mono text-xs">{t.openExplanation.currLong?.toFixed(4) ?? '—'}</p></div>
+                                    </>
+                                  )}
+                                  {t.openExplanation.currRsi != null && (
+                                    <>
+                                      <div><span className="text-xs text-muted-foreground">RSI prev</span><p className="font-mono text-xs">{t.openExplanation.prevRsi?.toFixed(1) ?? '—'}</p></div>
+                                      <div><span className="text-xs text-muted-foreground">RSI curr</span><p className="font-mono text-xs">{t.openExplanation.currRsi?.toFixed(1) ?? '—'}</p></div>
+                                      <div><span className="text-xs text-muted-foreground">Zone</span><p className="font-mono text-xs">{t.openExplanation.currRsi <= (t.openExplanation.oversold ?? 30) ? 'oversold' : t.openExplanation.currRsi >= (t.openExplanation.overbought ?? 70) ? 'overbought' : 'neutral'}</p></div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {t.closeExplanation && Object.keys(t.closeExplanation).length > 0 && (
+                              <div className="rounded border border-border/50 bg-muted/20 p-3">
+                                <p className="mb-2 text-xs font-semibold text-muted-foreground">Position closed</p>
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
+                                  {t.closeExplanation.shortPeriod != null && t.closeExplanation.longPeriod != null && (
+                                    <>
+                                      <div><span className="text-xs text-muted-foreground">MA({t.closeExplanation.shortPeriod}) prev</span><p className="font-mono text-xs">{t.closeExplanation.prevShort?.toFixed(4) ?? '—'}</p></div>
+                                      <div><span className="text-xs text-muted-foreground">MA({t.closeExplanation.longPeriod}) prev</span><p className="font-mono text-xs">{t.closeExplanation.prevLong?.toFixed(4) ?? '—'}</p></div>
+                                      <div><span className="text-xs text-muted-foreground">MA({t.closeExplanation.shortPeriod}) curr</span><p className="font-mono text-xs">{t.closeExplanation.currShort?.toFixed(4) ?? '—'}</p></div>
+                                      <div><span className="text-xs text-muted-foreground">MA({t.closeExplanation.longPeriod}) curr</span><p className="font-mono text-xs">{t.closeExplanation.currLong?.toFixed(4) ?? '—'}</p></div>
+                                    </>
+                                  )}
+                                  {t.closeExplanation.currRsi != null && (
+                                    <>
+                                      <div><span className="text-xs text-muted-foreground">RSI prev</span><p className="font-mono text-xs">{t.closeExplanation.prevRsi?.toFixed(1) ?? '—'}</p></div>
+                                      <div><span className="text-xs text-muted-foreground">RSI curr</span><p className="font-mono text-xs">{t.closeExplanation.currRsi?.toFixed(1) ?? '—'}</p></div>
+                                    </>
+                                  )}
+                                  {t.closeExplanation.trigger && (
+                                    <div><span className="text-xs text-muted-foreground">Trigger</span><p className="font-mono text-xs">{String(t.closeExplanation.trigger)}</p></div>
+                                  )}
+                                  {t.closeExplanation.checkedPrice != null && (
+                                    <div><span className="text-xs text-muted-foreground">Trigger price</span><p className="font-mono text-xs">{t.closeExplanation.checkedPrice.toFixed(4)}</p></div>
+                                  )}
+                                  {t.closeExplanation.stopLoss != null && (
+                                    <div><span className="text-xs text-muted-foreground">Stop loss</span><p className="font-mono text-xs">{t.closeExplanation.stopLoss.toFixed(4)}</p></div>
+                                  )}
+                                  {t.closeExplanation.takeProfit != null && (
+                                    <div><span className="text-xs text-muted-foreground">Take profit</span><p className="font-mono text-xs">{t.closeExplanation.takeProfit.toFixed(4)}</p></div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {!t.openExplanation && !t.closeExplanation && (
+                              <p className="text-xs text-muted-foreground">
+                                {t.openReason ?? t.closeReason ?? '—'}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </React.Fragment>
                   )
                 })}
               </TableBody>

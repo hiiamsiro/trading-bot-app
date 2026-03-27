@@ -5,6 +5,7 @@ import {
   Instrument,
   LogLevel,
   NotificationType,
+  Prisma,
   StrategyConfig,
   Trade,
   TradeSide,
@@ -241,6 +242,7 @@ export class DemoTradingService {
         status: 'EXECUTED',
         executedAt: new Date(),
         openReason: `strategy:${decision.reason}`,
+        openExplanation: decision.metadata as Prisma.InputJsonValue,
         stopLoss,
         takeProfit,
       },
@@ -303,6 +305,9 @@ export class DemoTradingService {
         realizedPnl: pnl,
         closedAt: new Date(),
         closeReason: reason,
+        closeExplanation: decision?.metadata
+          ? (decision.metadata as Prisma.InputJsonValue)
+          : Prisma.DbNull,
         status: 'CLOSED',
       },
     });
