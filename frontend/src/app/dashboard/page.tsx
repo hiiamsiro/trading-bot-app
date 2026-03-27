@@ -19,20 +19,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   Activity,
   AlertCircle,
   BarChart3,
   Bot as BotIcon,
-  DollarSign, 
-  History, 
+  DollarSign,
+  History,
   LogOut,
-  Percent, 
-  Target, 
-  TimerReset, 
-  TrendingDown, 
-  TrendingUp, 
+  Percent,
+  Target,
+  TimerReset,
+  TrendingDown,
+  TrendingUp,
   Zap,
 } from 'lucide-react'
 import {
@@ -327,7 +328,10 @@ export default function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total PnL</CardTitle>
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              Total PnL
+              <InfoTooltip content="Cumulative realized PnL across all closed trades in your account." side="top" />
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -349,7 +353,10 @@ export default function DashboardPage() {
         </Card>
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Today (UTC)</CardTitle>
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              Today (UTC)
+              <InfoTooltip content="Realized PnL from all trades that closed since midnight UTC today." side="top" />
+            </CardTitle>
             <TimerReset className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -369,7 +376,10 @@ export default function DashboardPage() {
         </Card>
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Win rate</CardTitle>
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              Win rate
+              <InfoTooltip content="Percentage of closed trades that closed with positive PnL. Formula: winning trades / total closed trades." side="top" />
+            </CardTitle>
             <Percent className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -381,7 +391,10 @@ export default function DashboardPage() {
         </Card>
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Bots</CardTitle>
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              Bots
+              <InfoTooltip content="Total bots in your account, grouped by current status: running, stopped, or error." side="top" />
+            </CardTitle>
             <BotIcon className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -396,7 +409,10 @@ export default function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Avg win</CardTitle>
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              Avg win
+              <InfoTooltip content="Mean realized PnL across all winning (closed with positive PnL) trades." side="top" />
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-emerald-500/90" />
           </CardHeader>
           <CardContent>
@@ -408,7 +424,10 @@ export default function DashboardPage() {
         </Card>
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Avg loss</CardTitle>
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              Avg loss
+              <InfoTooltip content="Mean realized PnL across all losing (closed with negative PnL) trades." side="top" />
+            </CardTitle>
             <TrendingDown className="h-4 w-4 text-rose-500/90" />
           </CardHeader>
           <CardContent>
@@ -420,7 +439,10 @@ export default function DashboardPage() {
         </Card>
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Max drawdown</CardTitle>
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              Max drawdown
+              <InfoTooltip content="Largest peak-to-trough decline on the cumulative equity curve. Higher values indicate more volatile performance." side="top" />
+            </CardTitle>
             <Target className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -432,7 +454,10 @@ export default function DashboardPage() {
         </Card>
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Catalog</CardTitle>
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              Catalog
+              <InfoTooltip content="Number of active trading instruments synced from the provider on this page. Activate or deactivate instruments to control which pairs your bots can trade." side="top" />
+            </CardTitle>
             <BarChart3 className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>

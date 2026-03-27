@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+import { beforeEach, vi } from 'vitest'
 
 // Mock localStorage for all tests
 const storage = new Map<string, string>()

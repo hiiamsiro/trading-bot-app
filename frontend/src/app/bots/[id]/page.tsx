@@ -17,6 +17,8 @@ import {
 import { ApiError } from '@/lib/api'
 import type { Bot, BotLog, DashboardEquityPoint, Instrument, Trade } from '@/types'
 import { BotStatus, MARKET_KLINE_INTERVALS, type MarketKlineInterval } from '@/types'
+import { EmptyState } from '@/components/empty-state'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
 import { useAuthStore } from '@/store/auth.store'
 import {
   deleteBot,
@@ -595,7 +597,13 @@ export default function BotDetailPage() {
                 </p>
               </>
             ) : (
-              <p className="text-muted-foreground">No session until the bot runs.</p>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <p className="text-sm">No execution session yet. Start the bot to begin tracking performance.</p>
+                <InfoTooltip
+                  content="An execution session is created when the bot starts. It tracks the bot's balance, trades, and PnL for this run."
+                  side="right"
+                />
+              </div>
             )}
 
             <div className="pt-3">
@@ -640,9 +648,18 @@ export default function BotDetailPage() {
             {tradesLoading && trades.length === 0 ? (
               <Skeleton className="h-64 rounded-lg" />
             ) : trades.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No trades yet. Start the bot to execute demo signals.
-              </p>
+              <EmptyState
+                icon={History}
+                title="No trades yet"
+                description="Start the bot to execute demo signals and build your trade history."
+              >
+                {bot.status !== BotStatus.RUNNING && (
+                  <Button onClick={onStart} disabled={!!actionLoading} className="cursor-pointer">
+                    <Play className="mr-2 h-4 w-4" />
+                    Start bot
+                  </Button>
+                )}
+              </EmptyState>
             ) : (
               <div className="rounded-md border border-border/60">
                 <Table>
@@ -718,10 +735,18 @@ export default function BotDetailPage() {
             {logsLoading && logs.length === 0 ? (
               <Skeleton className="h-64 rounded-lg" />
             ) : logs.length === 0 ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <ScrollText className="h-4 w-4" />
-                No logs yet. Start the bot or wait for activity.
-              </div>
+              <EmptyState
+                icon={ScrollText}
+                title="No logs yet"
+                description="Start the bot to see real-time execution logs."
+              >
+                {bot.status !== BotStatus.RUNNING && (
+                  <Button onClick={onStart} disabled={!!actionLoading} className="cursor-pointer">
+                    <Play className="mr-2 h-4 w-4" />
+                    Start bot
+                  </Button>
+                )}
+              </EmptyState>
             ) : (
               <div className="rounded-md border border-border/60">
                 <Table>
