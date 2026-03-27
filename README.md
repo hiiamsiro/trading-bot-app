@@ -109,6 +109,24 @@ docker compose exec backend sh
 docker compose exec frontend sh
 ```
 
+## Troubleshooting
+
+### Backend is `unhealthy` (Prisma error `P3005`)
+
+If the backend container keeps restarting and `docker compose logs -f backend` shows:
+
+- `Error: P3005`
+- `The database schema is not empty`
+
+then your local Postgres volume contains an old/non-empty database state (common after changing migrations).
+
+Quick fix (deletes local Postgres + Redis data for this project):
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
 ## Important Notes
 
 This is a demo application for paper trading only:
