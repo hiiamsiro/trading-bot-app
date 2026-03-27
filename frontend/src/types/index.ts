@@ -475,3 +475,29 @@ export interface RunBacktestResponse {
   status: string
   result: BacktestResult
 }
+
+// ─── Portfolios ─────────────────────────────────────────────────────────────────
+
+export interface Portfolio {
+  id: string
+  name: string
+  userId: string
+  createdAt: string
+  updatedAt: string
+  bots: Bot[]
+}
+
+export interface PortfolioMetrics {
+  totalPnl: number
+  drawdown: number
+  closedTrades: number
+  winningTrades: number
+  losingTrades: number
+  winRate: number | null
+  avgWin: number | null
+  avgLoss: number | null
+  totalInitialBalance: number
+  totalCurrentBalance: number
+  totalBots: number
+  runningBots: number
+}

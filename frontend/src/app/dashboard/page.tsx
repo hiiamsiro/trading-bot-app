@@ -635,6 +635,9 @@ export default function DashboardPage() {
             <Button asChild variant="outline" size="sm" className="cursor-pointer">
               <Link href="/bots">Manage bots</Link>
             </Button>
+            <Button asChild variant="outline" size="sm" className="cursor-pointer">
+              <Link href="/portfolios">Portfolios</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>

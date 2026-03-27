@@ -11,6 +11,6 @@ const variantMap: Record<
   [BotStatus.ERROR]: 'destructive',
 }
 
-export function BotStatusBadge({ status }: { status: BotStatus }) {
-  return <Badge variant={variantMap[status]}>{status}</Badge>
+export function BotStatusBadge({ status, label }: { status: BotStatus; label?: string }) {
+  return <Badge variant={variantMap[status]}>{label ?? status}</Badge>
 }

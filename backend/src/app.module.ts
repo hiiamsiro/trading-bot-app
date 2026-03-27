@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { HealthModule } from './health/health.module';
 import { BacktestModule } from './backtest/backtest.module';
 import { TemplatesModule } from './templates/templates.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { TemplatesModule } from './templates/templates.module';
     JobsModule,
     BacktestModule,
     TemplatesModule,
+    PortfolioModule,
   ],
 })
 export class AppModule {}

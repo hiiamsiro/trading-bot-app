@@ -19,6 +19,8 @@ import type {
   MarkAllNotificationsReadResponse,
   MarkNotificationReadPayload,
   NotificationsResponse,
+  Portfolio,
+  PortfolioMetrics,
   RunBacktestPayload,
   TemplatesListResponse,
   Trade,
@@ -309,4 +311,37 @@ export async function createTemplate(
 
 export async function deleteTemplate(token: string, id: string): Promise<void> {
   return api.delete<void>(`/templates/${id}`, token)
+}
+
+// ─── Portfolios ─────────────────────────────────────────────────────────────────
+
+export async function fetchPortfolios(token: string): Promise<Portfolio[]> {
+  return api.get<Portfolio[]>('/portfolios', token)
+}
+
+export async function fetchPortfolio(token: string, id: string): Promise<Portfolio> {
+  return api.get<Portfolio>(`/portfolios/${id}`, token)
+}
+
+export async function fetchPortfolioMetrics(token: string, id: string): Promise<PortfolioMetrics> {
+  return api.get<PortfolioMetrics>(`/portfolios/${id}/metrics`, token)
+}
+
+export async function createPortfolio(
+  token: string,
+  payload: { name: string; botIds?: string[] },
+): Promise<Portfolio> {
+  return api.post<Portfolio>('/portfolios', payload, token)
+}
+
+export async function updatePortfolio(
+  token: string,
+  id: string,
+  payload: { name?: string; botIds?: string[] },
+): Promise<Portfolio> {
+  return api.put<Portfolio>(`/portfolios/${id}`, payload, token)
+}
+
+export async function deletePortfolio(token: string, id: string): Promise<void> {
+  return api.delete<void>(`/portfolios/${id}`, token)
 }

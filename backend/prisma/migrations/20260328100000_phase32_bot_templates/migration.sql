@@ -30,3 +30,24 @@ ALTER TABLE "bot_templates" ADD CONSTRAINT "bot_templates_userId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "bots" ADD CONSTRAINT "bots_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "bot_templates"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddColumns (idempotent — may already exist from prior edits)
+DO $$ BEGIN
+  ALTER TABLE "trades" ADD COLUMN "netPnl" DOUBLE PRECISION;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "trades" ADD COLUMN "entryFee" DOUBLE PRECISION;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "trades" ADD COLUMN "exitFee" DOUBLE PRECISION;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "trades" ADD COLUMN "slippageBps" INTEGER;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
