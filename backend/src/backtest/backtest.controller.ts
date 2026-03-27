@@ -3,7 +3,6 @@ import {
   Post,
   Body,
   UseGuards,
-  Req,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -11,7 +10,11 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BacktestService } from './backtest.service';
 import { RunBacktestDto } from './dto/run-backtest.dto';
+import { PreviewBacktestDto } from './dto/preview-backtest.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+
+type AuthUserPayload = { userId: string; email: string };
 
 @ApiTags('backtest')
 @ApiBearerAuth()
@@ -23,10 +26,33 @@ export class BacktestController {
     private readonly prisma: PrismaService,
   ) {}
 
+  /** Quick preview against the last 100 candles — no DB record created. */
+  @Post('preview')
+  @HttpCode(HttpStatus.OK)
+  async preview(@Body() dto: PreviewBacktestDto, @CurrentUser() _user: AuthUserPayload) {
+    const symbol = dto.symbol.trim().toUpperCase();
+
+    const instrument = await this.prisma.instrument.findUnique({
+      where: { symbol },
+      select: { sourceSymbol: true },
+    });
+    const sourceSymbol = (instrument?.sourceSymbol ?? symbol).replace('/', '').toUpperCase();
+
+    const result = await this.backtestService.preview({
+      symbol,
+      interval: dto.interval,
+      strategyKey: dto.strategy,
+      strategyParams: dto.params ?? {},
+      sourceSymbol,
+    });
+
+    return { result };
+  }
+
   @Post()
   @HttpCode(HttpStatus.OK)
-  async runBacktest(@Body() dto: RunBacktestDto, @Req() req: Request & { user: { sub: string } }) {
-    const userId = req.user.sub;
+  async runBacktest(@Body() dto: RunBacktestDto, @CurrentUser() user: AuthUserPayload) {
+    const userId = user.userId;
     const fromDate = new Date(dto.fromDate);
     const toDate = new Date(dto.toDate);
 

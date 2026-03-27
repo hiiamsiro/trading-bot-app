@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Instrument, MARKET_KLINE_INTERVALS } from '@/types'
+import { StrategyPreview } from '@/components/bots/strategy-preview'
 
 type StrategyKey = 'sma_crossover' | 'rsi'
 
@@ -350,6 +351,24 @@ export default function CreateBotPage() {
                 <p className="text-sm text-destructive">{errors.orderQuantity}</p>
               )}
             </div>
+
+            {/* ── Strategy preview ─────────────────────── */}
+            <div className="flex flex-wrap items-center gap-3">
+              <StrategyPreview
+                symbol={symbol}
+                interval={interval}
+                strategy={strategy}
+                params={
+                  strategy === 'sma_crossover'
+                    ? { shortPeriod: Number(shortPeriod), longPeriod: Number(longPeriod) }
+                    : { period: Number(rsiPeriod) }
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Run a quick simulation on the last 100 candles before starting the bot.
+              </p>
+            </div>
+
             <div className="flex gap-2 pt-2">
               <Button
                 type="submit"

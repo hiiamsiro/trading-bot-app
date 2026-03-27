@@ -276,3 +276,17 @@ export async function runBacktest(
 ): Promise<{ id: string; status: string; result: BacktestResult }> {
   return api.post<{ id: string; status: string; result: BacktestResult }>('/backtest', payload, token)
 }
+
+export interface PreviewBacktestPayload {
+  symbol: string
+  interval: string
+  strategy: string
+  params?: Record<string, unknown>
+}
+
+export async function previewBacktest(
+  token: string,
+  payload: PreviewBacktestPayload,
+): Promise<{ result: BacktestResult }> {
+  return api.post<{ result: BacktestResult }>('/backtest/preview', payload, token)
+}

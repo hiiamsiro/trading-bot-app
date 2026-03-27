@@ -62,6 +62,43 @@ export class BacktestService {
     private readonly strategyService: StrategyService,
   ) {}
 
+  /**
+   * Quick preview: run backtest against the last 100 candles.
+   * Returns sample trades + win rate so user can validate a strategy before starting a bot.
+   */
+  async preview(params: {
+    symbol: string;
+    interval: MarketKlineInterval;
+    strategyKey: string;
+    strategyParams: Record<string, unknown>;
+    sourceSymbol: string;
+  }): Promise<BacktestResult> {
+    const { symbol, interval, strategyKey, strategyParams, sourceSymbol } = params;
+
+    const candles = await this.marketDataAdapter.getKlines(sourceSymbol, interval, 100);
+    if (candles.length < 3) {
+      throw new Error(
+        `Insufficient candle data for ${symbol}. Got ${candles.length} candles.`,
+      );
+    }
+
+    const validated = this.strategyService.validateConfig(strategyKey, strategyParams);
+    const requiredCandles = this.strategyService.getRequiredCandles(
+      strategyKey,
+      validated.normalizedParams,
+    );
+
+    return this.simulate(
+      symbol,
+      interval,
+      validated.normalizedStrategy,
+      validated.normalizedParams,
+      candles,
+      requiredCandles.entry,
+      10000,
+    );
+  }
+
   async runBacktest(params: {
     symbol: string;
     interval: MarketKlineInterval;
