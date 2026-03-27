@@ -22,6 +22,10 @@ type BotWithStrategy = Bot & {
   executionSession: ExecutionSession | null;
 };
 
+// Realistic trading simulation defaults (can be overridden via env)
+const DEFAULT_FEE_BPS = 10; // 0.10% per side (typical crypto spot fee)
+const DEFAULT_MAX_SLIPPAGE_BPS = 5; // up to 0.05% slippage per side
+
 @Injectable()
 export class DemoTradingService {
   constructor(
@@ -31,6 +35,25 @@ export class DemoTradingService {
     private readonly gateway: MarketDataGateway,
     private readonly botsService: BotsService,
   ) {}
+
+  /**
+   * Returns a random slippage amount in basis points (0 to maxBps).
+   * Uses a simple deterministic-ish spread to keep results reproducible in demos.
+   */
+  private randomSlippageBps(maxBps: number): number {
+    // Spread the slippage across [0, maxBps] — biased toward lower values
+    const rand = Math.random();
+    const bps = Math.round(Math.sqrt(rand) * maxBps);
+    return Math.max(0, Math.min(bps, maxBps));
+  }
+
+  /**
+   * Computes fee for a trade side and notional value.
+   * feeBps is in basis points (10 bps = 0.10%).
+   */
+  private computeFee(notionalValue: number, feeBps: number): number {
+    return notionalValue * (feeBps / 10000);
+  }
 
   private parseRequestedInterval(params: Record<string, unknown>): string | null {
     const raw = params.interval ?? params.timeframe ?? params.candleInterval ?? null;
@@ -222,14 +245,29 @@ export class DemoTradingService {
       return;
     }
 
+    // --- Realistic execution simulation ---
     const quantity = Number(params.quantity) > 0 ? Number(params.quantity) : 0.01;
-    const totalValue = quantity * entryPrice;
+    const slippageBps = this.randomSlippageBps(DEFAULT_MAX_SLIPPAGE_BPS);
+    const entryFeeBps = DEFAULT_FEE_BPS;
+
+    // Slippage moves price against the trader on entry (higher for buys)
+    const slippageMultiplier = 1 + slippageBps / 10000;
+    const executedEntryPrice = entryPrice * slippageMultiplier;
+    const notional = quantity * executedEntryPrice;
+    const entryFee = this.computeFee(notional, entryFeeBps);
+
+    const totalValue = quantity * executedEntryPrice;
     const slPct = params.stopLossPercent;
     const tpPct = params.takeProfitPercent;
+    // Stop-loss and take-profit are set relative to the executed price (after slippage)
     const stopLoss =
-      slPct != null && !Number.isNaN(Number(slPct)) ? entryPrice * (1 - Number(slPct) / 100) : null;
+      slPct != null && !Number.isNaN(Number(slPct))
+        ? executedEntryPrice * (1 - Number(slPct) / 100)
+        : null;
     const takeProfit =
-      tpPct != null && !Number.isNaN(Number(tpPct)) ? entryPrice * (1 + Number(tpPct) / 100) : null;
+      tpPct != null && !Number.isNaN(Number(tpPct))
+        ? executedEntryPrice * (1 + Number(tpPct) / 100)
+        : null;
 
     const trade = await this.prisma.trade.create({
       data: {
@@ -237,7 +275,7 @@ export class DemoTradingService {
         symbol: bot.symbol,
         side: TradeSide.BUY,
         quantity,
-        price: entryPrice,
+        price: executedEntryPrice,
         totalValue,
         status: 'EXECUTED',
         executedAt: new Date(),
@@ -245,12 +283,19 @@ export class DemoTradingService {
         openExplanation: decision.metadata as Prisma.InputJsonValue,
         stopLoss,
         takeProfit,
+        entryFee,
+        slippageBps,
       },
     });
 
+    // Subtract entry fee from session balance immediately
     await this.prisma.executionSession.updateMany({
       where: { botId: bot.id, endedAt: null },
-      data: { totalTrades: { increment: 1 } },
+      data: {
+        totalTrades: { increment: 1 },
+        profitLoss: { increment: -entryFee },
+        currentBalance: { increment: -entryFee },
+      },
     });
 
     await this.botsService.appendLog(
@@ -261,7 +306,12 @@ export class DemoTradingService {
         tradeId: trade.id,
         symbol: bot.symbol,
         quantity,
-        entryPrice,
+        entryPrice: executedEntryPrice,
+        slippageBps,
+        slippageCost: notional - quantity * entryPrice,
+        entryFee,
+        entryFeeBps,
+        marketPrice: entryPrice,
         stopLoss,
         takeProfit,
         signal: decision.signal,
@@ -270,6 +320,7 @@ export class DemoTradingService {
         execution: {
           type: 'simulated',
           priceSource: 'live_market',
+          note: 'fees and slippage applied',
         },
       },
       'trade',
@@ -296,13 +347,34 @@ export class DemoTradingService {
     reason: string,
     decision?: { signal: string; reason: string; metadata: Record<string, unknown> },
   ): Promise<void> {
-    const pnl = trade.side === TradeSide.BUY ? this.computePnlLong(trade, exitPrice) : 0;
+    // --- Realistic exit execution simulation ---
+    const slippageBps = this.randomSlippageBps(DEFAULT_MAX_SLIPPAGE_BPS);
+    const exitFeeBps = DEFAULT_FEE_BPS;
+
+    // Slippage moves price against the trader on exit (lower for sells / long closes)
+    const slippageMultiplier = 1 - slippageBps / 10000;
+    const executedExitPrice = exitPrice * slippageMultiplier;
+    const exitNotional = trade.quantity * executedExitPrice;
+    const exitFee = this.computeFee(exitNotional, exitFeeBps);
+
+    // Gross PnL based on executed prices
+    const grossPnl =
+      trade.side === TradeSide.BUY
+        ? this.computePnlLong(trade, executedExitPrice)
+        : 0;
+
+    // Net PnL = gross PnL - entry fee - exit fee
+    const entryFee = trade.entryFee ?? 0;
+    const netPnl = grossPnl - entryFee - exitFee;
 
     const updated = await this.prisma.trade.update({
       where: { id: trade.id },
       data: {
-        exitPrice,
-        realizedPnl: pnl,
+        exitPrice: executedExitPrice,
+        realizedPnl: grossPnl,
+        netPnl,
+        exitFee,
+        slippageBps: trade.slippageBps ?? slippageBps,
         closedAt: new Date(),
         closeReason: reason,
         closeExplanation: decision?.metadata
@@ -312,11 +384,12 @@ export class DemoTradingService {
       },
     });
 
+    // Subtract exit fee from session (entry fee was already deducted on open)
     await this.prisma.executionSession.updateMany({
       where: { botId: bot.id, endedAt: null },
       data: {
-        profitLoss: { increment: pnl },
-        currentBalance: { increment: pnl },
+        profitLoss: { increment: netPnl },
+        currentBalance: { increment: netPnl },
       },
     });
 
@@ -328,8 +401,15 @@ export class DemoTradingService {
         tradeId: trade.id,
         symbol: bot.symbol,
         entryPrice: trade.price,
-        exitPrice,
-        realizedPnl: pnl,
+        exitPrice: executedExitPrice,
+        marketPrice: exitPrice,
+        slippageBps,
+        slippageCost: trade.quantity * (exitPrice - executedExitPrice),
+        entryFee,
+        exitFee,
+        totalFees: entryFee + exitFee,
+        grossPnl,
+        netPnl,
         reason,
         signal: decision?.signal,
         signalReason: decision?.reason,
@@ -337,6 +417,7 @@ export class DemoTradingService {
         execution: {
           type: 'simulated',
           priceSource: 'live_market',
+          note: 'fees and slippage applied',
         },
       },
       'trade',
@@ -360,7 +441,7 @@ export class DemoTradingService {
       tradeId: updated.id,
       symbol: bot.symbol,
       type: notificationType,
-      realizedPnl: pnl,
+      realizedPnl: netPnl,
       closeReason: reason,
     });
   }

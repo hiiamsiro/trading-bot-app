@@ -119,6 +119,10 @@ model Trade {
   realizedPnl     Float?
   stopLoss        Float?
   takeProfit      Float?
+  entryFee        Float?
+  exitFee         Float?
+  slippageBps     Int?
+  netPnl          Float?
   closedAt        DateTime?
   closeReason     String?
   closeExplanation Json?

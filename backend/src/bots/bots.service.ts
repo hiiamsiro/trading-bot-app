@@ -381,12 +381,25 @@ export class BotsService {
           'market_data',
         );
       } else {
-        const realizedPnl = (exitPrice - openTrade.price) * openTrade.quantity;
+        // Realistic exit: apply slippage + fee
+        const slippageBps = Math.round(Math.sqrt(Math.random()) * 5);
+        const exitFeeBps = 10;
+        const slippageMultiplier = 1 - slippageBps / 10000;
+        const executedExitPrice = exitPrice * slippageMultiplier;
+        const exitNotional = openTrade.quantity * executedExitPrice;
+        const exitFee = exitNotional * (exitFeeBps / 10000);
+        const grossPnl = (executedExitPrice - openTrade.price) * openTrade.quantity;
+        const entryFee = openTrade.entryFee ?? 0;
+        const netPnl = grossPnl - entryFee - exitFee;
+
         const closed = await this.prisma.trade.update({
           where: { id: openTrade.id },
           data: {
-            exitPrice,
-            realizedPnl,
+            exitPrice: executedExitPrice,
+            realizedPnl: grossPnl,
+            netPnl,
+            exitFee,
+            slippageBps,
             closedAt: new Date(),
             closeReason: 'bot_stopped',
             status: 'CLOSED',
@@ -395,8 +408,8 @@ export class BotsService {
         await this.prisma.executionSession.updateMany({
           where: { botId: id, endedAt: null },
           data: {
-            profitLoss: { increment: realizedPnl },
-            currentBalance: { increment: realizedPnl },
+            profitLoss: { increment: netPnl },
+            currentBalance: { increment: netPnl },
           },
         });
         await this.appendLog(
@@ -405,11 +418,20 @@ export class BotsService {
           'Position closed on bot stop',
           {
             tradeId: closed.id,
-            exitPrice,
-            realizedPnl,
+            entryPrice: openTrade.price,
+            exitPrice: executedExitPrice,
+            marketPrice: exitPrice,
+            slippageBps,
+            slippageCost: openTrade.quantity * (exitPrice - executedExitPrice),
+            entryFee,
+            exitFee,
+            totalFees: entryFee + exitFee,
+            grossPnl,
+            netPnl,
             execution: {
               type: 'simulated',
               priceSource: 'live_market',
+              note: 'fees and slippage applied',
             },
           },
           'trade',
@@ -424,7 +446,7 @@ export class BotsService {
           tradeId: closed.id,
           symbol: bot.symbol,
           type: NotificationType.TRADE_CLOSED,
-          realizedPnl,
+          realizedPnl: netPnl,
           closeReason: 'bot_stopped',
         });
       }

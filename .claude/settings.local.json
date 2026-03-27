@@ -4,7 +4,9 @@
       "Bash(npm run:*)",
       "Bash(npm:*)",
       "Bash(docker compose:*)",
-      "Bash(dir \"e:\\\\Workspace\\\\Build In Public\\\\trading-bot-app\")"
+      "Bash(dir \"e:\\\\Workspace\\\\Build In Public\\\\trading-bot-app\")",
+      "Bash(cd e:/Workspace/Build In Public/trading-bot-app/backend)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
