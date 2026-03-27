@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import {
   ColorType,
   LineStyle,
@@ -9,40 +9,69 @@ import {
   type IPriceLine,
   type ISeriesApi,
 } from 'lightweight-charts'
-import type { MarketKline } from '@/types'
+import type { MarketKline, Trade } from '@/types'
 import { cn } from '@/lib/utils'
 import {
   marketKlinesToCandlestickData,
   marketKlinesToVolumeHistogramData,
 } from '@/lib/chart/market-klines-to-lightweight'
+import {
+  computeMaLines,
+  computeRsiLine,
+  computeTradeMarkers,
+  DEFAULT_MA_CONFIGS,
+  DEFAULT_RSI_PERIOD,
+  type ChartIndicatorConfig,
+} from '@/lib/chart/indicators'
 
 type MarketCandlestickChartProps = {
   bars: MarketKline[]
   height: number
   className?: string
+  /** Trades to render as entry/exit markers. */
+  trades?: Trade[]
+  /** Indicator configuration (MA lines, RSI). */
+  indicatorConfig?: ChartIndicatorConfig
 }
 
 export function MarketCandlestickChart({
   bars,
   height,
   className,
+  trades = [],
+  indicatorConfig = {},
 }: MarketCandlestickChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
+  const rsiChartRef = useRef<IChartApi | null>(null)
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const volumeRef = useRef<ISeriesApi<'Histogram'> | null>(null)
+  const maSeriesRefs = useRef<ISeriesApi<'Line'>[]>([])
+  const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const priceLineRef = useRef<IPriceLine | null>(null)
   const lastFitCountRef = useRef<number>(0)
 
+  const { mas, showRsi, rsiPeriod } = useMemo(() => {
+    const cfg = indicatorConfig
+    return {
+      mas: cfg.mas ?? DEFAULT_MA_CONFIGS,
+      showRsi: cfg.showRsi ?? false,
+      rsiPeriod: cfg.rsiPeriod ?? DEFAULT_RSI_PERIOD,
+    }
+  }, [indicatorConfig])
+
+  const chartHeight = showRsi ? Math.floor(height * 0.72) : height
+  const rsiHeight = showRsi ? height - chartHeight - 8 : 0
+
+  // ── Create / destroy main chart ─────────────────────────────────────────────
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
 
     const chart = createChart(el, {
       width: el.clientWidth,
-      height,
+      height: chartHeight,
       layout: {
-        // Hex/rgba only — lightweight-charts cannot parse modern hsl() syntax.
         background: { type: ColorType.Solid, color: '#0c1219' },
         textColor: '#9caab8',
         fontFamily:
@@ -77,14 +106,80 @@ export function MarketCandlestickChart({
       scaleMargins: { top: 0.85, bottom: 0 },
     })
 
+    // MA line series
+    const maSeriesArr: ISeriesApi<'Line'>[] = []
+    for (const ma of mas) {
+      const s = chart.addLineSeries({
+        color: ma.color,
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        title: ma.label,
+      })
+      maSeriesArr.push(s)
+    }
+    maSeriesRefs.current = maSeriesArr
+
     chartRef.current = chart
     candleRef.current = candleSeries
     volumeRef.current = volumeSeries
+
+    // RSI sub-chart
+    if (showRsi) {
+      const rsiChartEl = el.querySelector<HTMLDivElement>('[data-rsi-chart]')
+      if (rsiChartEl) {
+        const rsiChart = createChart(rsiChartEl, {
+          width: el.clientWidth,
+          height: rsiHeight,
+          layout: {
+            background: { type: ColorType.Solid, color: '#0c1219' },
+            textColor: '#9caab8',
+            fontFamily:
+              'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
+          },
+          grid: {
+            vertLines: { color: '#252f3f' },
+            horzLines: { color: '#252f3f' },
+          },
+          rightPriceScale: {
+            borderColor: '#2d3a4d',
+            scaleMargins: { top: 0.1, bottom: 0.1 },
+          },
+          timeScale: {
+            borderColor: '#2d3a4d',
+            timeVisible: true,
+            secondsVisible: false,
+          },
+          crosshair: {
+            vertLine: { color: 'rgba(34, 197, 94, 0.35)' },
+            horzLine: { color: 'rgba(34, 197, 94, 0.35)' },
+          },
+        })
+
+        // Sync RSI time scale with main chart
+        chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+          if (range) rsiChart.timeScale().setVisibleLogicalRange(range)
+        })
+        rsiChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+          if (range) chart.timeScale().setVisibleLogicalRange(range)
+        })
+
+        const rsiSeries = rsiChart.addLineSeries({
+          color: '#a78bfa',
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+        })
+        rsiSeriesRef.current = rsiSeries
+        rsiChartRef.current = rsiChart
+      }
+    }
 
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth
       if (w > 0) {
         chart.applyOptions({ width: w })
+        if (rsiChartRef.current) rsiChartRef.current.applyOptions({ width: w })
       }
     })
     ro.observe(el)
@@ -93,12 +188,20 @@ export function MarketCandlestickChart({
       ro.disconnect()
       priceLineRef.current = null
       chart.remove()
+      if (rsiChartRef.current) {
+        rsiChartRef.current.remove()
+        rsiChartRef.current = null
+      }
       chartRef.current = null
       candleRef.current = null
       volumeRef.current = null
+      maSeriesRefs.current = []
+      rsiSeriesRef.current = null
     }
-  }, [height])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [height, showRsi, rsiPeriod, JSON.stringify(mas)])
 
+  // ── Update candle + volume data ──────────────────────────────────────────────
   useEffect(() => {
     const chart = chartRef.current
     const candleSeries = candleRef.current
@@ -142,13 +245,80 @@ export function MarketCandlestickChart({
     }
   }, [bars])
 
+  // ── Update MA lines ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+
+    const maSeriesArr = maSeriesRefs.current
+    if (maSeriesArr.length !== mas.length) {
+      // Recreate MA series if config changed
+      for (const s of maSeriesArr) {
+        chart.removeSeries(s)
+      }
+      const newSeries: ISeriesApi<'Line'>[] = []
+      for (const ma of mas) {
+        const s = chart.addLineSeries({
+          color: ma.color,
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          title: ma.label,
+        })
+        newSeries.push(s)
+      }
+      maSeriesRefs.current = newSeries
+    }
+
+    const maLines = computeMaLines(bars, mas)
+    for (let i = 0; i < maLines.length; i++) {
+      maSeriesRefs.current[i]?.setData(maLines[i].data)
+    }
+  }, [bars, JSON.stringify(mas)])
+
+  // ── Update RSI ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const rsiSeries = rsiSeriesRef.current
+    if (!rsiSeries) return
+
+    const rsiData = computeRsiLine(bars, rsiPeriod)
+    rsiSeries.setData(rsiData)
+  }, [bars, rsiPeriod])
+
+  // ── Update trade markers ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const candleSeries = candleRef.current
+    if (!candleSeries) return
+
+    candleSeries.setMarkers([])
+    const markers = computeTradeMarkers(trades)
+    const chartMarkers = markers.map((m) => ({
+      time: m.time,
+      position: m.position,
+      color: m.color,
+      shape: m.shape,
+      text: m.text,
+    }))
+
+    if (chartMarkers.length > 0) {
+      candleSeries.setMarkers(chartMarkers)
+    }
+  }, [trades])
+
   return (
     <div
       ref={containerRef}
       className={cn('w-full min-h-[200px] overflow-hidden rounded-md border border-border/60', className)}
       style={{ height }}
       role="img"
-      aria-label="Candlestick price chart"
-    />
+      aria-label="Candlestick price chart with indicators"
+    >
+      {showRsi && (
+        <div
+          data-rsi-chart
+          style={{ height: rsiHeight, marginTop: 8 }}
+        />
+      )}
+    </div>
   )
 }

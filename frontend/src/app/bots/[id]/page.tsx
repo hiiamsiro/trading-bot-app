@@ -539,6 +539,7 @@ export default function BotDetailPage() {
         title="Live Market Data"
         showInstrumentSelect={false}
         showIntervalSelect={false}
+        trades={trades}
       />
 
       <div className="grid gap-4 md:grid-cols-2">

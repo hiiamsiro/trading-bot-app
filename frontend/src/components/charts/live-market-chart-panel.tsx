@@ -14,7 +14,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { MARKET_KLINE_INTERVALS, type MarketKlineInterval } from '@/types'
+import { MARKET_KLINE_INTERVALS, type MarketKlineInterval, type Trade } from '@/types'
+import {
+  buildIndicatorConfigFromTrade,
+  type ChartIndicatorConfig,
+} from '@/lib/chart/indicators'
 import { cn } from '@/lib/utils'
 
 type LiveMarketChartPanelProps = {
@@ -30,6 +34,13 @@ type LiveMarketChartPanelProps = {
   className?: string
   showInstrumentSelect?: boolean
   showIntervalSelect?: boolean
+  /** Trades to render as entry/exit markers on the chart. */
+  trades?: Trade[]
+  /**
+   * Indicator configuration.
+   * When omitted, defaults are inferred from the first trade's openExplanation.
+   */
+  indicatorConfig?: ChartIndicatorConfig
 }
 
 export function LiveMarketChartPanel({
@@ -42,7 +53,12 @@ export function LiveMarketChartPanel({
   className,
   showInstrumentSelect = true,
   showIntervalSelect = true,
+  trades = [],
+  indicatorConfig: explicitConfig,
 }: LiveMarketChartPanelProps) {
+  const indicatorConfig = explicitConfig ?? buildIndicatorConfigFromTrade(
+    trades[0]?.openExplanation,
+  )
   const [symbol, setSymbol] = useState(activeSymbol)
   const [interval, setInterval] = useState<MarketKlineInterval>(defaultInterval ?? '1m')
 
@@ -139,7 +155,12 @@ export function LiveMarketChartPanel({
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
           </div>
         ) : (
-          <MarketCandlestickChart bars={bars} height={chartHeight} />
+          <MarketCandlestickChart
+            bars={bars}
+            height={chartHeight}
+            trades={trades}
+            indicatorConfig={indicatorConfig}
+          />
         )}
       </CardContent>
     </Card>
