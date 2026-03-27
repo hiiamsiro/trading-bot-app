@@ -17,21 +17,24 @@ model User {
 
   bots          Bot[]
   notifications Notification[]
+  botTemplates  BotTemplate[]
 
   @@map("users")
 }
 
 model Bot {
-  id          String    @id @default(uuid())
-  name        String
-  description String?
-  symbol      String
-  status      BotStatus @default(STOPPED)
-  userId      String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  name         String
+  description  String?
+  symbol       String
+  status       BotStatus @default(STOPPED)
+  userId       String
+  templateId   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template         BotTemplate?       @relation(fields: [templateId], references: [id])
   strategyConfig   StrategyConfig?
   trades           Trade[]
   logs             BotLog[]
@@ -39,6 +42,7 @@ model Bot {
 
   @@index([userId, createdAt])
   @@index([userId, status])
+  @@index([templateId])
   @@map("bots")
 }
 
@@ -187,6 +191,26 @@ model ExecutionSession {
   bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
 
   @@map("execution_sessions")
+}
+
+model BotTemplate {
+  id           String   @id @default(uuid())
+  userId       String?
+  name         String
+  description  String?
+  strategy     String
+  params       Json
+  isDefault    Boolean  @default(false)
+  isSystem     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user  User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bots  Bot[]
+
+  @@index([userId])
+  @@index([isSystem, isDefault])
+  @@map("bot_templates")
 }
 
 model Notification {

@@ -15,6 +15,7 @@ import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { HealthModule } from './health/health.module';
 import { BacktestModule } from './backtest/backtest.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { BacktestModule } from './backtest/backtest.module';
     HealthModule,
     JobsModule,
     BacktestModule,
+    TemplatesModule,
   ],
 })
 export class AppModule {}

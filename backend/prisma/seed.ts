@@ -824,6 +824,50 @@ async function seedUserScenario(userId: string) {
   await seedNotifications(notifications);
 }
 
+async function seedDefaultTemplates() {
+  const defaults = [
+    {
+      name: 'BTC SMA Momentum',
+      description: 'Classic SMA crossover for BTC — short periods for frequent signals.',
+      strategy: 'sma_crossover',
+      params: { shortPeriod: 10, longPeriod: 20, interval: '1m', initialBalance: 10000 },
+      isSystem: true,
+      isDefault: true,
+    },
+    {
+      name: 'ETH RSI Mean Reversion',
+      description: 'RSI mean reversion on ETH. Buys oversold, sells overbought.',
+      strategy: 'rsi',
+      params: { period: 14, oversold: 30, overbought: 70, interval: '15m', initialBalance: 10000 },
+      isSystem: true,
+      isDefault: true,
+    },
+    {
+      name: 'BTC Trend Follower (1h)',
+      description: 'Slow SMA crossover with 1h candles for longer-term BTC trends.',
+      strategy: 'sma_crossover',
+      params: { shortPeriod: 21, longPeriod: 55, interval: '1h', initialBalance: 25000 },
+      isSystem: true,
+      isDefault: false,
+    },
+    {
+      name: 'XAU Gold Breakout (4h)',
+      description: '4-hour gold bot for macro trend following on XAUUSD.',
+      strategy: 'sma_crossover',
+      params: { shortPeriod: 12, longPeriod: 26, interval: '4h', initialBalance: 18000 },
+      isSystem: true,
+      isDefault: false,
+    },
+  ];
+
+  for (const tpl of defaults) {
+    const existing = await prisma.botTemplate.findFirst({ where: { name: tpl.name } });
+    if (!existing) {
+      await prisma.botTemplate.create({ data: tpl });
+    }
+  }
+}
+
 async function main() {
   console.log('Seeding database...');
 
@@ -840,6 +884,7 @@ async function main() {
   const admin = await upsertUser(ADMIN_EMAIL, 'Admin Demo');
   const user = await upsertUser(USER_EMAIL, 'Demo Trader');
 
+  await seedDefaultTemplates();
   await seedUserScenario(user.id);
   await seedAdminScenario(admin.id);
 

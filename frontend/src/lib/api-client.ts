@@ -5,7 +5,9 @@ import type {
   BacktestResult,
   Bot,
   BotLogsResponse,
+  BotTemplate,
   CreateBotPayload,
+  CreateTemplatePayload,
   DashboardSnapshot,
   Instrument,
   InstrumentCatalogResponse,
@@ -18,6 +20,7 @@ import type {
   MarkNotificationReadPayload,
   NotificationsResponse,
   RunBacktestPayload,
+  TemplatesListResponse,
   Trade,
   TradeHistoryResponse,
   UpdateBotPayload,
@@ -289,4 +292,21 @@ export async function previewBacktest(
   payload: PreviewBacktestPayload,
 ): Promise<{ result: BacktestResult }> {
   return api.post<{ result: BacktestResult }>('/backtest/preview', payload, token)
+}
+
+// ─── Templates ─────────────────────────────────────────────────────────────────
+
+export async function fetchTemplates(token: string): Promise<TemplatesListResponse> {
+  return api.get<TemplatesListResponse>('/templates', token)
+}
+
+export async function createTemplate(
+  token: string,
+  payload: CreateTemplatePayload,
+): Promise<BotTemplate> {
+  return api.post<BotTemplate>('/templates', payload, token)
+}
+
+export async function deleteTemplate(token: string, id: string): Promise<void> {
+  return api.delete<void>(`/templates/${id}`, token)
 }

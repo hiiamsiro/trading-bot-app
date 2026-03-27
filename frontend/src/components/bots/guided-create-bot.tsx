@@ -3,9 +3,22 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bot, Instrument, MARKET_KLINE_INTERVALS, type Bot as BotType } from '@/types'
+import {
+  type Bot as BotType,
+  type BotTemplate,
+  type Instrument,
+  MARKET_KLINE_INTERVALS,
+} from '@/types'
 import { useAuthStore } from '@/store/auth.store'
-import { createBot, fetchInstruments, startBot } from '@/lib/api-client'
+import { useTemplatesStore } from '@/store/templates.store'
+import {
+  createBot,
+  createTemplate,
+  deleteTemplate,
+  fetchInstruments,
+  fetchTemplates,
+  startBot,
+} from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -34,15 +47,20 @@ import {
   ArrowRight,
   Bot as BotIcon,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  CircleDollarSign,
   Loader2,
   Play,
+  Save,
   ShieldCheck,
   Sparkles,
+  Trash2,
   Zap,
 } from 'lucide-react'
 
 type StrategyKey = 'sma_crossover' | 'rsi'
-type Step = 1 | 2 | 3
+type Step = 0 | 1 | 2 | 3
 
 const STEP_LABELS = [
   { n: 1 as Step, label: 'Configure' },
@@ -50,7 +68,7 @@ const STEP_LABELS = [
   { n: 3 as Step, label: 'Launch' },
 ]
 
-// ─── Step 1: form ──────────────────────────────────────────────────────────
+// ─── Form values ─────────────────────────────────────────────────────────────
 
 interface FormValues {
   name: string
@@ -74,6 +92,20 @@ interface FormErrors {
   rsiPeriod?: string
   initialBalance?: string
   orderQuantity?: string
+}
+
+const DEFAULT_VALUES: FormValues = {
+  name: '',
+  description: '',
+  symbol: '',
+  strategy: 'sma_crossover',
+  shortPeriod: '10',
+  longPeriod: '20',
+  rsiPeriod: '14',
+  interval: '1m',
+  trendInterval: '',
+  initialBalance: '10000',
+  orderQuantity: '0.01',
 }
 
 function validateStep1(values: FormValues): FormErrors {
@@ -100,6 +132,268 @@ function validateStep1(values: FormValues): FormErrors {
   }
   return errs
 }
+
+// ─── Template picker ─────────────────────────────────────────────────────────
+
+function TemplateBar({
+  templates,
+  loading,
+  onSelect,
+  onDelete,
+}: {
+  templates: BotTemplate[]
+  loading: boolean
+  onSelect: (t: BotTemplate) => void
+  onDelete: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  const defaults = templates.filter((t) => t.isDefault || t.isSystem)
+  const userTemplates = templates.filter((t) => !t.isDefault && !t.isSystem)
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading templates…
+      </div>
+    )
+  }
+
+  if (templates.length === 0) return null
+
+  return (
+    <div className="rounded-md border border-border/60 bg-muted/40 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm">
+          <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">
+            <button
+              onClick={() => setOpen((o) => !o)}
+              className="cursor-pointer underline underline-offset-2 hover:text-foreground"
+            >
+              Load from template
+            </button>{' '}
+            to pre-fill your configuration.
+          </span>
+        </div>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="text-muted-foreground hover:text-foreground cursor-pointer"
+          aria-label={open ? 'Collapse templates' : 'Expand templates'}
+        >
+          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-3 space-y-3">
+          {defaults.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">System defaults</p>
+              <div className="space-y-1">
+                {defaults.map((t) => (
+                  <TemplateRow key={t.id} template={t} onSelect={onSelect} />
+                ))}
+              </div>
+            </div>
+          )}
+          {userTemplates.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Your saved templates</p>
+              <div className="space-y-1">
+                {userTemplates.map((t) => (
+                  <TemplateRow
+                    key={t.id}
+                    template={t}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TemplateRow({
+  template,
+  onSelect,
+  onDelete,
+}: {
+  template: BotTemplate
+  onSelect: (t: BotTemplate) => void
+  onDelete?: (id: string) => void
+}) {
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!onDelete) return
+    if (!confirm(`Delete template "${template.name}"?`)) return
+    setDeleting(true)
+    try {
+      await onDelete(template.id)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const strategyLabel = template.strategy === 'sma_crossover' ? 'SMA Crossover' : 'RSI'
+
+  return (
+    <div
+      onClick={() => onSelect(template)}
+      className="group flex cursor-pointer items-center justify-between rounded-md border border-border/40 bg-background px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-primary/5"
+    >
+      <div className="min-w-0">
+        <span className="font-medium">{template.name}</span>
+        {template.description && (
+          <span className="ml-2 truncate text-xs text-muted-foreground">
+            — {template.description}
+          </span>
+        )}
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          {strategyLabel} · {(template.params.interval as string) ?? '—'} interval
+        </div>
+      </div>
+      <div className="ml-3 flex items-center gap-1">
+        {(template.isDefault || template.isSystem) && (
+          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            default
+          </span>
+        )}
+        {!template.isDefault && !template.isSystem && onDelete && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="opacity-0 group-hover:opacity-100 cursor-pointer text-muted-foreground transition-opacity hover:text-destructive"
+            aria-label="Delete template"
+          >
+            {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Save template dialog ────────────────────────────────────────────────────
+
+function SaveTemplateDialog({
+  open,
+  onClose,
+  values,
+  onSaved,
+}: {
+  open: boolean
+  onClose: () => void
+  values: FormValues
+  onSaved: (t: BotTemplate) => void
+}) {
+  const token = useAuthStore((s) => s.token)
+  const handleError = useHandleApiError()
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  function applyValues() {
+    const p = values.strategy === 'sma_crossover'
+      ? { shortPeriod: Number(values.shortPeriod), longPeriod: Number(values.longPeriod) }
+      : { period: Number(values.rsiPeriod) }
+    return {
+      ...p,
+      initialBalance: Number(values.initialBalance),
+      interval: values.interval || undefined,
+      trendInterval: values.trendInterval && values.trendInterval !== '__none__' ? values.trendInterval : undefined,
+    }
+  }
+
+  async function handleSave() {
+    if (!token || !name.trim()) return
+    setSaving(true)
+    try {
+      const params = applyValues()
+      const t = await createTemplate(token, {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        strategy: values.strategy,
+        params,
+      })
+      toast({ title: 'Template saved', description: `"${t.name}" is ready to reuse.` })
+      onSaved(t)
+      onClose()
+      setName('')
+      setDescription('')
+    } catch (err) {
+      handleError(err, 'Could not save template')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Save className="h-5 w-5" />
+            Save as template
+          </CardTitle>
+          <CardDescription>
+            Save your current configuration so you can reuse it across bots.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="tpl-name">Template name *</Label>
+            <Input
+              id="tpl-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. BTC momentum config"
+              maxLength={200}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tpl-desc">Description (optional)</Label>
+            <Input
+              id="tpl-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What is this config optimised for?"
+              maxLength={1000}
+            />
+          </div>
+          <div className="rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">
+            <strong>Saved fields:</strong> strategy, {values.strategy === 'sma_crossover' ? `short period ${values.shortPeriod}, long period ${values.longPeriod}` : `RSI period ${values.rsiPeriod}`}, interval, trend filter, initial balance.
+            Symbol and bot name are set per-bot.
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={onClose} className="cursor-pointer" disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !name.trim()}
+              className="cursor-pointer"
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {saving ? 'Saving…' : 'Save template'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Step 1: form ────────────────────────────────────────────────────────────
 
 function StepOneForm({
   values,
@@ -539,23 +833,11 @@ function StepIndicator({ current }: { current: Step }) {
 
 // ─── Main component ─────────────────────────────────────────────────────────
 
-const DEFAULT_VALUES: FormValues = {
-  name: '',
-  description: '',
-  symbol: '',
-  strategy: 'sma_crossover',
-  shortPeriod: '10',
-  longPeriod: '20',
-  rsiPeriod: '14',
-  interval: '1m',
-  trendInterval: '',
-  initialBalance: '10000',
-  orderQuantity: '0.01',
-}
-
 export function GuidedCreateBot() {
   const router = useRouter()
   const token = useAuthStore((s) => s.token)
+  const { userTemplates, defaults, isLoaded, loadTemplates, addUserTemplate, removeUserTemplate } =
+    useTemplatesStore()
   const handleError = useHandleApiError()
 
   const [step, setStep] = useState<Step>(1)
@@ -563,9 +845,13 @@ export function GuidedCreateBot() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [loadingInstruments, setLoadingInstruments] = useState(true)
+  const [loadingTemplates, setLoadingTemplates] = useState(false)
   const [creating, setCreating] = useState(false)
   const [starting, setStarting] = useState(false)
   const [createdBot, setCreatedBot] = useState<BotType | null>(null)
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+
+  const allTemplates = [...defaults, ...userTemplates]
 
   // Load instruments
   useEffect(() => {
@@ -586,9 +872,70 @@ export function GuidedCreateBot() {
     })()
   }, [token])
 
+  // Load templates (once)
+  useEffect(() => {
+    if (!token || isLoaded) return
+    setLoadingTemplates(true)
+    ;(async () => {
+      try {
+        const res = await fetchTemplates(token)
+        loadTemplates(res.userTemplates, res.defaults)
+      } catch {
+        /* handled silently */
+      } finally {
+        setLoadingTemplates(false)
+      }
+    })()
+  }, [token, isLoaded, loadTemplates])
+
+  // Apply template to form
+  const applyTemplate = useCallback((t: BotTemplate) => {
+    const params = t.params ?? {}
+    setValues((v) => ({
+      ...v,
+      name: v.name || '',
+      strategy: (t.strategy === 'sma_crossover' || t.strategy === 'rsi'
+        ? t.strategy
+        : v.strategy) as StrategyKey,
+      shortPeriod: params.shortPeriod != null ? String(params.shortPeriod) : v.shortPeriod,
+      longPeriod: params.longPeriod != null ? String(params.longPeriod) : v.longPeriod,
+      rsiPeriod: params.period != null ? String(params.period) : v.rsiPeriod,
+      interval: (params.interval as string) || v.interval,
+      trendInterval: (params.trendInterval as string) || '',
+      initialBalance:
+        params.initialBalance != null ? String(params.initialBalance) : v.initialBalance,
+      orderQuantity: params.quantity != null ? String(params.quantity) : v.orderQuantity,
+    }))
+    setErrors({})
+    setStep(1)
+    toast({ title: 'Template applied', description: `"${t.name}" configuration loaded.` })
+  }, [])
+
+  // Delete template
+  const handleDeleteTemplate = useCallback(
+    async (id: string) => {
+      if (!token) return
+      try {
+        await deleteTemplate(token, id)
+        removeUserTemplate(id)
+        toast({ title: 'Template deleted' })
+      } catch (err) {
+        handleError(err, 'Could not delete template')
+      }
+    },
+    [token, removeUserTemplate, handleError],
+  )
+
+  // Handle template saved from dialog
+  const handleTemplateSaved = useCallback(
+    (t: BotTemplate) => {
+      addUserTemplate(t)
+    },
+    [addUserTemplate],
+  )
+
   const onChange = useCallback((patch: Partial<FormValues>) => {
     setValues((prev) => ({ ...prev, ...patch }))
-    // Clear field errors for changed keys that match FormErrors shape
     const cleared: Partial<FormErrors> = {}
     for (const key of Object.keys(patch) as (keyof FormValues)[]) {
       if (key in validateStep1(DEFAULT_VALUES)) {
@@ -675,6 +1022,16 @@ export function GuidedCreateBot() {
         </p>
       </div>
 
+      {/* Template bar — visible on step 1 */}
+      {step === 1 && (
+        <TemplateBar
+          templates={allTemplates}
+          loading={loadingTemplates}
+          onSelect={applyTemplate}
+          onDelete={handleDeleteTemplate}
+        />
+      )}
+
       <StepIndicator current={step} />
 
       {/* Step 1 */}
@@ -694,7 +1051,15 @@ export function GuidedCreateBot() {
               loadingInstruments={loadingInstruments}
               onChange={onChange}
             />
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setSaveDialogOpen(true)}
+                className="cursor-pointer"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Save as template
+              </Button>
               <Button
                 onClick={handleNext}
                 disabled={loadingInstruments || instruments.length === 0}
@@ -753,6 +1118,14 @@ export function GuidedCreateBot() {
           starting={starting}
         />
       )}
+
+      {/* Save template dialog */}
+      <SaveTemplateDialog
+        open={saveDialogOpen}
+        onClose={() => setSaveDialogOpen(false)}
+        values={values}
+        onSaved={handleTemplateSaved}
+      />
     </div>
   )
 }

@@ -374,6 +374,33 @@ export interface UpdateBotPayload {
   status?: BotStatus
 }
 
+// ─── Templates ─────────────────────────────────────────────────────────────────
+
+export interface BotTemplate {
+  id: string
+  userId: string | null
+  name: string
+  description: string | null
+  strategy: string
+  params: Record<string, unknown>
+  isDefault: boolean
+  isSystem: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TemplatesListResponse {
+  userTemplates: BotTemplate[]
+  defaults: BotTemplate[]
+}
+
+export interface CreateTemplatePayload {
+  name: string
+  description?: string
+  strategy: string
+  params: Record<string, unknown>
+}
+
 export type MarketKlineInterval = '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
 
 export const MARKET_KLINE_INTERVALS: MarketKlineInterval[] = [
