@@ -42,6 +42,22 @@ export class BotsController {
     return this.botsService.findAll(user.userId);
   }
 
+  @Post(':id/publish')
+  @ApiOperation({ summary: 'Publish bot to marketplace' })
+  @ApiOkResponse({ description: 'Bot is now public with a share slug' })
+  @ApiNotFoundResponse({ description: 'Bot not found' })
+  async publish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
+    return this.botsService.publishBot(id, user.userId);
+  }
+
+  @Post(':id/unpublish')
+  @ApiOperation({ summary: 'Remove bot from marketplace' })
+  @ApiOkResponse({ description: 'Bot is no longer public' })
+  @ApiNotFoundResponse({ description: 'Bot not found' })
+  async unpublish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
+    return this.botsService.unpublishBot(id, user.userId);
+  }
+
   @Post(':id/start')
   @ApiOperation({ summary: 'Start bot (demo execution)' })
   @ApiOkResponse({ description: 'Bot is running' })

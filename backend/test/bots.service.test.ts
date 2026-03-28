@@ -7,7 +7,7 @@ const { BotsService } = require('../src/bots/bots.service.ts');
 const { mockAsyncFn, mockFn } = require('./helpers.ts');
 
 function makeBotsService(overrides?: any) {
-  const prisma = overrides?.prisma ?? {
+  const defaultPrisma = {
     bot: {
       findMany: mockAsyncFn(async () => []),
       findFirst: mockAsyncFn(async () => null),
@@ -37,7 +37,28 @@ function makeBotsService(overrides?: any) {
       count: mockAsyncFn(async () => 0),
       findMany: mockAsyncFn(async () => []),
     },
+    notification: {
+      create: mockAsyncFn(async (args) => ({
+        id: 'n1',
+        userId: args?.data?.userId ?? 'user-1',
+        botId: args?.data?.botId ?? null,
+        tradeId: null,
+        type: args?.data?.type ?? 'BOT_STARTED',
+        title: args?.data?.title ?? '',
+        message: args?.data?.message ?? '',
+        metadata: null,
+        isRead: false,
+        readAt: null,
+        createdAt: new Date(),
+      })),
+    },
   };
+  // Always include notification mock so NotificationsService (which uses prisma.notification.create)
+  // never gets undefined
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prisma: any = overrides?.prisma
+    ? ({ ...defaultPrisma, ...overrides.prisma })
+    : defaultPrisma;
 
   const marketData = overrides?.marketData ?? {
     getLatestPrice: mockAsyncFn(async () => null),
@@ -230,6 +251,9 @@ test('BotsService.start upserts executionSession and sets bot status RUNNING', a
       },
       trade: { findFirst: mockAsyncFn(async () => null) },
       botLog: { create: mockAsyncFn(async () => ({ id: 'log-1', createdAt: new Date() })) },
+      notification: {
+        create: mockAsyncFn(async () => ({ id: 'n1', userId: 'user-1', createdAt: new Date() })),
+      },
     },
   });
 
@@ -287,6 +311,9 @@ test('BotsService.stop closes open trade when live price is available', async ()
         updateMany: mockAsyncFn(async () => ({ count: 1 })),
       },
       botLog: { create: mockAsyncFn(async () => ({ id: 'log-1', createdAt: now })) },
+      notification: {
+        create: mockAsyncFn(async () => ({ id: 'n1', userId: 'user-1', createdAt: new Date() })),
+      },
     },
     marketData: {
       getLatestPrice: mockAsyncFn(async () => 120),

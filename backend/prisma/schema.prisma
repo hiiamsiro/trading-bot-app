@@ -31,6 +31,8 @@ model Bot {
   status       BotStatus @default(STOPPED)
   userId       String
   templateId   String?
+  isPublic     Boolean   @default(false)
+  shareSlug    String?   @unique
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -48,6 +50,7 @@ model Bot {
   @@index([userId, status])
   @@index([templateId])
   @@index([portfolioId])
+  @@index([isPublic, createdAt])
   @@map("bots")
 }
 

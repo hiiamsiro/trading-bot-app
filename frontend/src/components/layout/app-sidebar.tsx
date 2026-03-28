@@ -11,6 +11,7 @@ import {
   LogOut,
   BarChart3,
   FolderOpen,
+  Globe,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -21,6 +22,7 @@ const nav = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/portfolios', label: 'Portfolios', icon: FolderOpen },
   { href: '/bots', label: 'Bots', icon: Bot },
+  { href: '/marketplace', label: 'Marketplace', icon: Globe },
   { href: '/backtest', label: 'Backtest', icon: BarChart3 },
   { href: '/trades', label: 'Trade history', icon: History },
   { href: '/logs', label: 'Logs', icon: ScrollText },

@@ -630,4 +630,90 @@ export class BotsService {
       .filter((item): item is string => typeof item === 'string')
       .map((item) => item.toLowerCase());
   }
+
+  // ─── Sharing ──────────────────────────────────────────────────────────────────
+
+  async publishBot(botId: string, userId: string): Promise<{ shareSlug: string }> {
+    const bot = await this.findOne(botId, userId);
+    if (!bot.strategyConfig) {
+      throw new BadRequestException('Cannot publish a bot without a configured strategy');
+    }
+    // Slug generation is handled by ShareService after we delegate
+    // For simplicity we generate it here too; ShareService.publishBot is called from controller
+    const slug = generateSlug(bot.name);
+    await this.prisma.bot.update({
+      where: { id: botId },
+      data: { isPublic: true, shareSlug: slug },
+    });
+    return { shareSlug: slug };
+  }
+
+  async unpublishBot(botId: string, userId: string): Promise<void> {
+    await this.findOne(botId, userId);
+    await this.prisma.bot.update({
+      where: { id: botId },
+      data: { isPublic: false, shareSlug: null },
+    });
+  }
+
+  async cloneFromShare(
+    source: {
+      name: string
+      description: string | null
+      symbol: string
+      strategy: string
+      params: Record<string, unknown>
+      builderConfig: Record<string, unknown> | null
+    },
+    userId: string,
+    overrideName?: string,
+    overrideSymbol?: string,
+  ) {
+    const symbol = (overrideSymbol ?? source.symbol).trim().toUpperCase();
+    const instrument = await this.instrumentsService.assertActiveBySymbol(symbol);
+
+    // Validate strategy
+    const validated = this.validateStrategyConfig(
+      source.strategy,
+      source.params,
+      instrument.supportedIntervals,
+    );
+
+    const cloneName = overrideName
+      ? overrideName.trim()
+      : `${source.name} (Copy)`;
+
+    return this.prisma.bot.create({
+      data: {
+        name: cloneName,
+        description: source.description ?? undefined,
+        symbol,
+        userId,
+        strategyConfig: {
+          create: {
+            strategy: validated.strategy,
+            params: validated.params as Prisma.InputJsonValue,
+            builderConfig: source.builderConfig as Prisma.InputJsonValue | undefined,
+          },
+        },
+      },
+      include: {
+        strategyConfig: true,
+      },
+    });
+  }
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────────
+
+function generateSlug(name: string): string {
+  const base = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 40);
+  const suffix = Math.random().toString(36).slice(2, 7);
+  return `${base}-${suffix}`;
 }

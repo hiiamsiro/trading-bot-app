@@ -42,10 +42,36 @@ export interface Bot {
   symbol: string
   status: BotStatus
   userId: string
+  isPublic?: boolean
+  shareSlug?: string | null
   createdAt: string
   updatedAt: string
   strategyConfig?: StrategyConfig | null
   executionSession?: ExecutionSession | null
+}
+
+// ─── Marketplace ─────────────────────────────────────────────────────────────────
+
+export interface PublicBot {
+  shareSlug: string
+  name: string
+  description: string | null
+  symbol: string
+  strategy: string
+  userName: string | null
+  createdAt: string
+}
+
+export interface MarketplaceResponse {
+  items: PublicBot[]
+  total: number
+  take: number
+  skip: number
+}
+
+export interface CloneBotPayload {
+  name?: string
+  symbol?: string
 }
 
 export enum InstrumentAssetClass {

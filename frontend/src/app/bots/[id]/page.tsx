@@ -6,13 +6,16 @@ import { useParams, useRouter } from 'next/navigation'
 import {
   Activity,
   History,
+  Globe,
   Loader2,
   Pencil,
   Play,
   ScrollText,
+  Share2,
   ShieldCheck,
   Square,
   Trash2,
+  Unlink,
 } from 'lucide-react'
 import { ApiError } from '@/lib/api'
 import type { Bot, BotLog, DashboardEquityPoint, Instrument, Trade } from '@/types'
@@ -27,8 +30,10 @@ import {
   fetchInstrumentBySymbol,
   fetchInstruments,
   fetchTrades,
+  publishBot,
   startBot,
   stopBot,
+  unpublishBot,
 } from '@/lib/api-client'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { useTradingSocket } from '@/hooks/use-trading-socket'
@@ -77,6 +82,7 @@ export default function BotDetailPage() {
   const [notFound, setNotFound] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
 
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [instrument, setInstrument] = useState<Instrument | null>(null)
@@ -329,6 +335,43 @@ export default function BotDetailPage() {
     }
   }
 
+  async function onPublish() {
+    if (!token || !id) return
+    setActionLoading('publish')
+    try {
+      const b = await publishBot(token, id)
+      setBot((prev) => prev ? { ...prev, isPublic: true, shareSlug: b.shareSlug } : prev)
+      setShareDialogOpen(false)
+      toast({ title: 'Bot published', description: 'It is now visible in the marketplace.' })
+    } catch (e) {
+      handleError(e)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function onUnpublish() {
+    if (!token || !id) return
+    setActionLoading('unpublish')
+    try {
+      await unpublishBot(token, id)
+      setBot((prev) => prev ? { ...prev, isPublic: false, shareSlug: null } : prev)
+      setShareDialogOpen(false)
+      toast({ title: 'Bot unpublished' })
+    } catch (e) {
+      handleError(e)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  function onCopyLink() {
+    if (!bot?.shareSlug) return
+    const url = `${window.location.origin}/marketplace/bot/${bot.shareSlug}`
+    void navigator.clipboard.writeText(url)
+    toast({ title: 'Link copied to clipboard' })
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -424,6 +467,108 @@ export default function BotDetailPage() {
           <Button variant="outline" asChild className="cursor-pointer">
             <Link href={`/logs?botId=${id}`}>Logs</Link>
           </Button>
+
+          {bot.isPublic ? (
+            <>
+              <Button
+                variant="outline"
+                className="cursor-pointer"
+                disabled={!!actionLoading}
+                onClick={() => setShareDialogOpen(true)}
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </Button>
+              <AlertDialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="hidden cursor-pointer"
+                    onClick={() => setShareDialogOpen(true)}
+                  >
+                    Share
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Bot is public</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This bot is visible to everyone in the marketplace. Anyone can clone it.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 rounded-md bg-muted p-3">
+                      <span className="flex-1 truncate font-mono text-sm">
+                        {typeof window !== 'undefined'
+                          ? `${window.location.origin}/marketplace/bot/${bot.shareSlug}`
+                          : `/marketplace/bot/${bot.shareSlug}`}
+                      </span>
+                      <Button size="sm" variant="secondary" className="cursor-pointer" onClick={onCopyLink}>
+                        Copy
+                      </Button>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full cursor-pointer border-amber-400/40 text-amber-300 hover:bg-amber-400/10"
+                      disabled={actionLoading === 'unpublish'}
+                      onClick={() => {
+                        void onUnpublish()
+                      }}
+                    >
+                      {actionLoading === 'unpublish' ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Unlink className="mr-2 h-4 w-4" />
+                      )}
+                      Remove from marketplace
+                    </Button>
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Close</AlertDialogCancel>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          ) : (
+            <AlertDialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="cursor-pointer"
+                  disabled={!!actionLoading || !bot.strategyConfig}
+                >
+                  <Globe className="mr-2 h-4 w-4" />
+                  Share
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Share this bot?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {!bot.strategyConfig
+                      ? 'You need to configure a strategy before sharing.'
+                      : 'Publish this bot to the marketplace so others can discover and clone it.'}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={!bot.strategyConfig}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      void onPublish()
+                    }}
+                  >
+                    {actionLoading === 'publish' ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Publish to marketplace
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+
           <AlertDialog
             open={deleteDialogOpen}
             onOpenChange={(open) => {
@@ -473,6 +618,21 @@ export default function BotDetailPage() {
       </div>
 
       {bot.description ? <p className="text-sm text-muted-foreground">{bot.description}</p> : null}
+
+      {bot.isPublic && bot.shareSlug ? (
+        <div className="flex items-center gap-2">
+          <Badge
+            variant="outline"
+            className="border-emerald-400/50 bg-emerald-400/10 text-emerald-300"
+          >
+            <Globe className="mr-1 h-3 w-3" />
+            Public
+          </Badge>
+          <span className="text-xs font-mono text-muted-foreground">
+            /marketplace/bot/{bot.shareSlug}
+          </span>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl lg:col-span-2">

@@ -18,6 +18,7 @@ import { BacktestModule } from './backtest/backtest.module';
 import { TemplatesModule } from './templates/templates.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { StrategyModule } from './strategy/strategy.module';
+import { ShareModule } from './share/share.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { StrategyModule } from './strategy/strategy.module';
     TemplatesModule,
     PortfolioModule,
     StrategyModule,
+    ShareModule,
   ],
 })
 export class AppModule {}

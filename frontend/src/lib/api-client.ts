@@ -15,10 +15,11 @@ import type {
   Instrument,
   InstrumentCatalogResponse,
   InstrumentSyncResult,
-  MarketKline,
-  MarketKlineInterval,
   ListNotificationsQuery,
   ListTradesQuery,
+  MarketKline,
+  MarketKlineInterval,
+  MarketplaceResponse,
   MarkAllNotificationsReadResponse,
   MarkNotificationReadPayload,
   NotificationsResponse,
@@ -374,4 +375,38 @@ export async function createBotFromBuilder(
   payload: CreateBotFromBuilderPayload,
 ): Promise<Bot> {
   return api.post<Bot>('/bots/from-builder', payload, token)
+}
+
+// ─── Marketplace ─────────────────────────────────────────────────────────────────
+
+export async function fetchPublicBots(
+  token: string,
+  query?: { take?: number; skip?: number; search?: string; strategy?: string },
+): Promise<MarketplaceResponse> {
+  const params = new URLSearchParams()
+  if (query?.take != null) params.set('take', String(query.take))
+  if (query?.skip != null) params.set('skip', String(query.skip))
+  if (query?.search?.trim()) params.set('search', query.search.trim())
+  if (query?.strategy) params.set('strategy', query.strategy)
+  const queryString = params.size ? `?${params}` : ''
+  return api.get<MarketplaceResponse>(`/marketplace${queryString}`, token)
+}
+
+export async function publishBot(
+  token: string,
+  botId: string,
+): Promise<{ shareSlug: string }> {
+  return api.post<{ shareSlug: string }>(`/bots/${botId}/publish`, {}, token)
+}
+
+export async function unpublishBot(token: string, botId: string): Promise<void> {
+  return api.post<void>(`/bots/${botId}/unpublish`, {}, token)
+}
+
+export async function cloneBot(
+  token: string,
+  slug: string,
+  payload?: { name?: string; symbol?: string },
+): Promise<Bot> {
+  return api.post<Bot>(`/marketplace/clone/${slug}`, payload ?? {}, token)
 }
