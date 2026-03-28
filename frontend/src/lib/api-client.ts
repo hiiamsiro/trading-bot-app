@@ -6,7 +6,10 @@ import type {
   Bot,
   BotLogsResponse,
   BotTemplate,
+  BuilderConfig,
+  CompiledStrategyResult,
   CreateBotPayload,
+  CreateBotFromBuilderPayload,
   CreateTemplatePayload,
   DashboardSnapshot,
   Instrument,
@@ -344,4 +347,31 @@ export async function updatePortfolio(
 
 export async function deletePortfolio(token: string, id: string): Promise<void> {
   return api.delete<void>(`/portfolios/${id}`, token)
+}
+
+// ─── Strategy Builder ─────────────────────────────────────────────────────────
+
+export async function fetchBuilderDefault(token: string): Promise<BuilderConfig> {
+  return api.get<BuilderConfig>('/strategy-builder/default', token)
+}
+
+export async function validateBuilderConfig(
+  token: string,
+  config: BuilderConfig,
+): Promise<{ valid: true }> {
+  return api.post<{ valid: true }>('/strategy-builder/validate', { config }, token)
+}
+
+export async function compileBuilderConfig(
+  token: string,
+  config: BuilderConfig,
+): Promise<CompiledStrategyResult> {
+  return api.post<CompiledStrategyResult>('/strategy-builder/compile', { config }, token)
+}
+
+export async function createBotFromBuilder(
+  token: string,
+  payload: CreateBotFromBuilderPayload,
+): Promise<Bot> {
+  return api.post<Bot>('/bots/from-builder', payload, token)
 }

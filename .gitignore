@@ -53,3 +53,4 @@ prisma/migrations/**/migration.sql
 .turbo
 .codex/
 CLAUDE.md
+.claude/

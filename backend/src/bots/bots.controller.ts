@@ -16,11 +16,13 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiNotFoundResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { BotsService } from './bots.service';
 import { CreateBotDto } from './dto/create-bot.dto';
+import { CreateBotFromBuilderDto } from './dto/create-bot-from-builder.dto';
 import { UpdateBotDto } from './dto/update-bot.dto';
 import { ListBotLogsQueryDto } from './dto/list-bot-logs-query.dto';
 
@@ -75,6 +77,17 @@ export class BotsController {
   @ApiNotFoundResponse({ description: 'Bot not found' })
   async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.botsService.findOne(id, user.userId);
+  }
+
+  @Post('from-builder')
+  @ApiOperation({ summary: 'Create a bot from the visual strategy builder' })
+  @ApiOkResponse({ description: 'Created bot with builder config' })
+  @ApiBadRequestResponse({ description: 'Invalid builder config' })
+  async createFromBuilder(
+    @Body() dto: CreateBotFromBuilderDto,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.botsService.createFromBuilder(dto, user.userId);
   }
 
   @Post()

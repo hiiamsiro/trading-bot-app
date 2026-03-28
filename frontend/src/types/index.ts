@@ -21,6 +21,7 @@ export interface StrategyConfig {
   id: string
   strategy: string
   params: Record<string, unknown>
+  builderConfig?: Record<string, unknown> | null
 }
 
 export interface ExecutionSession {
@@ -500,4 +501,71 @@ export interface PortfolioMetrics {
   totalCurrentBalance: number
   totalBots: number
   runningBots: number
+}
+
+// ─── Strategy Builder ─────────────────────────────────────────────────────────
+
+export type LogicalOperator = 'AND' | 'OR'
+
+export type ComparisonOperator =
+  | 'CROSSES_ABOVE'
+  | 'CROSSES_BELOW'
+  | 'ABOVE'
+  | 'BELOW'
+
+export type IndicatorType = 'RSI' | 'MA'
+
+export interface IndicatorParams {
+  period?: number
+  oversold?: number
+  overbought?: number
+  maType?: 'SMA' | 'EMA'
+  shortPeriod?: number
+  longPeriod?: number
+}
+
+export interface Condition {
+  id: string
+  indicator: IndicatorType
+  params: IndicatorParams
+  comparison: ComparisonOperator
+  value: number
+}
+
+export interface BuilderEntryCondition {
+  type: 'CONDITION'
+  condition: Condition
+}
+
+export interface BuilderGroupCondition {
+  type: 'GROUP'
+  operator: LogicalOperator
+  conditions: (BuilderEntryCondition | BuilderGroupCondition)[]
+}
+
+export type BuilderCondition = BuilderEntryCondition | BuilderGroupCondition
+
+export interface BuilderConfig {
+  version: 1
+  conditions: BuilderCondition[]
+  entryOperator: LogicalOperator
+  risk: {
+    stopLossPercent?: number
+    takeProfitPercent?: number
+    maxDailyLoss?: number
+    quantity: number
+  }
+}
+
+export interface CompiledStrategyResult {
+  strategy: 'rsi' | 'sma_crossover'
+  params: Record<string, unknown>
+}
+
+export interface CreateBotFromBuilderPayload {
+  name: string
+  description?: string
+  symbol: string
+  initialBalance: number
+  builderConfig: BuilderConfig
 }

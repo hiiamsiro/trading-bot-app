@@ -17,6 +17,7 @@ import { HealthModule } from './health/health.module';
 import { BacktestModule } from './backtest/backtest.module';
 import { TemplatesModule } from './templates/templates.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { StrategyModule } from './strategy/strategy.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     BacktestModule,
     TemplatesModule,
     PortfolioModule,
+    StrategyModule,
   ],
 })
 export class AppModule {}

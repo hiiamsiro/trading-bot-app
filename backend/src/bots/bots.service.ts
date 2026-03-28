@@ -5,10 +5,12 @@ import { MarketDataService } from '../market-data/market-data.service';
 import { MarketDataGateway } from '../market-data/market-data.gateway';
 import { InstrumentsService } from '../instruments/instruments.service';
 import { StrategyService } from '../strategy/strategy.service';
+import { StrategyBuilderService } from '../strategy/strategy-builder.service';
 import { CreateBotDto } from './dto/create-bot.dto';
 import { UpdateBotDto } from './dto/update-bot.dto';
 import { ListBotLogsQueryDto } from './dto/list-bot-logs-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CreateBotFromBuilderDto } from './dto/create-bot-from-builder.dto';
 
 @Injectable()
 export class BotsService {
@@ -18,6 +20,7 @@ export class BotsService {
     private readonly marketGateway: MarketDataGateway,
     private readonly instrumentsService: InstrumentsService,
     private readonly strategyService: StrategyService,
+    private readonly strategyBuilderService: StrategyBuilderService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -76,6 +79,47 @@ export class BotsService {
       },
       include: {
         strategyConfig: true,
+      },
+    });
+  }
+
+  async createFromBuilder(dto: CreateBotFromBuilderDto, userId: string) {
+    // 1. Validate builder config
+    this.strategyBuilderService.validateConfig(dto.builderConfig);
+
+    // 2. Compile into strategy+params (service validates shape first)
+    const { strategy, params } = this.strategyBuilderService.compileConfig(
+      dto.builderConfig as unknown as import('../strategy/strategy-builder.schema').BuilderConfig,
+    );
+
+    // 3. Resolve instrument
+    const normalizedSymbol = dto.symbol.trim().toUpperCase();
+    const instrument = await this.instrumentsService.assertActiveBySymbol(normalizedSymbol);
+
+    // 4. Validate the compiled params against StrategyService (normalizes + re-validates)
+    const validatedConfig = this.strategyService.validateConfig(strategy, {
+      ...params,
+      initialBalance: dto.initialBalance,
+    });
+
+    // 5. Persist bot + strategyConfig + builderConfig
+    return this.prisma.bot.create({
+      data: {
+        name: dto.name,
+        description: dto.description,
+        symbol: normalizedSymbol,
+        userId,
+        strategyConfig: {
+          create: {
+            strategy: validatedConfig.normalizedStrategy,
+            params: validatedConfig.normalizedParams as Prisma.InputJsonValue,
+            builderConfig: dto.builderConfig as unknown as Prisma.InputJsonValue,
+          },
+        },
+      },
+      include: {
+        strategyConfig: true,
+        executionSession: true,
       },
     });
   }

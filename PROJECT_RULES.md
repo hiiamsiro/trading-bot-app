@@ -43,3 +43,9 @@ Rules:
 1. **P0** — Core runtime loop: `BotExecutionProcessor`, `MarketDataProcessor`, `StrategyService`, `DemoTradingService`
 2. **P1** — Business logic services: `BotsService`, `TradesService`, auth store, API client
 3. **P2** — Integration/edge cases, frontend page components
+
+**Test timing rule (CRITICAL):** Tests MUST be written **before or alongside** code changes — never after. Specifically:
+- When adding a new service → write its tests in the same commit as the service code
+- When modifying an existing service → update its tests in the same commit
+- When fixing a bug → add a regression test in the same commit
+- PRs that introduce new P0/P1 code without corresponding tests will be rejected in review
