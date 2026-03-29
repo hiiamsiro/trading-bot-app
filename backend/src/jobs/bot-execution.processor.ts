@@ -54,9 +54,10 @@ export class BotExecutionProcessor extends WorkerHost {
 
       // Only propagate error state if the bot is still RUNNING.
       // If it is already terminal (e.g. ERROR from a previous attempt),
-      // skip the notification storm and just re-throw to satisfy BullMQ.
+      // skip the notification storm and just re-throw so BullMQ retries.
       if (bot.status === 'RUNNING') {
         await this.handleBotError(bot.id, bot.userId, bot.symbol, message);
+        return; // Bot is now in ERROR state — no point retrying; let job complete
       }
       throw error;
     }
