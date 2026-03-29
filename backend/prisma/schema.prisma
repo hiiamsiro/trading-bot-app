@@ -165,6 +165,8 @@ model Trade {
   @@index([botId, symbol, createdAt])
   @@index([createdAt, botId])
   @@index([botId, closedAt])
+  // Retention job: batch-delete closed trades by closedAt + status + createdAt
+  @@index([closedAt, status, createdAt])
   @@map("trades")
 }
 
@@ -189,11 +191,17 @@ model BotLog {
   message   String
   metadata  Json?
   createdAt DateTime @default(now())
+  deletedAt DateTime?
 
   bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
 
+  // Existing: query logs for a bot (active records)
   @@index([botId, createdAt])
+  // Existing: filter logs by level
   @@index([level, createdAt])
+  // Retention job: partial covering index — only active rows (deletedAt IS NULL).
+  // See migration for the PostgreSQL partial index definition.
+  @@index([deletedAt])
   @@map("bot_logs")
 }
 
@@ -216,6 +224,8 @@ model ExecutionSession {
 
   bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
 
+  // Retention job: batch-delete ended sessions by endedAt
+  @@index([endedAt])
   @@map("execution_sessions")
 }
 
@@ -256,6 +266,8 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
   @@index([userId, createdAt])
+  // Retention job: batch-delete read notifications — isRead leads (already filtered to isRead=true)
+  @@index([isRead, createdAt])
   @@map("notifications")
 }
 
@@ -286,6 +298,8 @@ model Backtest {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+  // Retention job: batch-delete completed/failed backtests — createdAt leads (date cutoff is high-selectivity)
+  @@index([createdAt, status])
   @@map("backtests")
 }
 

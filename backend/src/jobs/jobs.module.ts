@@ -5,11 +5,13 @@ import { MarketDataModule } from '../market-data/market-data.module';
 import { DemoTradingModule } from '../demo-trading/demo-trading.module';
 import { InstrumentsModule } from '../instruments/instruments.module';
 import { BotsModule } from '../bots/bots.module';
+import { DataRetentionModule } from './data-retention.module';
 import { BotExecutionProcessor } from './bot-execution.processor';
 import { MarketDataProcessor } from './market-data.processor';
 import { MarketDataSchedulerService } from './market-data.scheduler';
 import { InstrumentSyncProcessor } from './instrument-sync.processor';
 import { InstrumentSyncSchedulerService } from './instrument-sync.scheduler';
+import { DataRetentionSchedulerService } from './data-retention.scheduler';
 import {
   BOT_EXECUTION_MAX_RETRIES,
   BOT_EXECUTION_BACKOFF_BASE,
@@ -26,6 +28,7 @@ import {
     DemoTradingModule,
     BotsModule,
     InstrumentsModule,
+    DataRetentionModule,
     BullModule.registerQueue(
       {
         name: 'bot-execution',
@@ -64,6 +67,7 @@ import {
     MarketDataSchedulerService,
     InstrumentSyncProcessor,
     InstrumentSyncSchedulerService,
+    DataRetentionSchedulerService,
   ],
   exports: [BullModule],
 })
