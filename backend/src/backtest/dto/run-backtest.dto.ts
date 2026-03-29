@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsNotEmpty, IsOptional, IsPositive, IsString, ValidateNested } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsPositive,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { MarketKlineInterval } from '../../market-data/providers/market-data-provider.types';
 
 export class RunBacktestDto {

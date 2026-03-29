@@ -30,10 +30,7 @@ function uuid(): string {
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 
-function validateIndicatorParams(
-  cond: Condition,
-  path: string,
-): void {
+function validateIndicatorParams(cond: Condition, path: string): void {
   if (cond.indicator === 'RSI') {
     const period = cond.params.period;
     if (period == null || !Number.isInteger(period) || period < 2) {
@@ -42,10 +39,7 @@ function validateIndicatorParams(
     if (cond.value < 0 || cond.value > 100) {
       throw new Error(`${path}: RSI threshold value must be between 0 and 100`);
     }
-    if (
-      cond.params.oversold != null &&
-      (cond.params.oversold < 0 || cond.params.oversold > 100)
-    ) {
+    if (cond.params.oversold != null && (cond.params.oversold < 0 || cond.params.oversold > 100)) {
       throw new Error(`${path}: RSI oversold must be between 0 and 100`);
     }
     if (
@@ -76,11 +70,7 @@ function validateIndicatorParams(
   }
 }
 
-function validateCondition(
-  c: BuilderCondition,
-  path: string,
-  depth: number,
-): void {
+function validateCondition(c: BuilderCondition, path: string, depth: number): void {
   if (depth > 3) {
     throw new Error(`${path}: Maximum nesting depth of 3 exceeded`);
   }
@@ -103,10 +93,10 @@ function validateCondition(
     if (!['RSI', 'MA'].includes(cond.indicator)) {
       throw new Error(`${path}: Indicator must be RSI or MA`);
     }
-    if (
-      !['CROSSES_ABOVE', 'CROSSES_BELOW', 'ABOVE', 'BELOW'].includes(cond.comparison)
-    ) {
-      throw new Error(`${path}: Comparison must be one of CROSSES_ABOVE, CROSSES_BELOW, ABOVE, BELOW`);
+    if (!['CROSSES_ABOVE', 'CROSSES_BELOW', 'ABOVE', 'BELOW'].includes(cond.comparison)) {
+      throw new Error(
+        `${path}: Comparison must be one of CROSSES_ABOVE, CROSSES_BELOW, ABOVE, BELOW`,
+      );
     }
     if (typeof cond.value !== 'number' || !Number.isFinite(cond.value)) {
       throw new Error(`${path}: Condition value must be a finite number`);
@@ -149,7 +139,9 @@ function flattenConditions(
 function inferStrategy(conditions: Condition[]): 'rsi' | 'sma_crossover' {
   const hasRsi = conditions.some((c) => c.indicator === 'RSI');
   const hasMa = conditions.some(
-    (c) => c.indicator === 'MA' && (c.comparison === 'CROSSES_ABOVE' || c.comparison === 'CROSSES_BELOW'),
+    (c) =>
+      c.indicator === 'MA' &&
+      (c.comparison === 'CROSSES_ABOVE' || c.comparison === 'CROSSES_BELOW'),
   );
 
   if (hasRsi && !hasMa) return 'rsi';
@@ -201,7 +193,9 @@ function compileMaCrossover(
   risk: BuilderConfig['risk'],
 ): Record<string, unknown> {
   const maConds = conditions.filter(
-    (c) => c.indicator === 'MA' && (c.comparison === 'CROSSES_ABOVE' || c.comparison === 'CROSSES_BELOW'),
+    (c) =>
+      c.indicator === 'MA' &&
+      (c.comparison === 'CROSSES_ABOVE' || c.comparison === 'CROSSES_BELOW'),
   );
   if (maConds.length === 0) {
     throw new Error('No MA crossover conditions found for MA Crossover strategy');
@@ -310,9 +304,7 @@ export class StrategyBuilderService {
         );
       }
       const p = compiled.params;
-      return (
-        `SMA Crossover strategy (short ${p.shortPeriod}, long ${p.longPeriod})`
-      );
+      return `SMA Crossover strategy (short ${p.shortPeriod}, long ${p.longPeriod})`;
     } catch {
       return 'Custom condition strategy';
     }

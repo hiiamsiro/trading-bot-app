@@ -6,11 +6,20 @@ const { TemplatesService } = require('../src/templates/templates.service.ts');
 
 function makeService(overrides?: any) {
   // Collect call args manually
-  const state: any = { calls: { findMany: [], findFirst: [], create: [], delete: [], validateConfig: [] } };
+  const state: any = {
+    calls: { findMany: [], findFirst: [], create: [], delete: [], validateConfig: [] },
+  };
 
   const defaultValidate = (strategy: any, params: any) => ({
     normalizedStrategy: strategy === 'ma_crossover' ? 'sma_crossover' : strategy,
-    normalizedParams: { ...params, period: 14, oversold: 30, overbought: 70, shortPeriod: 5, longPeriod: 20 },
+    normalizedParams: {
+      ...params,
+      period: 14,
+      oversold: 30,
+      overbought: 70,
+      shortPeriod: 5,
+      longPeriod: 20,
+    },
   });
 
   const strategyService: any = {
@@ -96,7 +105,9 @@ test('findAll orders userTemplates by createdAt desc', async () => {
 
 test('findOne returns template when user owns it', async () => {
   const svc = makeService({
-    prisma: { botTemplate: { findFirst: async (args: any) => ({ id: 't1', name: 'My Template' }) } },
+    prisma: {
+      botTemplate: { findFirst: async (args: any) => ({ id: 't1', name: 'My Template' }) },
+    },
   });
   const result = await svc.findOne('t1', 'user-1');
   assert.equal(result.id, 't1');
@@ -104,7 +115,11 @@ test('findOne returns template when user owns it', async () => {
 
 test('findOne returns template when it is a system template', async () => {
   const svc = makeService({
-    prisma: { botTemplate: { findFirst: async (args: any) => ({ id: 'sys1', name: 'System', isSystem: true }) } },
+    prisma: {
+      botTemplate: {
+        findFirst: async (args: any) => ({ id: 'sys1', name: 'System', isSystem: true }),
+      },
+    },
   });
   const result = await svc.findOne('sys1', 'user-1');
   assert.equal(result.isSystem, true);
@@ -112,7 +127,10 @@ test('findOne returns template when it is a system template', async () => {
 
 test('findOne throws NotFoundException when template not found', async () => {
   const svc = makeService();
-  await assertRejects(svc.findOne('nonexistent', 'user-1'), (err) => err instanceof NotFoundException);
+  await assertRejects(
+    svc.findOne('nonexistent', 'user-1'),
+    (err) => err instanceof NotFoundException,
+  );
 });
 
 // ─────────────────────────────────────────────────────────
@@ -129,14 +147,20 @@ test('create calls strategyService.validateConfig before persisting', async () =
 
 test('create normalizes ma_crossover to sma_crossover', async () => {
   const svc = makeService();
-  await svc.create({ name: 'MA Template', strategy: 'ma_crossover', params: { shortPeriod: 5, longPeriod: 20 } }, 'user-1');
+  await svc.create(
+    { name: 'MA Template', strategy: 'ma_crossover', params: { shortPeriod: 5, longPeriod: 20 } },
+    'user-1',
+  );
   const call = svc._state.calls.create[0];
   assert.equal(call.data.strategy, 'sma_crossover');
 });
 
 test('create trims name and description', async () => {
   const svc = makeService();
-  await svc.create({ name: '  My Template  ', strategy: 'rsi', params: { period: 14 }, description: '  Desc  ' }, 'user-1');
+  await svc.create(
+    { name: '  My Template  ', strategy: 'rsi', params: { period: 14 }, description: '  Desc  ' },
+    'user-1',
+  );
   const call = svc._state.calls.create[0];
   assert.equal(call.data.name, 'My Template');
   assert.equal(call.data.description, 'Desc');
@@ -152,14 +176,20 @@ test('create sets isDefault and isSystem to false', async () => {
 
 test('create sets description to null when empty string', async () => {
   const svc = makeService();
-  await svc.create({ name: 'Test', strategy: 'rsi', params: { period: 14 }, description: '' }, 'user-1');
+  await svc.create(
+    { name: 'Test', strategy: 'rsi', params: { period: 14 }, description: '' },
+    'user-1',
+  );
   const call = svc._state.calls.create[0];
   assert.equal(call.data.description, null);
 });
 
 test('create passes normalized params to database', async () => {
   const svc = makeService();
-  await svc.create({ name: 'Test', strategy: 'rsi', params: { period: 7, quantity: 0.05 } }, 'user-1');
+  await svc.create(
+    { name: 'Test', strategy: 'rsi', params: { period: 7, quantity: 0.05 } },
+    'user-1',
+  );
   const call = svc._state.calls.create[0];
   assert.deepEqual(call.data.params, { period: 7, quantity: 0.05, oversold: 30, overbought: 70 });
 });

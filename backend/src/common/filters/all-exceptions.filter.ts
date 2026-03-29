@@ -15,13 +15,7 @@
  *   - All other errors → 500
  */
 
-import {
-  ExceptionFilter,
-  Catch,
-  ArgumentsHost,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { AppLogger } from '../logging/logger.service';
 
@@ -68,13 +62,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const body = exception.getResponse();
 
       const message =
-        typeof body === 'string'
-          ? body
-          : (body as Record<string, unknown>).message as string;
+        typeof body === 'string' ? body : ((body as Record<string, unknown>).message as string);
 
       return {
         statusCode: status,
-        clientMessage: Array.isArray(message) ? message[0] : message ?? exception.name,
+        clientMessage: Array.isArray(message) ? message[0] : (message ?? exception.name),
         logData: {
           errorName: exception.name,
           errorMessage: exception.message,
@@ -85,10 +77,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     // Prisma "not found" — thrown as plain Error with this message
-    if (
-      exception instanceof Error &&
-      exception.message.includes('Record to update not found')
-    ) {
+    if (exception instanceof Error && exception.message.includes('Record to update not found')) {
       return {
         statusCode: HttpStatus.NOT_FOUND,
         clientMessage: 'Resource not found',

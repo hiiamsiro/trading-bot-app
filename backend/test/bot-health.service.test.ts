@@ -44,7 +44,7 @@ test('getReport marks bot as stuck when lastRunAt is older than 10 minutes', asy
       name: 'BTC Bot',
       symbol: 'BTCUSDT',
       userId: 'user-1',
-      lastRunAt: mins(15),   // 15 min ago → stuck
+      lastRunAt: mins(15), // 15 min ago → stuck
       lastSignalAt: mins(1),
     },
   ];
@@ -66,7 +66,7 @@ test('getReport marks bot as no_data when lastSignalAt is older than 10 minutes'
       name: 'ETH Bot',
       symbol: 'ETHUSDT',
       userId: 'user-1',
-      lastRunAt: mins(1),     // running fine
+      lastRunAt: mins(1), // running fine
       lastSignalAt: mins(20), // 20 min ago → no market data
     },
   ];

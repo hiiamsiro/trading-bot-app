@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -58,9 +50,7 @@ export class StrategyBuilderController {
   @ApiBadRequestResponse({ description: 'Compilation error' })
   compile(@Body() dto: CompileBuilderConfigDto): CompiledResult {
     this.builderService.validateConfig(dto.config);
-    return this.builderService.compileConfig(
-      dto.config as unknown as BuilderConfig,
-    );
+    return this.builderService.compileConfig(dto.config as unknown as BuilderConfig);
   }
 
   @Get('default')

@@ -2,8 +2,9 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { InstrumentsService } from '../instruments/instruments.service';
+import { INSTRUMENT_SYNC_CONCURRENCY } from './worker.constants';
 
-@Processor('instrument-sync', { concurrency: 1 })
+@Processor('instrument-sync', { concurrency: INSTRUMENT_SYNC_CONCURRENCY })
 export class InstrumentSyncProcessor extends WorkerHost {
   private readonly logger = new Logger(InstrumentSyncProcessor.name);
 

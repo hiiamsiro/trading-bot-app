@@ -43,7 +43,10 @@ function makeService(overrides?: any) {
   const prisma = {
     instrument: overrides?.prisma?.instrument ?? prismaDefaults.instrument,
     trade: { ...prismaDefaults.trade, ...overrides?.prisma?.trade },
-    executionSession: { ...prismaDefaults.executionSession, ...overrides?.prisma?.executionSession },
+    executionSession: {
+      ...prismaDefaults.executionSession,
+      ...overrides?.prisma?.executionSession,
+    },
     bot: { ...prismaDefaults.bot, ...overrides?.prisma?.bot },
   };
 
@@ -234,7 +237,10 @@ test('processTick HOLD signal → no trade created, no DB write', async () => {
     userId: 'user-1',
     symbol: 'BTCUSDT',
     status: 'RUNNING',
-    strategyConfig: { strategy: 'sma_crossover', params: { shortPeriod: 5, longPeriod: 10, quantity: 0.1 } },
+    strategyConfig: {
+      strategy: 'sma_crossover',
+      params: { shortPeriod: 5, longPeriod: 10, quantity: 0.1 },
+    },
     executionSession: { botId: 'bot-1' },
   };
 
@@ -263,7 +269,10 @@ test('processTick with existing open position skips openLong, still evaluates SL
     prisma: {
       instrument: {
         findUnique: mockAsyncFn(async () => ({
-          symbol: 'BTCUSDT', isActive: true, status: 'ACTIVE', supportedIntervals: ['1m'],
+          symbol: 'BTCUSDT',
+          isActive: true,
+          status: 'ACTIVE',
+          supportedIntervals: ['1m'],
         })),
       },
       trade: {
@@ -324,7 +333,10 @@ test('processTick TAKE_PROFIT closes trade correctly', async () => {
     prisma: {
       instrument: {
         findUnique: mockAsyncFn(async () => ({
-          symbol: 'BTCUSDT', isActive: true, status: 'ACTIVE', supportedIntervals: ['1m'],
+          symbol: 'BTCUSDT',
+          isActive: true,
+          status: 'ACTIVE',
+          supportedIntervals: ['1m'],
         })),
       },
       trade: {
@@ -383,7 +395,10 @@ test('processTick SELL signal closes BUY position', async () => {
     prisma: {
       instrument: {
         findUnique: mockAsyncFn(async () => ({
-          symbol: 'BTCUSDT', isActive: true, status: 'ACTIVE', supportedIntervals: ['1m'],
+          symbol: 'BTCUSDT',
+          isActive: true,
+          status: 'ACTIVE',
+          supportedIntervals: ['1m'],
         })),
       },
       trade: {
@@ -434,7 +449,10 @@ test('processTick quantity defaults to 0.01 when not provided', async () => {
     prisma: {
       instrument: {
         findUnique: mockAsyncFn(async () => ({
-          symbol: 'BTCUSDT', isActive: true, status: 'ACTIVE', supportedIntervals: ['1m'],
+          symbol: 'BTCUSDT',
+          isActive: true,
+          status: 'ACTIVE',
+          supportedIntervals: ['1m'],
         })),
       },
       trade: {
@@ -564,7 +582,10 @@ test('processTick enforceMaxDailyLoss closes position and stops bot when limit e
     prisma: {
       instrument: {
         findUnique: mockAsyncFn(async () => ({
-          symbol: 'BTCUSDT', isActive: true, status: 'ACTIVE', supportedIntervals: ['1m'],
+          symbol: 'BTCUSDT',
+          isActive: true,
+          status: 'ACTIVE',
+          supportedIntervals: ['1m'],
         })),
       },
       trade: {

@@ -126,10 +126,7 @@ test('BotsService.publishBot throws BadRequestException if bot has no strategy',
   };
   const { service } = makeBotsService({ prisma });
 
-  await assert.rejects(
-    () => service.publishBot('bot-1', 'user-1'),
-    BadRequestException,
-  );
+  await assert.rejects(() => service.publishBot('bot-1', 'user-1'), BadRequestException);
 });
 
 test('BotsService.publishBot sets isPublic and generates slug', async () => {
@@ -166,10 +163,9 @@ test('BotsService.publishBot throws NotFoundException for wrong user', async () 
   };
   const { service } = makeBotsService({ prisma });
 
-  await assert.rejects(
-    () => service.publishBot('bot-999', 'user-1'),
-    { constructor: { name: 'NotFoundException' } },
-  );
+  await assert.rejects(() => service.publishBot('bot-999', 'user-1'), {
+    constructor: { name: 'NotFoundException' },
+  });
 });
 
 // ─── unpublishBot ────────────────────────────────────────────────────────────────
@@ -203,10 +199,9 @@ test('BotsService.unpublishBot throws NotFoundException for wrong user', async (
   };
   const { service } = makeBotsService({ prisma });
 
-  await assert.rejects(
-    () => service.unpublishBot('bot-999', 'user-1'),
-    { constructor: { name: 'NotFoundException' } },
-  );
+  await assert.rejects(() => service.unpublishBot('bot-999', 'user-1'), {
+    constructor: { name: 'NotFoundException' },
+  });
 });
 
 // ─── cloneFromShare ─────────────────────────────────────────────────────────────
@@ -250,7 +245,14 @@ test('BotsService.cloneFromShare appends "(Copy)" to name when no override provi
   const { service, prisma: p } = makeBotsService({ prisma });
 
   await service.cloneFromShare(
-    { name: 'Original Bot', description: null, symbol: 'ETHUSDT', strategy: 'rsi', params: {}, builderConfig: null },
+    {
+      name: 'Original Bot',
+      description: null,
+      symbol: 'ETHUSDT',
+      strategy: 'rsi',
+      params: {},
+      builderConfig: null,
+    },
     'user-2',
   );
 
@@ -266,7 +268,14 @@ test('BotsService.cloneFromShare uses override name when provided', async () => 
   const { service, prisma: p } = makeBotsService({ prisma });
 
   await service.cloneFromShare(
-    { name: 'Original', description: null, symbol: 'ETHUSDT', strategy: 'rsi', params: {}, builderConfig: null },
+    {
+      name: 'Original',
+      description: null,
+      symbol: 'ETHUSDT',
+      strategy: 'rsi',
+      params: {},
+      builderConfig: null,
+    },
     'user-2',
     'My Custom Bot',
   );
@@ -283,7 +292,14 @@ test('BotsService.cloneFromShare normalizes symbol to uppercase', async () => {
   const { service, prisma: p } = makeBotsService({ prisma });
 
   await service.cloneFromShare(
-    { name: 'Bot', description: null, symbol: 'btcusdt', strategy: 'rsi', params: {}, builderConfig: null },
+    {
+      name: 'Bot',
+      description: null,
+      symbol: 'btcusdt',
+      strategy: 'rsi',
+      params: {},
+      builderConfig: null,
+    },
     'user-2',
     undefined,
     'ethusdt',
@@ -302,9 +318,19 @@ test('BotsService.cloneFromShare preserves builderConfig', async () => {
   const { service, prisma: p } = makeBotsService({ prisma });
 
   await service.cloneFromShare(
-    { name: 'Bot', description: null, symbol: 'BTCUSDT', strategy: 'rsi', params: {}, builderConfig },
+    {
+      name: 'Bot',
+      description: null,
+      symbol: 'BTCUSDT',
+      strategy: 'rsi',
+      params: {},
+      builderConfig,
+    },
     'user-2',
   );
 
-  assert.deepEqual(p.bot.create.calls[0][0].data.strategyConfig.create.builderConfig, builderConfig);
+  assert.deepEqual(
+    p.bot.create.calls[0][0].data.strategyConfig.create.builderConfig,
+    builderConfig,
+  );
 });

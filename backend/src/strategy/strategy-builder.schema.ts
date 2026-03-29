@@ -4,11 +4,7 @@
 
 export type LogicalOperator = 'AND' | 'OR';
 
-export type ComparisonOperator =
-  | 'CROSSES_ABOVE'
-  | 'CROSSES_BELOW'
-  | 'ABOVE'
-  | 'BELOW';
+export type ComparisonOperator = 'CROSSES_ABOVE' | 'CROSSES_BELOW' | 'ABOVE' | 'BELOW';
 
 export type IndicatorType = 'RSI' | 'MA';
 

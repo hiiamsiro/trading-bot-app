@@ -42,25 +42,28 @@ export class ShareService {
     });
   }
 
-  async browsePublic(
-    query: { take?: number; skip?: number; search?: string; strategy?: string },
-  ): Promise<{
+  async browsePublic(query: {
+    take?: number;
+    skip?: number;
+    search?: string;
+    strategy?: string;
+  }): Promise<{
     items: Array<{
-      id: string
-      name: string
-      description: string | null
-      symbol: string
-      strategy: string
-      userName: string | null
-      createdAt: Date
-      shareSlug: string
-    }>
-    total: number
-    take: number
-    skip: number
+      id: string;
+      name: string;
+      description: string | null;
+      symbol: string;
+      strategy: string;
+      userName: string | null;
+      createdAt: Date;
+      shareSlug: string;
+    }>;
+    total: number;
+    take: number;
+    skip: number;
   }> {
-    const take = Math.min(query.take ?? 24, 50)
-    const skip = query.skip ?? 0
+    const take = Math.min(query.take ?? 24, 50);
+    const skip = query.skip ?? 0;
 
     const where = {
       isPublic: true,
@@ -73,10 +76,8 @@ export class ShareService {
             ],
           }
         : {}),
-      ...(query.strategy
-        ? { strategyConfig: { strategy: { equals: query.strategy } } }
-        : {}),
-    }
+      ...(query.strategy ? { strategyConfig: { strategy: { equals: query.strategy } } } : {}),
+    };
 
     const [total, items] = await this.prisma.$transaction([
       this.prisma.bot.count({ where }),
@@ -96,7 +97,7 @@ export class ShareService {
         take,
         skip,
       }),
-    ])
+    ]);
 
     return {
       items: items.map((b) => ({
@@ -112,21 +113,19 @@ export class ShareService {
       total,
       take,
       skip,
-    }
+    };
   }
 
-  async getBySlug(
-    slug: string,
-  ): Promise<{
-    id: string
-    name: string
-    description: string | null
-    symbol: string
-    strategy: string
-    params: Record<string, unknown>
-    builderConfig: Record<string, unknown> | null
-    userName: string | null
-    userEmail: string
+  async getBySlug(slug: string): Promise<{
+    id: string;
+    name: string;
+    description: string | null;
+    symbol: string;
+    strategy: string;
+    params: Record<string, unknown>;
+    builderConfig: Record<string, unknown> | null;
+    userName: string | null;
+    userEmail: string;
   } | null> {
     const bot = await this.prisma.bot.findUnique({
       where: { shareSlug: slug, isPublic: true },
@@ -138,9 +137,9 @@ export class ShareService {
         strategyConfig: { select: { strategy: true, params: true, builderConfig: true } },
         user: { select: { name: true, email: true } },
       },
-    })
+    });
 
-    if (!bot) return null
+    if (!bot) return null;
 
     return {
       id: bot.id,
@@ -152,6 +151,6 @@ export class ShareService {
       builderConfig: (bot.strategyConfig?.builderConfig as Record<string, unknown>) ?? null,
       userName: bot.user.name,
       userEmail: bot.user.email,
-    }
+    };
   }
 }

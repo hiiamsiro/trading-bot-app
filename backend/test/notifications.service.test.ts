@@ -15,11 +15,17 @@ function makeService(overrides?: any) {
       return fn(countFn, countFn, findManyFn);
     }),
     notification: {
-      create: mockAsyncFn((args) => overrides?.prisma?.notification?.create?.(args) ?? ({ id: 'n1', ...args?.data })),
+      create: mockAsyncFn(
+        (args) => overrides?.prisma?.notification?.create?.(args) ?? { id: 'n1', ...args?.data },
+      ),
       findMany: findManyFn,
       findFirst: overrides?.prisma?.notification?.findFirst ?? (async () => null),
-      update: mockAsyncFn((args) => overrides?.prisma?.notification?.update?.(args) ?? ({ id: args?.where?.id })),
-      updateMany: mockAsyncFn((args) => overrides?.prisma?.notification?.updateMany?.(args) ?? ({ count: 0 })),
+      update: mockAsyncFn(
+        (args) => overrides?.prisma?.notification?.update?.(args) ?? { id: args?.where?.id },
+      ),
+      updateMany: mockAsyncFn(
+        (args) => overrides?.prisma?.notification?.updateMany?.(args) ?? { count: 0 },
+      ),
       count: countFn,
     },
   };
@@ -34,7 +40,13 @@ function makeService(overrides?: any) {
 
 test('create calls prisma.notification.create with correct fields', async () => {
   const svc = makeService();
-  await svc.create({ userId: 'u1', botId: 'b1', type: 'BOT_STARTED', title: 'Started', message: 'Bot started' });
+  await svc.create({
+    userId: 'u1',
+    botId: 'b1',
+    type: 'BOT_STARTED',
+    title: 'Started',
+    message: 'Bot started',
+  });
   const call = svc._prisma.notification.create.calls[0];
   assert.equal(call[0].data.userId, 'u1');
   assert.equal(call[0].data.botId, 'b1');
@@ -66,7 +78,13 @@ test('create passes defined metadata as InputJsonValue', async () => {
       },
     },
   });
-  await svc.create({ userId: 'u1', type: 'TRADE_CLOSED', title: 'Trade', message: 'Closed', metadata: { botId: 'b1', pnl: 10 } });
+  await svc.create({
+    userId: 'u1',
+    type: 'TRADE_CLOSED',
+    title: 'Trade',
+    message: 'Closed',
+    metadata: { botId: 'b1', pnl: 10 },
+  });
 });
 
 // ─────────────────────────────────────────────────────────
@@ -123,7 +141,7 @@ test('findAll counts total and unread correctly', async () => {
   const svc = makeService({
     prisma: {
       notification: {
-        count: async (args: any) => args?.where?.isRead !== undefined ? 5 : 12,
+        count: async (args: any) => (args?.where?.isRead !== undefined ? 5 : 12),
       },
     },
   });

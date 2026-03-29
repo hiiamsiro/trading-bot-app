@@ -391,9 +391,7 @@ export class DemoTradingService {
 
     // Gross PnL based on executed prices
     const grossPnl =
-      trade.side === TradeSide.BUY
-        ? this.computePnlLong(trade, executedExitPrice)
-        : 0;
+      trade.side === TradeSide.BUY ? this.computePnlLong(trade, executedExitPrice) : 0;
 
     // Net PnL = gross PnL - entry fee - exit fee
     const entryFee = trade.entryFee ?? 0;

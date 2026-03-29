@@ -39,10 +39,7 @@ export class TemplatesController {
   @Get(':id')
   @ApiOperation({ summary: 'Get a template by ID' })
   @ApiNotFoundResponse({ description: 'Template not found' })
-  async findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AuthUserPayload,
-  ) {
+  async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.templatesService.findOne(id, user.userId);
   }
 
@@ -56,10 +53,7 @@ export class TemplatesController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a user template' })
   @ApiNotFoundResponse({ description: 'Template not found' })
-  async remove(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AuthUserPayload,
-  ) {
+  async remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUserPayload) {
     return this.templatesService.remove(id, user.userId);
   }
 }

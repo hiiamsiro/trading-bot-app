@@ -11,12 +11,7 @@
  * clients can include it in follow-up requests or bug reports.
  */
 
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { v4 as uuidv4 } from 'uuid';
@@ -48,33 +43,27 @@ export class RequestLoggingInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap({
         next: () => {
-          REQUEST_LOGGER.info(
-            `${req.method} ${req.route?.path ?? req.url} completed`,
-            {
-              traceId,
-              userId,
-              latencyMs: Date.now() - startMs,
-              statusCode: res.statusCode,
-              method: req.method,
-              path: req.route?.path ?? req.url,
-              query: Object.keys(req.query).length > 0 ? req.query : undefined,
-              userAgent: req.headers['user-agent'],
-            },
-          );
+          REQUEST_LOGGER.info(`${req.method} ${req.route?.path ?? req.url} completed`, {
+            traceId,
+            userId,
+            latencyMs: Date.now() - startMs,
+            statusCode: res.statusCode,
+            method: req.method,
+            path: req.route?.path ?? req.url,
+            query: Object.keys(req.query).length > 0 ? req.query : undefined,
+            userAgent: req.headers['user-agent'],
+          });
         },
         error: (err: Error) => {
-          REQUEST_LOGGER.error(
-            `${req.method} ${req.route?.path ?? req.url} failed`,
-            {
-              traceId,
-              userId,
-              latencyMs: Date.now() - startMs,
-              method: req.method,
-              path: req.route?.path ?? req.url,
-              errorName: err.name,
-              errorMessage: err.message,
-            },
-          );
+          REQUEST_LOGGER.error(`${req.method} ${req.route?.path ?? req.url} failed`, {
+            traceId,
+            userId,
+            latencyMs: Date.now() - startMs,
+            method: req.method,
+            path: req.route?.path ?? req.url,
+            errorName: err.name,
+            errorMessage: err.message,
+          });
         },
       }),
     );

@@ -12,13 +12,22 @@ function makeService(overrides?: any) {
     },
     trade: {
       count: mockAsyncFn((args) => overrides?.prisma?.trade?.count?.(args) ?? 0),
-      aggregate: mockAsyncFn((args) => overrides?.prisma?.trade?.aggregate?.(args) ?? ({ _count: { _all: 0 }, _sum: {}, _avg: {} })),
+      aggregate: mockAsyncFn(
+        (args) =>
+          overrides?.prisma?.trade?.aggregate?.(args) ?? {
+            _count: { _all: 0 },
+            _sum: {},
+            _avg: {},
+          },
+      ),
       findMany: mockAsyncFn((args) => overrides?.prisma?.trade?.findMany?.(args) ?? []),
     },
     botLog: {
       findMany: mockAsyncFn((args) => overrides?.prisma?.botLog?.findMany?.(args) ?? []),
     },
-    $queryRaw: mockAsyncFn((query, ...args) => overrides?.prisma?.$queryRaw?.(query, ...args) ?? []),
+    $queryRaw: mockAsyncFn(
+      (query, ...args) => overrides?.prisma?.$queryRaw?.(query, ...args) ?? [],
+    ),
   };
   const svc: any = new DashboardService(prisma);
   svc._prisma = prisma;
@@ -58,7 +67,11 @@ test('getSnapshot aggregates bot status counts correctly', async () => {
       },
       trade: {
         count: async () => 10,
-        aggregate: async () => ({ _count: { _all: 8 }, _sum: { realizedPnl: 150 }, _avg: { realizedPnl: 18.75 } }),
+        aggregate: async () => ({
+          _count: { _all: 8 },
+          _sum: { realizedPnl: 150 },
+          _avg: { realizedPnl: 18.75 },
+        }),
         findMany: async () => [],
       },
       botLog: { findMany: async () => [] },
@@ -99,8 +112,10 @@ test('getSnapshot calculates winRate correctly', async () => {
       trade: {
         count: async () => 20,
         aggregate: async (args: any) => {
-          if (args?.where?.realizedPnl?.gt !== undefined) return { _count: { _all: 7 }, _avg: { realizedPnl: 10 } };
-          if (args?.where?.realizedPnl?.lt !== undefined) return { _count: { _all: 5 }, _avg: { realizedPnl: -5 } };
+          if (args?.where?.realizedPnl?.gt !== undefined)
+            return { _count: { _all: 7 }, _avg: { realizedPnl: 10 } };
+          if (args?.where?.realizedPnl?.lt !== undefined)
+            return { _count: { _all: 5 }, _avg: { realizedPnl: -5 } };
           return { _count: { _all: 12 }, _sum: { realizedPnl: 45 }, _avg: { realizedPnl: 3.75 } };
         },
         findMany: async () => [],
@@ -123,7 +138,11 @@ test('getSnapshot returns null winRate when no closed trades with pnl', async ()
       bot: { groupBy: async () => [], findMany: async () => [] },
       trade: {
         count: async () => 0,
-        aggregate: async () => ({ _count: { _all: 0 }, _sum: { realizedPnl: null }, _avg: { realizedPnl: null } }),
+        aggregate: async () => ({
+          _count: { _all: 0 },
+          _sum: { realizedPnl: null },
+          _avg: { realizedPnl: null },
+        }),
         findMany: async () => [],
       },
       botLog: { findMany: async () => [] },
@@ -145,7 +164,16 @@ test('getSnapshot maps recentTrades with bot info', async () => {
         aggregate: async () => makeEmptyAgg(),
         findMany: async (args: any) => {
           if (args?.where?.bot) {
-            return [{ id: 't1', symbol: 'BTCUSDT', status: 'CLOSED', realizedPnl: 10, createdAt: new Date('2024-01-01'), bot: { id: 'b1', name: 'My Bot', symbol: 'BTCUSDT' } }];
+            return [
+              {
+                id: 't1',
+                symbol: 'BTCUSDT',
+                status: 'CLOSED',
+                realizedPnl: 10,
+                createdAt: new Date('2024-01-01'),
+                bot: { id: 'b1', name: 'My Bot', symbol: 'BTCUSDT' },
+              },
+            ];
           }
           return [];
         },
@@ -171,7 +199,16 @@ test('getSnapshot maps recentActivities from botLog (non-ERROR)', async () => {
       botLog: {
         findMany: async (args: any) => {
           if (args?.where?.level?.not === 'ERROR') {
-            return [{ id: 'l1', botId: 'b1', level: 'INFO', message: 'Bot started', createdAt: new Date('2024-01-01'), bot: { name: 'BTC Bot' } }];
+            return [
+              {
+                id: 'l1',
+                botId: 'b1',
+                level: 'INFO',
+                message: 'Bot started',
+                createdAt: new Date('2024-01-01'),
+                bot: { name: 'BTC Bot' },
+              },
+            ];
           }
           return [];
         },
@@ -197,7 +234,16 @@ test('getSnapshot maps recentErrors from botLog (ERROR level)', async () => {
       botLog: {
         findMany: async (args: any) => {
           if (args?.where?.level === 'ERROR') {
-            return [{ id: 'e1', botId: 'b2', level: 'ERROR', message: 'Connection failed', createdAt: new Date('2024-01-01'), bot: { name: 'ETH Bot' } }];
+            return [
+              {
+                id: 'e1',
+                botId: 'b2',
+                level: 'ERROR',
+                message: 'Connection failed',
+                createdAt: new Date('2024-01-01'),
+                bot: { name: 'ETH Bot' },
+              },
+            ];
           }
           return [];
         },

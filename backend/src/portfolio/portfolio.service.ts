@@ -53,9 +53,7 @@ export class PortfolioService {
       data: {
         name: dto.name,
         userId,
-        bots: dto.botIds?.length
-          ? { connect: dto.botIds.map((id) => ({ id })) }
-          : undefined,
+        bots: dto.botIds?.length ? { connect: dto.botIds.map((id) => ({ id })) } : undefined,
       },
       include: { bots: true },
     });
@@ -162,12 +160,14 @@ export class PortfolioService {
       winningTrades: winningTrades.length,
       losingTrades: losingTrades.length,
       winRate: closedCount > 0 ? winningTrades.length / closedCount : null,
-      avgWin: winningTrades.length > 0
-        ? winningTrades.reduce((s, t) => s + (t.netPnl ?? 0), 0) / winningTrades.length
-        : null,
-      avgLoss: losingTrades.length > 0
-        ? losingTrades.reduce((s, t) => s + (t.netPnl ?? 0), 0) / losingTrades.length
-        : null,
+      avgWin:
+        winningTrades.length > 0
+          ? winningTrades.reduce((s, t) => s + (t.netPnl ?? 0), 0) / winningTrades.length
+          : null,
+      avgLoss:
+        losingTrades.length > 0
+          ? losingTrades.reduce((s, t) => s + (t.netPnl ?? 0), 0) / losingTrades.length
+          : null,
       totalInitialBalance,
       totalCurrentBalance,
       totalBots,

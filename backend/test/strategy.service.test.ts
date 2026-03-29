@@ -28,7 +28,10 @@ function assertThrows(fn: () => void, pattern: string | RegExp) {
 
 test('validateConfig throws on unknown strategy', () => {
   const svc = makeService();
-  assertThrows(() => svc.validateConfig('unknown_strategy', {}), 'Unsupported strategy: unknown_strategy');
+  assertThrows(
+    () => svc.validateConfig('unknown_strategy', {}),
+    'Unsupported strategy: unknown_strategy',
+  );
 });
 
 test('validateConfig normalizes ma_crossover alias to sma_crossover', () => {
@@ -55,12 +58,18 @@ test('validateConfig normalizes sma-crossover (hyphen) alias', () => {
 
 test('validateConfig throws when shortPeriod >= longPeriod', () => {
   const svc = makeService();
-  assertThrows(() => svc.validateConfig('sma_crossover', { shortPeriod: 10, longPeriod: 5, quantity: 1 }), 'shortPeriod must be smaller than longPeriod');
+  assertThrows(
+    () => svc.validateConfig('sma_crossover', { shortPeriod: 10, longPeriod: 5, quantity: 1 }),
+    'shortPeriod must be smaller than longPeriod',
+  );
 });
 
 test('validateConfig throws when shortPeriod is not an integer >= 1', () => {
   const svc = makeService();
-  assertThrows(() => svc.validateConfig('sma_crossover', { shortPeriod: 0, longPeriod: 20, quantity: 1 }), 'shortPeriod must be an integer >= 1');
+  assertThrows(
+    () => svc.validateConfig('sma_crossover', { shortPeriod: 0, longPeriod: 20, quantity: 1 }),
+    'shortPeriod must be an integer >= 1',
+  );
 });
 
 test('validateConfig uses default quantity 0.01 when quantity is missing', () => {
@@ -72,17 +81,38 @@ test('validateConfig uses default quantity 0.01 when quantity is missing', () =>
 
 test('validateConfig throws on invalid trendInterval', () => {
   const svc = makeService();
-  assertThrows(() => svc.validateConfig('sma_crossover', { shortPeriod: 5, longPeriod: 20, quantity: 1, trendInterval: '99h' }), 'trendInterval');
+  assertThrows(
+    () =>
+      svc.validateConfig('sma_crossover', {
+        shortPeriod: 5,
+        longPeriod: 20,
+        quantity: 1,
+        trendInterval: '99h',
+      }),
+    'trendInterval',
+  );
 });
 
 test('validateConfig throws on invalid stopLossPercent (>= 100)', () => {
   const svc = makeService();
-  assertThrows(() => svc.validateConfig('sma_crossover', { shortPeriod: 5, longPeriod: 20, quantity: 1, stopLossPercent: 150 }), 'stopLossPercent must be > 0 and < 100');
+  assertThrows(
+    () =>
+      svc.validateConfig('sma_crossover', {
+        shortPeriod: 5,
+        longPeriod: 20,
+        quantity: 1,
+        stopLossPercent: 150,
+      }),
+    'stopLossPercent must be > 0 and < 100',
+  );
 });
 
 test('validateConfig throws on invalid oversold/overbought for RSI', () => {
   const svc = makeService();
-  assertThrows(() => svc.validateConfig('rsi', { period: 14, oversold: 80, overbought: 70, quantity: 1 }), 'oversold must be smaller than overbought');
+  assertThrows(
+    () => svc.validateConfig('rsi', { period: 14, oversold: 80, overbought: 70, quantity: 1 }),
+    'oversold must be smaller than overbought',
+  );
 });
 
 test('validateConfig returns correct normalized params for RSI', () => {

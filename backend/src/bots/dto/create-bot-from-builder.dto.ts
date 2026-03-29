@@ -1,11 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsNumber,
-  IsPositive,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsPositive } from 'class-validator';
 
 // builderConfig is intentionally NOT validated here — forbidNonWhitelisted makes it
 // impractical to whitelist all nested builder config properties (indicator, comparison,
@@ -31,6 +25,8 @@ export class CreateBotFromBuilderDto {
   @IsPositive()
   initialBalance: number;
 
-  @ApiProperty({ description: 'The visual builder JSON config — validated by StrategyBuilderService' })
+  @ApiProperty({
+    description: 'The visual builder JSON config — validated by StrategyBuilderService',
+  })
   builderConfig: Record<string, unknown>;
 }

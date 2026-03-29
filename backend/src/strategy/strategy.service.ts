@@ -92,13 +92,19 @@ export class StrategyService {
       }
 
       if (!Number.isInteger(shortPeriod) || shortPeriod < 1) {
-        throw new BadRequestException('Invalid strategy config: shortPeriod must be an integer >= 1');
+        throw new BadRequestException(
+          'Invalid strategy config: shortPeriod must be an integer >= 1',
+        );
       }
       if (!Number.isInteger(longPeriod) || longPeriod < 2) {
-        throw new BadRequestException('Invalid strategy config: longPeriod must be an integer >= 2');
+        throw new BadRequestException(
+          'Invalid strategy config: longPeriod must be an integer >= 2',
+        );
       }
       if (shortPeriod >= longPeriod) {
-        throw new BadRequestException('Invalid strategy config: shortPeriod must be smaller than longPeriod');
+        throw new BadRequestException(
+          'Invalid strategy config: shortPeriod must be smaller than longPeriod',
+        );
       }
       if (!Number.isFinite(quantity) || quantity <= 0) {
         throw new BadRequestException('Invalid strategy config: quantity must be a number > 0');
@@ -148,7 +154,9 @@ export class StrategyService {
         throw new BadRequestException('Invalid strategy config: period must be an integer >= 2');
       }
       if (!Number.isFinite(oversold) || !Number.isFinite(overbought)) {
-        throw new BadRequestException('Invalid strategy config: oversold and overbought must be numbers');
+        throw new BadRequestException(
+          'Invalid strategy config: oversold and overbought must be numbers',
+        );
       }
       if (oversold <= 0 || oversold >= 100 || overbought <= 0 || overbought >= 100) {
         throw new BadRequestException(
@@ -156,7 +164,9 @@ export class StrategyService {
         );
       }
       if (oversold >= overbought) {
-        throw new BadRequestException('Invalid strategy config: oversold must be smaller than overbought');
+        throw new BadRequestException(
+          'Invalid strategy config: oversold must be smaller than overbought',
+        );
       }
       if (!Number.isFinite(quantity) || quantity <= 0) {
         throw new BadRequestException('Invalid strategy config: quantity must be a number > 0');
@@ -387,7 +397,8 @@ export class StrategyService {
       }
       return {
         signal: 'BUY',
-        reason: `MA(${shortPeriod}) crossed above MA(${longPeriod})` +
+        reason:
+          `MA(${shortPeriod}) crossed above MA(${longPeriod})` +
           (hasTrend ? ` [trend confirmed: ${trendInterval}]` : ''),
         metadata: {
           strategy: 'sma_crossover',
@@ -426,7 +437,8 @@ export class StrategyService {
       }
       return {
         signal: 'SELL',
-        reason: `MA(${longPeriod}) crossed below MA(${shortPeriod})` +
+        reason:
+          `MA(${longPeriod}) crossed below MA(${shortPeriod})` +
           (hasTrend ? ` [trend confirmed: ${trendInterval}]` : ''),
         metadata: {
           strategy: 'sma_crossover',
@@ -540,7 +552,8 @@ export class StrategyService {
       }
       return {
         signal: 'BUY',
-        reason: `RSI = ${currR.toFixed(1)} (oversold, threshold ${oversold})` +
+        reason:
+          `RSI = ${currR.toFixed(1)} (oversold, threshold ${oversold})` +
           (hasTrend ? ` [trend confirmed: ${trendInterval}]` : ''),
         metadata: {
           strategy: 'rsi',
@@ -577,7 +590,8 @@ export class StrategyService {
       }
       return {
         signal: 'SELL',
-        reason: `RSI = ${currR.toFixed(1)} (overbought, threshold ${overbought})` +
+        reason:
+          `RSI = ${currR.toFixed(1)} (overbought, threshold ${overbought})` +
           (hasTrend ? ` [trend confirmed: ${trendInterval}]` : ''),
         metadata: {
           strategy: 'rsi',

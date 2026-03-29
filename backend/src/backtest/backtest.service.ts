@@ -77,9 +77,7 @@ export class BacktestService {
 
     const candles = await this.marketDataAdapter.getKlines(sourceSymbol, interval, 100);
     if (candles.length < 3) {
-      throw new Error(
-        `Insufficient candle data for ${symbol}. Got ${candles.length} candles.`,
-      );
+      throw new Error(`Insufficient candle data for ${symbol}. Got ${candles.length} candles.`);
     }
 
     const validated = this.strategyService.validateConfig(strategyKey, strategyParams);
@@ -130,9 +128,20 @@ export class BacktestService {
 
     // Validate strategy config
     const validated = this.strategyService.validateConfig(strategyKey, strategyParams);
-    const requiredCandles = this.strategyService.getRequiredCandles(strategyKey, validated.normalizedParams);
+    const requiredCandles = this.strategyService.getRequiredCandles(
+      strategyKey,
+      validated.normalizedParams,
+    );
 
-    const results = this.simulate(symbol, interval, validated.normalizedStrategy, validated.normalizedParams, allCandles, requiredCandles.entry, initialBalance);
+    const results = this.simulate(
+      symbol,
+      interval,
+      validated.normalizedStrategy,
+      validated.normalizedParams,
+      allCandles,
+      requiredCandles.entry,
+      initialBalance,
+    );
     return results;
   }
 
@@ -277,10 +286,8 @@ export class BacktestService {
 
         if (decision.signal === 'BUY') {
           const entryPrice = currentCandle.close;
-          const stopLoss =
-            slPct > 0 && slPct < 100 ? entryPrice * (1 - slPct / 100) : null;
-          const takeProfit =
-            tpPct > 0 && tpPct < 100 ? entryPrice * (1 + tpPct / 100) : null;
+          const stopLoss = slPct > 0 && slPct < 100 ? entryPrice * (1 - slPct / 100) : null;
+          const takeProfit = tpPct > 0 && tpPct < 100 ? entryPrice * (1 + tpPct / 100) : null;
 
           openPosition = {
             entryTime: currentCandle.openTime,

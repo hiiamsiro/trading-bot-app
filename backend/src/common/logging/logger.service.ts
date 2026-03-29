@@ -95,9 +95,7 @@ export class AppLogger {
 
   private write(level: LogLevel, message: string, context?: LogContext) {
     // pino.child() expects plain values; spread context in to avoid type issues
-    const child = context
-      ? this.logger.child(context as Record<string, unknown>)
-      : this.logger;
+    const child = context ? this.logger.child(context as Record<string, unknown>) : this.logger;
     (child as PinoLogger)[level](message);
   }
 

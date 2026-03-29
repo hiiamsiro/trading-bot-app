@@ -62,13 +62,17 @@ export class BotHealthService {
 
     for (const bot of running) {
       if (!bot.lastRunAt || bot.lastRunAt < stuckCutoff) {
-        const sinceMs = bot.lastRunAt ? now.getTime() - bot.lastRunAt.getTime() : null as unknown as number;
+        const sinceMs = bot.lastRunAt
+          ? now.getTime() - bot.lastRunAt.getTime()
+          : (null as unknown as number);
         stuck.push(this.makeIssue(bot, 'stuck', sinceMs));
         continue;
       }
 
       if (!bot.lastSignalAt || bot.lastSignalAt < dataCutoff) {
-        const sinceMs = bot.lastSignalAt ? now.getTime() - bot.lastSignalAt.getTime() : null as unknown as number;
+        const sinceMs = bot.lastSignalAt
+          ? now.getTime() - bot.lastSignalAt.getTime()
+          : (null as unknown as number);
         noData.push(this.makeIssue(bot, 'no_data', sinceMs));
         continue;
       }
@@ -85,12 +89,14 @@ export class BotHealthService {
     sinceMs: number | null,
   ): BotHealthIssue {
     const detailMap: Record<BotHealthIssue['issue'], string> = {
-      stuck: sinceMs != null
-        ? `No tick received in ${formatDuration(sinceMs)}`
-        : 'Never executed a tick since start',
-      no_data: sinceMs != null
-        ? `No market data signal in ${formatDuration(sinceMs)}`
-        : 'No strategy signal received since start',
+      stuck:
+        sinceMs != null
+          ? `No tick received in ${formatDuration(sinceMs)}`
+          : 'Never executed a tick since start',
+      no_data:
+        sinceMs != null
+          ? `No market data signal in ${formatDuration(sinceMs)}`
+          : 'No strategy signal received since start',
     };
 
     return {

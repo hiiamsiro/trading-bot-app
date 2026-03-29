@@ -62,7 +62,10 @@ function makeBotsService(overrides?: any) {
         ...defaultPrisma,
         ...overrides.prisma,
         bot: { ...defaultPrisma.bot, ...overrides.prisma?.bot },
-        executionSession: { ...defaultPrisma.executionSession, ...overrides.prisma?.executionSession },
+        executionSession: {
+          ...defaultPrisma.executionSession,
+          ...overrides.prisma?.executionSession,
+        },
         trade: { ...defaultPrisma.trade, ...overrides.prisma?.trade },
         botLog: { ...defaultPrisma.botLog, ...overrides.prisma?.botLog },
         notification: { ...defaultPrisma.notification, ...overrides.prisma?.notification },

@@ -658,12 +658,12 @@ export class BotsService {
 
   async cloneFromShare(
     source: {
-      name: string
-      description: string | null
-      symbol: string
-      strategy: string
-      params: Record<string, unknown>
-      builderConfig: Record<string, unknown> | null
+      name: string;
+      description: string | null;
+      symbol: string;
+      strategy: string;
+      params: Record<string, unknown>;
+      builderConfig: Record<string, unknown> | null;
     },
     userId: string,
     overrideName?: string,
@@ -679,9 +679,7 @@ export class BotsService {
       instrument.supportedIntervals,
     );
 
-    const cloneName = overrideName
-      ? overrideName.trim()
-      : `${source.name} (Copy)`;
+    const cloneName = overrideName ? overrideName.trim() : `${source.name} (Copy)`;
 
     return this.prisma.bot.create({
       data: {
