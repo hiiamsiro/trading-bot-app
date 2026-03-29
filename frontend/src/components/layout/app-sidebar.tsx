@@ -12,6 +12,7 @@ import {
   BarChart3,
   FolderOpen,
   Globe,
+  HeartPulse,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,7 @@ const nav = [
   { href: '/backtest', label: 'Backtest', icon: BarChart3 },
   { href: '/trades', label: 'Trade history', icon: History },
   { href: '/logs', label: 'Logs', icon: ScrollText },
+  { href: '/health', label: 'Health', icon: HeartPulse },
   { href: '/admin', label: 'Monitoring', icon: Activity },
 ]
 

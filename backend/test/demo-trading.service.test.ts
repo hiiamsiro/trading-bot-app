@@ -30,13 +30,21 @@ function makeService(overrides?: any) {
       updateMany: mockAsyncFn(async () => ({ count: 1 })),
       findUnique: mockAsyncFn(async () => ({ profitLoss: 0, endedAt: null })),
     },
+    // bot.update is called to stamp lastSignalAt after every strategy evaluation
+    bot: {
+      update: mockAsyncFn(async (args) => ({
+        id: args.where.id,
+        ...args.data,
+      })),
+    },
   };
 
-  // Deep-merge so partial prisma overrides preserve default trade/executionSession methods
+  // Deep-merge so partial prisma overrides preserve default trade/executionSession/bot methods
   const prisma = {
     instrument: overrides?.prisma?.instrument ?? prismaDefaults.instrument,
     trade: { ...prismaDefaults.trade, ...overrides?.prisma?.trade },
     executionSession: { ...prismaDefaults.executionSession, ...overrides?.prisma?.executionSession },
+    bot: { ...prismaDefaults.bot, ...overrides?.prisma?.bot },
   };
 
   const marketData = overrides?.marketData ?? {

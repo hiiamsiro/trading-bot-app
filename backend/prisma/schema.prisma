@@ -43,6 +43,8 @@ model Bot {
   logs             BotLog[]
   executionSession ExecutionSession?
   portfolioId      String?
+  lastRunAt        DateTime?
+  lastSignalAt     DateTime?
 
   portfolio        Portfolio? @relation(fields: [portfolioId], references: [id])
 
@@ -51,6 +53,7 @@ model Bot {
   @@index([templateId])
   @@index([portfolioId])
   @@index([isPublic, createdAt])
+  @@index([status, lastRunAt])
   @@map("bots")
 }
 

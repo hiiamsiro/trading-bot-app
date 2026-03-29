@@ -595,3 +595,29 @@ export interface CreateBotFromBuilderPayload {
   initialBalance: number
   builderConfig: BuilderConfig
 }
+
+// ─── Bot Health ─────────────────────────────────────────────────────────────────
+
+export interface BotHealthIssue {
+  botId: string
+  botName: string
+  symbol: string
+  issue: 'stuck' | 'no_data'
+  detail: string
+  lastRunAt: string | null
+  lastSignalAt: string | null
+  sinceMs: number
+}
+
+export interface HealthyBot {
+  botId: string
+  botName: string
+  symbol: string
+}
+
+export interface BotHealthReport {
+  totalRunning: number
+  stuck: BotHealthIssue[]
+  noData: BotHealthIssue[]
+  healthy: HealthyBot[]
+}

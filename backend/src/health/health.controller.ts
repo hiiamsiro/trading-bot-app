@@ -1,11 +1,17 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
+import { BotHealthService } from './bot-health.service';
+import { BotHealthReportResponseDto } from './dto/bot-health-report-response.dto';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly botHealth: BotHealthService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Basic health check (DB connectivity)' })
@@ -36,6 +42,15 @@ export class HealthController {
         error: message,
       });
     }
+  }
+
+  @Get('bots')
+  @ApiOperation({ summary: 'Bot health report: detect stuck bots and missing market data' })
+  @ApiOkResponse({ type: BotHealthReportResponseDto })
+  async getBotHealth(
+    @CurrentUser('id') userId: string,
+  ): Promise<BotHealthReportResponseDto> {
+    return this.botHealth.getReport(userId);
   }
 }
 

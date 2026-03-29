@@ -33,6 +33,12 @@ export class BotExecutionProcessor extends WorkerHost {
     }
     try {
       await this.demoTrading.processTick(bot);
+
+      // Stamp alive timestamp after every successful tick
+      await this.prisma.bot.update({
+        where: { id: bot.id },
+        data: { lastRunAt: new Date() },
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown bot execution error';
       try {

@@ -219,6 +219,12 @@ export class DemoTradingService {
       'strategy',
     );
 
+    // Stamp that the bot received fresh market data and evaluated a signal
+    await this.prisma.bot.update({
+      where: { id: bot.id },
+      data: { lastSignalAt: new Date() },
+    });
+
     if (decision.signal === 'BUY' && !openTrade) {
       await this.openLong(bot, livePrice, params, decision);
     } else if (decision.signal === 'SELL' && openTrade && openTrade.side === TradeSide.BUY) {

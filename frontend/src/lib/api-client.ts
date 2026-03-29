@@ -410,3 +410,9 @@ export async function cloneBot(
 ): Promise<Bot> {
   return api.post<Bot>(`/marketplace/clone/${slug}`, payload ?? {}, token)
 }
+
+// ─── Bot Health ─────────────────────────────────────────────────────────────────
+
+export async function fetchBotHealthReport(token: string): Promise<import('@/types').BotHealthReport> {
+  return api.get<import('@/types').BotHealthReport>('/health/bots', token)
+}

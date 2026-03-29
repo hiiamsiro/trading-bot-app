@@ -78,7 +78,7 @@ test('process early-returns when bot status is STOPPED', async () => {
   assert.equal(demoTrading.processTick.calls.length, 0);
 });
 
-test('process calls processTick with full bot object when RUNNING', async () => {
+test('process calls processTick with full bot object when RUNNING and stamps lastRunAt', async () => {
   const bot = {
     id: 'bot-1',
     userId: 'user-1',
@@ -91,6 +91,7 @@ test('process calls processTick with full bot object when RUNNING', async () => 
     prisma: {
       bot: {
         findUnique: mockAsyncFn(async () => bot),
+        update: mockAsyncFn(async () => undefined),
       },
     },
   });
@@ -100,6 +101,9 @@ test('process calls processTick with full bot object when RUNNING', async () => 
   assert.equal(prisma.bot.findUnique.calls.length, 1);
   assert.equal(demoTrading.processTick.calls.length, 1);
   assert.equal(demoTrading.processTick.calls[0][0], bot);
+  // lastRunAt is stamped after successful tick
+  assert.equal(prisma.bot.update.calls.length, 1);
+  assert.ok(prisma.bot.update.calls[0][0].data.lastRunAt instanceof Date);
 });
 
 test('process on error: sets status ERROR, appends log, emits bot status, fires notification', async () => {
