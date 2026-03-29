@@ -19,12 +19,14 @@ import { TemplatesModule } from './templates/templates.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { StrategyModule } from './strategy/strategy.module';
 import { ShareModule } from './share/share.module';
+import { LoggingModule } from './common/logging/logging.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    LoggingModule,
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',
