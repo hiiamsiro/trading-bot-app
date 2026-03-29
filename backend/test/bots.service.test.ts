@@ -7,6 +7,7 @@ const { BotsService } = require('../src/bots/bots.service.ts');
 const { mockAsyncFn, mockFn } = require('./helpers.ts');
 
 function makeBotsService(overrides?: any) {
+  // Default prisma mock — all prisma interactions must be present
   const defaultPrisma = {
     bot: {
       findMany: mockAsyncFn(async () => []),
@@ -15,6 +16,7 @@ function makeBotsService(overrides?: any) {
       update: mockAsyncFn(async (args) => ({ id: args.where.id, ...args.data })),
       delete: mockAsyncFn(async () => ({ id: 'deleted' })),
       findUnique: mockAsyncFn(async () => ({ userId: 'user-1' })),
+      count: mockAsyncFn(async () => 0),
     },
     executionSession: {
       upsert: mockAsyncFn(async () => ({})),
@@ -52,12 +54,14 @@ function makeBotsService(overrides?: any) {
         createdAt: new Date(),
       })),
     },
+    subscription: {
+      findUnique: mockAsyncFn(async () => ({ userId: 'user-1', plan: 'FREE', status: 'ACTIVE' })),
+    },
   };
-  // Always include notification mock so NotificationsService (which uses prisma.notification.create)
-  // never gets undefined. Deep-merge prisma models so partial overrides (e.g. only bot.findFirst)
-  // don't wipe out sibling methods like bot.create.
+
+  // Build the merged prisma first so $transaction can reference it
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const prisma: any = overrides?.prisma
+  const mergedPrisma: any = overrides?.prisma
     ? {
         ...defaultPrisma,
         ...overrides.prisma,
@@ -69,9 +73,45 @@ function makeBotsService(overrides?: any) {
         trade: { ...defaultPrisma.trade, ...overrides.prisma?.trade },
         botLog: { ...defaultPrisma.botLog, ...overrides.prisma?.botLog },
         notification: { ...defaultPrisma.notification, ...overrides.prisma?.notification },
+        subscription: {
+          ...defaultPrisma.subscription,
+          ...overrides.prisma?.subscription,
+        },
       }
     : defaultPrisma;
 
+  // $transaction runs the callback with mergedPrisma (which has all overrides applied).
+  // This lets interactive transactions inside $transaction see the correct mocked methods.
+  mergedPrisma.$transaction = mockAsyncFn(async (fn: (tx: any) => unknown) => {
+    if (Array.isArray(fn)) return Promise.all(fn.map((q) => typeof q === 'function' ? q() : q));
+    return typeof fn === 'function' ? fn(mergedPrisma) : fn;
+  });
+
+  const prisma = mergedPrisma;
+
+  // BillingService mock — always include all four methods; tests that pass
+  // overrides.billingService can replace specific methods by name.
+  const billingService = {
+    canCreateBot:
+      overrides?.billingService?.canCreateBot !== undefined
+        ? overrides.billingService.canCreateBot
+        : mockAsyncFn(async () => ({ allowed: true })),
+    canRunBot:
+      overrides?.billingService?.canRunBot !== undefined
+        ? overrides.billingService.canRunBot
+        : mockAsyncFn(async () => ({ allowed: true })),
+    canPublish:
+      overrides?.billingService?.canPublish !== undefined
+        ? overrides.billingService.canPublish
+        : mockAsyncFn(async () => ({ allowed: true })),
+    getPlanLimits: mockFn((plan: string) => ({
+      maxBots: -1,
+      maxRunningBots: -1,
+      canBacktest: true,
+      canPublish: true,
+      canCloneFromMarketplace: true,
+    })),
+  };
   const marketData = overrides?.marketData ?? {
     getLatestPrice: mockAsyncFn(async () => null),
   };
@@ -120,6 +160,7 @@ function makeBotsService(overrides?: any) {
       strategyService,
       strategyBuilderService,
       notificationsService,
+      billingService,
     ),
     prisma,
     marketData,
@@ -127,11 +168,12 @@ function makeBotsService(overrides?: any) {
     instrumentsService,
     strategyService,
     notificationsService,
+    billingService,
   };
 }
 
 test('BotsService.create normalizes symbol and validates active instrument', async () => {
-  const { service, prisma, instrumentsService } = makeBotsService();
+  const { service, prisma, instrumentsService, billingService } = makeBotsService();
 
   const created = await service.create(
     {
@@ -148,9 +190,13 @@ test('BotsService.create normalizes symbol and validates active instrument', asy
 
   assert.equal(instrumentsService.assertActiveBySymbol.calls.length, 1);
   assert.equal(instrumentsService.assertActiveBySymbol.calls[0][0], 'BTCUSDT');
+  // $transaction wraps bot creation; prisma.bot.create is called inside it
+  assert.equal(prisma.$transaction.calls.length, 1);
   assert.equal(prisma.bot.create.calls.length, 1);
   assert.equal(prisma.bot.create.calls[0][0].data.symbol, 'BTCUSDT');
   assert.equal(created.userId, 'user-1');
+  // Fast-fail billing check is called outside the transaction
+  assert.equal(billingService.canCreateBot.calls.length, 1);
 });
 
 test('BotsService.update validates new symbol when provided', async () => {
@@ -224,10 +270,14 @@ test('BotsService.start requires strategy config and non-running status', async 
           executionSession: null,
         })),
         update: mockAsyncFn(async () => ({})),
+        count: mockAsyncFn(async () => 0),
       },
       executionSession: { upsert: mockAsyncFn(async () => ({})) },
       trade: { findFirst: mockAsyncFn(async () => null) },
       botLog: { create: mockAsyncFn(async () => ({})) },
+      subscription: {
+        findUnique: mockAsyncFn(async () => ({ userId: 'user-1', plan: 'FREE', status: 'ACTIVE' })),
+      },
     },
   });
 

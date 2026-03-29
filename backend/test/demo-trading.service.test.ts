@@ -159,6 +159,8 @@ test('DemoTradingService.processTick closes a trade when stopLoss is hit', async
     closedAt: null,
     stopLoss: 95,
     takeProfit: null,
+    entryFee: 0.1,
+    // entryFee=0.1, exitFee≈0.09, netPnl = -10.045 - 0.1 - 0.09 ≈ -10.235
   };
 
   const { service, prisma, marketData, gateway, botsService } = makeService({
@@ -206,9 +208,9 @@ test('DemoTradingService.processTick closes a trade when stopLoss is hit', async
   assert.equal(updateArgs.closeReason, 'risk:stop_loss');
   // Slippage reduces exit price slightly for BUY close (0–5 bps below 90)
   assert.ok(updateArgs.exitPrice >= 89.955 && updateArgs.exitPrice <= 90);
-  // Gross PnL = (exitPrice − entryPrice) × quantity; entry=100, exit≈90, qty=1
-  // slippageBps ∈ [0,5], exitPrice ∈ [89.955,90], grossPnl ∈ [-10.045, -10]
-  assert.ok(updateArgs.realizedPnl >= -10.045 && updateArgs.realizedPnl <= -10.0005);
+  // realizedPnl = grossPnl = (exitPrice − entryPrice) × quantity; entry=100, exit≈90, qty=1
+  // slippageBps ∈ [0,5], exitPrice ∈ [89.955,90], realizedPnl ∈ [-10.045, -10]
+  assert.ok(updateArgs.realizedPnl >= -10.05 && updateArgs.realizedPnl <= -10);
   assert.ok(updateArgs.closedAt instanceof Date);
 
   assert.equal(gateway.emitNewTrade.calls.length, 1);
