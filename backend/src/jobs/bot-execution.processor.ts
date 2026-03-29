@@ -95,10 +95,14 @@ export class BotExecutionProcessor extends WorkerHost {
         reason,
       });
     } catch (err) {
-      this.logger.error(
-        `Failed to notify bot error for botId=${botId}`,
-        err instanceof Error ? err.stack : String(err),
-      );
+      try {
+        this.logger.error(
+          `Failed to notify bot error for botId=${botId}`,
+          err instanceof Error ? err.stack : String(err),
+        );
+      } catch {
+        // Swallow — error logging failure must not propagate
+      }
     }
   }
 }

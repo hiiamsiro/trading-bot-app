@@ -56,9 +56,9 @@ test('process enqueues bot-execution job for each RUNNING bot', async () => {
   await processor.process(makeJob());
 
   assert.equal(add.calls.length, 2);
-  assert.equal(add.calls[0][0], 'tick');
+  assert.equal(add.calls[0][0], 'tick-bot-1');
   assert.equal(add.calls[0][1].botId, 'bot-1');
-  assert.equal(add.calls[1][0], 'tick');
+  assert.equal(add.calls[1][0], 'tick-bot-2');
   assert.equal(add.calls[1][1].botId, 'bot-2');
 });
 
