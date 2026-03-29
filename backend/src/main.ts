@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import pinoHttp from 'pino-http';
+import express from 'express';
 import { AppModule } from './app.module';
 import { resolveCorsOrigin } from './common/cors';
 import { AppLogger } from './common/logging/logger.service';
@@ -48,6 +49,10 @@ async function bootstrap() {
     origin: resolveCorsOrigin(),
     credentials: true,
   });
+
+  // Stripe webhook endpoint needs the raw (unparsed) request body to verify signatures.
+  // Apply express.raw() specifically for /billing/webhook so it bypasses the JSON parser.
+  app.use('/billing/webhook', express.raw({ type: 'application/json' }));
 
   app.useGlobalPipes(
     new ValidationPipe({

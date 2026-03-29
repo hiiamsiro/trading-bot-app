@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -21,6 +22,7 @@ import { StrategyModule } from './strategy/strategy.module';
 import { ShareModule } from './share/share.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { BillingModule } from './billing/billing.module';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -28,6 +30,14 @@ import { BillingModule } from './billing/billing.module';
       isGlobal: true,
     }),
     LoggingModule,
+    // Global rate limiting: 100 requests/minute per IP (generous for normal usage)
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        limit: 100,
+        ttl: 60_000,
+      },
+    ]),
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',
@@ -54,6 +64,7 @@ import { BillingModule } from './billing/billing.module';
     StrategyModule,
     ShareModule,
     BillingModule,
+    StripeModule,
   ],
 })
 export class AppModule {}

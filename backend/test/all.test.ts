@@ -10,5 +10,7 @@ require('./strategy.service.test.ts');
 require('./strategy-builder.service.test.ts');
 require('./market-data.processor.test.ts');
 require('./bot-execution.processor.test.ts');
+require('./billing.service.test.ts');
+require('./webhook.handler.test.ts');
 
 export {};

@@ -431,15 +431,22 @@ export async function fetchPlanLimits(
   return api.get<import('@/types').PlanLimits>('/billing/limits', token)
 }
 
+export async function createCheckoutSession(
+  token: string,
+  plan: 'PRO' | 'PREMIUM',
+): Promise<{ url: string }> {
+  return api.post<{ url: string }>('/billing/checkout', { plan }, token)
+}
+
+export async function createPortalSession(
+  token: string,
+): Promise<{ url: string }> {
+  return api.post<{ url: string }>('/billing/portal', {}, token)
+}
+
 export async function updatePlan(
   token: string,
   plan: import('@/types').Plan,
 ): Promise<import('@/types').SubscriptionWithLimits> {
   return api.patch<import('@/types').SubscriptionWithLimits>('/billing/plan', { plan }, token)
-}
-
-export async function cancelSubscription(
-  token: string,
-): Promise<import('@/types').SubscriptionWithLimits> {
-  return api.post<import('@/types').SubscriptionWithLimits>('/billing/cancel', {}, token)
 }

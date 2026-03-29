@@ -8,7 +8,7 @@ CREATE TYPE "SubStatus" AS ENUM ('ACTIVE', 'PAST_DUE', 'CANCELLED');
 -- FK direction: Subscription.userId → User.id (one-to-one via child side, matches schema.prisma)
 CREATE TABLE "subscriptions" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "userId" UUID NOT NULL,
+    "userId" TEXT NOT NULL,
     "plan" "Plan" NOT NULL DEFAULT 'FREE',
     "status" "SubStatus" NOT NULL DEFAULT 'ACTIVE',
     "currentPeriodEnd" TIMESTAMP NOT NULL DEFAULT (NOW() + INTERVAL '30 days'),

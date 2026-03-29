@@ -10,8 +10,8 @@ import { PlanBadge } from '@/components/billing/plan-badge'
 import {
   fetchMySubscription,
   fetchBots,
-  updatePlan,
-  cancelSubscription,
+  createCheckoutSession,
+  createPortalSession,
 } from '@/lib/api-client'
 import { useAuthStore } from '@/store/auth.store'
 import { useHandleApiError } from '@/hooks/use-handle-api-error'
@@ -164,31 +164,29 @@ function BillingTab({
   const handleUpgrade = useCallback(
     async (targetPlan: Plan) => {
       if (!token) return
+      if (targetPlan === Plan.FREE) return
       setUpgrading(true)
       try {
-        await updatePlan(token, targetPlan)
-        toast({ title: 'Plan updated', description: `You are now on the ${targetPlan} plan.` })
-        onRefresh()
+        const { url } = await createCheckoutSession(token, targetPlan)
+        window.location.href = url
       } catch (err) {
-        handleError(err, 'Failed to update plan')
-      } finally {
+        handleError(err, 'Failed to start checkout')
         setUpgrading(false)
       }
     },
-    [token, handleError, onRefresh],
+    [token, handleError],
   )
 
   const handleCancel = useCallback(async () => {
     if (!token) return
-    if (!confirm('Cancel your subscription and revert to Free?')) return
+    if (!confirm('Open the billing portal to manage your subscription?')) return
     try {
-      await cancelSubscription(token)
-      toast({ title: 'Subscription cancelled', description: 'You are now on the Free plan.' })
-      onRefresh()
+      const { url } = await createPortalSession(token)
+      window.location.href = url
     } catch (err) {
-      handleError(err, 'Failed to cancel subscription')
+      handleError(err, 'Failed to open billing portal')
     }
-  }, [token, handleError, onRefresh])
+  }, [token, handleError])
 
   return (
     <div className="space-y-6">
@@ -339,6 +337,17 @@ function SettingsContent() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Show toast on return from Stripe Checkout
+  useEffect(() => {
+    const checkoutResult = searchParams.get('checkout')
+    if (checkoutResult === 'success') {
+      toast({ title: 'Subscription updated', description: 'Welcome to your new plan!' })
+      loadData()
+    } else if (checkoutResult === 'cancelled') {
+      toast({ title: 'Checkout cancelled', description: 'Your plan has not changed.' })
+    }
+  }, [searchParams, loadData])
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'billing', label: 'Subscription' },

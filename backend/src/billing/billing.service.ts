@@ -73,6 +73,13 @@ export class BillingService {
     return this.prisma.subscription.findUnique({ where: { userId } });
   }
 
+  async getUserWithStripeCustomer(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, stripeCustomerId: true },
+    });
+  }
+
   async getPlan(userId: string): Promise<Plan> {
     const sub = await this.getSubscription(userId);
     return sub?.plan ?? 'FREE';
@@ -190,10 +197,13 @@ export class BillingService {
     });
   }
 
-  async cancelSubscription(userId: string): Promise<Prisma.SubscriptionGetPayload<{}>> {
-    return this.prisma.subscription.update({
-      where: { userId },
-      data: { status: 'CANCELLED' },
+  async cancelSubscription(userId: string): Promise<Prisma.SubscriptionGetPayload<{}> | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.subscription.updateMany({
+        where: { userId },
+        data: { status: 'CANCELLED' },
+      });
+      return tx.subscription.findUnique({ where: { userId } });
     });
   }
 }
