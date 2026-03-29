@@ -124,7 +124,7 @@ model StrategyConfig {
   botId        String   @unique
   strategy     String
   params       Json
-  builderConfig Json?   // Visual builder JSON; takes precedence over raw params when present
+  builderConfig Json?   @map("builder_config") // Visual builder JSON; takes precedence over raw params when present
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

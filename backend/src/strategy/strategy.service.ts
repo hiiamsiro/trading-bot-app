@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { MarketKlineInterval } from '../market-data/providers/market-data-provider.types';
 
 export type StrategySignal = 'BUY' | 'SELL' | 'HOLD';
@@ -86,22 +86,22 @@ export class StrategyService {
       const interval = this.optionalTrimmedString(safeParams.interval);
       const trendInterval = this.optionalTrimmedString(safeParams.trendInterval);
       if (trendInterval && !this.isSupportedInterval(trendInterval)) {
-        throw new Error(
+        throw new BadRequestException(
           `Invalid strategy config: trendInterval "${trendInterval}" is not supported. Supported: 1m, 5m, 15m, 1h, 4h, 1d`,
         );
       }
 
       if (!Number.isInteger(shortPeriod) || shortPeriod < 1) {
-        throw new Error('Invalid strategy config: shortPeriod must be an integer >= 1');
+        throw new BadRequestException('Invalid strategy config: shortPeriod must be an integer >= 1');
       }
       if (!Number.isInteger(longPeriod) || longPeriod < 2) {
-        throw new Error('Invalid strategy config: longPeriod must be an integer >= 2');
+        throw new BadRequestException('Invalid strategy config: longPeriod must be an integer >= 2');
       }
       if (shortPeriod >= longPeriod) {
-        throw new Error('Invalid strategy config: shortPeriod must be smaller than longPeriod');
+        throw new BadRequestException('Invalid strategy config: shortPeriod must be smaller than longPeriod');
       }
       if (!Number.isFinite(quantity) || quantity <= 0) {
-        throw new Error('Invalid strategy config: quantity must be a number > 0');
+        throw new BadRequestException('Invalid strategy config: quantity must be a number > 0');
       }
       this.validateRiskPercent(stopLossPercent, 'stopLossPercent');
       this.validateRiskPercent(takeProfitPercent, 'takeProfitPercent');
@@ -139,27 +139,27 @@ export class StrategyService {
       const interval = this.optionalTrimmedString(safeParams.interval);
       const trendInterval = this.optionalTrimmedString(safeParams.trendInterval);
       if (trendInterval && !this.isSupportedInterval(trendInterval)) {
-        throw new Error(
+        throw new BadRequestException(
           `Invalid strategy config: trendInterval "${trendInterval}" is not supported. Supported: 1m, 5m, 15m, 1h, 4h, 1d`,
         );
       }
 
       if (!Number.isInteger(period) || period < 2) {
-        throw new Error('Invalid strategy config: period must be an integer >= 2');
+        throw new BadRequestException('Invalid strategy config: period must be an integer >= 2');
       }
       if (!Number.isFinite(oversold) || !Number.isFinite(overbought)) {
-        throw new Error('Invalid strategy config: oversold and overbought must be numbers');
+        throw new BadRequestException('Invalid strategy config: oversold and overbought must be numbers');
       }
       if (oversold <= 0 || oversold >= 100 || overbought <= 0 || overbought >= 100) {
-        throw new Error(
+        throw new BadRequestException(
           'Invalid strategy config: oversold and overbought must be between 0 and 100',
         );
       }
       if (oversold >= overbought) {
-        throw new Error('Invalid strategy config: oversold must be smaller than overbought');
+        throw new BadRequestException('Invalid strategy config: oversold must be smaller than overbought');
       }
       if (!Number.isFinite(quantity) || quantity <= 0) {
-        throw new Error('Invalid strategy config: quantity must be a number > 0');
+        throw new BadRequestException('Invalid strategy config: quantity must be a number > 0');
       }
       this.validateRiskPercent(stopLossPercent, 'stopLossPercent');
       this.validateRiskPercent(takeProfitPercent, 'takeProfitPercent');
@@ -181,7 +181,7 @@ export class StrategyService {
       };
     }
 
-    throw new Error(`Unsupported strategy: ${strategyKey}`);
+    throw new BadRequestException(`Unsupported strategy: ${strategyKey}`);
   }
 
   isSupportedInterval(value: string): value is MarketKlineInterval {
@@ -262,7 +262,7 @@ export class StrategyService {
     }
     const quantity = Number(raw);
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      throw new Error('Invalid strategy config: quantity must be a number > 0');
+      throw new BadRequestException('Invalid strategy config: quantity must be a number > 0');
     }
     return quantity;
   }
@@ -273,7 +273,7 @@ export class StrategyService {
     }
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      throw new Error(`Invalid strategy config: ${fieldName} must be a number > 0`);
+      throw new BadRequestException(`Invalid strategy config: ${fieldName} must be a number > 0`);
     }
     return parsed;
   }
@@ -291,7 +291,7 @@ export class StrategyService {
       return;
     }
     if (value <= 0 || value >= 100) {
-      throw new Error(`Invalid strategy config: ${fieldName} must be > 0 and < 100`);
+      throw new BadRequestException(`Invalid strategy config: ${fieldName} must be > 0 and < 100`);
     }
   }
 
