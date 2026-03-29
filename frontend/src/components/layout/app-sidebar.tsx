@@ -13,6 +13,7 @@ import {
   FolderOpen,
   Globe,
   HeartPulse,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,7 @@ const nav = [
   { href: '/trades', label: 'Trade history', icon: History },
   { href: '/logs', label: 'Logs', icon: ScrollText },
   { href: '/health', label: 'Health', icon: HeartPulse },
+  { href: '/settings', label: 'Settings', icon: Settings },
   { href: '/admin', label: 'Monitoring', icon: Activity },
 ]
 

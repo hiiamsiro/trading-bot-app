@@ -3,6 +3,44 @@ export interface User {
   email: string
   name?: string | null
   createdAt?: string
+  subscription?: {
+    plan: Plan
+    status: SubStatus
+    currentPeriodEnd: string
+  } | null
+}
+
+// ─── Billing ─────────────────────────────────────────────────────────────────────
+
+export enum Plan {
+  FREE = 'FREE',
+  PRO = 'PRO',
+  PREMIUM = 'PREMIUM',
+}
+
+export enum SubStatus {
+  ACTIVE = 'ACTIVE',
+  PAST_DUE = 'PAST_DUE',
+  CANCELLED = 'CANCELLED',
+}
+
+export interface Subscription {
+  id: string
+  plan: Plan
+  status: SubStatus
+  currentPeriodEnd: string
+}
+
+export interface SubscriptionWithLimits extends Subscription {
+  limits: PlanLimits
+}
+
+export interface PlanLimits {
+  maxBots: number
+  maxRunningBots: number
+  canBacktest: boolean
+  canPublish: boolean
+  canCloneFromMarketplace: boolean
 }
 
 export interface AuthResponse {

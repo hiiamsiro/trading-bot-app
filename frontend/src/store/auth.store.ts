@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { User } from '@/types'
+import { Plan, User } from '@/types'
 import { disconnectWebSocket } from '@/lib/websocket'
 
 interface AuthState {
@@ -13,6 +13,10 @@ interface AuthState {
   setRehydrated: (value: boolean) => void
   hydrateFromStorage: () => void
   isAuthenticated: () => boolean
+  getPlan: () => Plan
+  canBacktest: () => boolean
+  canPublish: () => boolean
+  canCloneFromMarketplace: () => boolean
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -52,4 +56,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ token, user, rehydrated: true })
   },
   isAuthenticated: () => !!get().token,
+  getPlan: () => get().user?.subscription?.plan ?? Plan.FREE,
+  canBacktest: () => {
+    const plan = get().user?.subscription?.plan ?? Plan.FREE
+    return plan === Plan.PRO || plan === Plan.PREMIUM
+  },
+  canPublish: () => {
+    const plan = get().user?.subscription?.plan ?? Plan.FREE
+    return plan === Plan.PRO || plan === Plan.PREMIUM
+  },
+  canCloneFromMarketplace: () => {
+    const plan = get().user?.subscription?.plan ?? Plan.FREE
+    return plan === Plan.PRO || plan === Plan.PREMIUM
+  },
 }))

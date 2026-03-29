@@ -416,3 +416,30 @@ export async function cloneBot(
 export async function fetchBotHealthReport(token: string): Promise<import('@/types').BotHealthReport> {
   return api.get<import('@/types').BotHealthReport>('/health/bots', token)
 }
+
+// ─── Billing ─────────────────────────────────────────────────────────────────
+
+export async function fetchMySubscription(
+  token: string,
+): Promise<import('@/types').SubscriptionWithLimits> {
+  return api.get<import('@/types').SubscriptionWithLimits>('/billing/me', token)
+}
+
+export async function fetchPlanLimits(
+  token: string,
+): Promise<import('@/types').PlanLimits> {
+  return api.get<import('@/types').PlanLimits>('/billing/limits', token)
+}
+
+export async function updatePlan(
+  token: string,
+  plan: import('@/types').Plan,
+): Promise<import('@/types').SubscriptionWithLimits> {
+  return api.patch<import('@/types').SubscriptionWithLimits>('/billing/plan', { plan }, token)
+}
+
+export async function cancelSubscription(
+  token: string,
+): Promise<import('@/types').SubscriptionWithLimits> {
+  return api.post<import('@/types').SubscriptionWithLimits>('/billing/cancel', {}, token)
+}

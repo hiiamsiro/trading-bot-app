@@ -20,6 +20,7 @@ import { PortfolioModule } from './portfolio/portfolio.module';
 import { StrategyModule } from './strategy/strategy.module';
 import { ShareModule } from './share/share.module';
 import { LoggingModule } from './common/logging/logging.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { LoggingModule } from './common/logging/logging.module';
     PortfolioModule,
     StrategyModule,
     ShareModule,
+    BillingModule,
   ],
 })
 export class AppModule {}

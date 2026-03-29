@@ -15,6 +15,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  subscription  Subscription?
   bots          Bot[]
   portfolios    Portfolio[]
   notifications Notification[]
@@ -308,4 +309,32 @@ enum BacktestStatus {
   RUNNING
   COMPLETED
   FAILED
+}
+
+// ─── Billing ─────────────────────────────────────────────────────────────────────
+
+model Subscription {
+  id               String     @id @default(uuid())
+  userId          String     @unique
+  plan            Plan       @default(FREE)
+  status          SubStatus  @default(ACTIVE)
+  currentPeriodEnd DateTime
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+enum Plan {
+  FREE
+  PRO
+  PREMIUM
+}
+
+enum SubStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
 }

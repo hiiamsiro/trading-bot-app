@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { LogLevel, NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from '../market-data/market-data.service';
@@ -11,6 +12,7 @@ import { UpdateBotDto } from './dto/update-bot.dto';
 import { ListBotLogsQueryDto } from './dto/list-bot-logs-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateBotFromBuilderDto } from './dto/create-bot-from-builder.dto';
+import { BillingService } from '../billing/billing.service';
 
 @Injectable()
 export class BotsService {
@@ -22,6 +24,7 @@ export class BotsService {
     private readonly strategyService: StrategyService,
     private readonly strategyBuilderService: StrategyBuilderService,
     private readonly notificationsService: NotificationsService,
+    private readonly billingService: BillingService,
   ) {}
 
   async findAll(userId: string) {
@@ -52,6 +55,9 @@ export class BotsService {
   }
 
   async create(createBotDto: CreateBotDto, userId: string) {
+    const { allowed, reason } = await this.billingService.canCreateBot(userId);
+    if (!allowed) throw new ForbiddenException(reason);
+
     const normalizedSymbol = createBotDto.symbol.trim().toUpperCase();
     const instrument = await this.instrumentsService.assertActiveBySymbol(normalizedSymbol);
     const validatedStrategyConfig = createBotDto.strategyConfig
@@ -62,32 +68,46 @@ export class BotsService {
         )
       : null;
 
-    return this.prisma.bot.create({
-      data: {
-        name: createBotDto.name,
-        description: createBotDto.description,
-        symbol: normalizedSymbol,
-        userId,
-        strategyConfig: validatedStrategyConfig
-          ? {
-              create: {
-                strategy: validatedStrategyConfig.strategy,
-                params: validatedStrategyConfig.params as Prisma.InputJsonValue,
-              },
-            }
-          : undefined,
-      },
-      include: {
-        strategyConfig: true,
-      },
+    // Atomic: billing limit check + bot creation in same transaction to prevent TOCTOU
+    return this.prisma.$transaction(async (tx) => {
+      const botCount = await tx.bot.count({ where: { userId } });
+      const sub = await tx.subscription.findUnique({ where: { userId } });
+      const plan = sub?.plan ?? 'FREE';
+      const limits = this.billingService.getPlanLimits(plan);
+      if (limits.maxBots !== -1 && botCount >= limits.maxBots) {
+        throw new ForbiddenException(
+          `Bot limit reached (${limits.maxBots}). Upgrade for more bots.`,
+        );
+      }
+
+      return tx.bot.create({
+        data: {
+          name: createBotDto.name,
+          description: createBotDto.description,
+          symbol: normalizedSymbol,
+          userId,
+          strategyConfig: validatedStrategyConfig
+            ? {
+                create: {
+                  strategy: validatedStrategyConfig.strategy,
+                  params: validatedStrategyConfig.params as Prisma.InputJsonValue,
+                },
+              }
+            : undefined,
+        },
+        include: { strategyConfig: true },
+      });
     });
   }
 
   async createFromBuilder(dto: CreateBotFromBuilderDto, userId: string) {
+    const { allowed, reason } = await this.billingService.canCreateBot(userId);
+    if (!allowed) throw new ForbiddenException(reason);
+
     // 1. Validate builder config
     this.strategyBuilderService.validateConfig(dto.builderConfig);
 
-    // 2. Compile into strategy+params (service validates shape first)
+    // 2. Compile into strategy+params
     const { strategy, params } = this.strategyBuilderService.compileConfig(
       dto.builderConfig as unknown as import('../strategy/strategy-builder.schema').BuilderConfig,
     );
@@ -96,31 +116,40 @@ export class BotsService {
     const normalizedSymbol = dto.symbol.trim().toUpperCase();
     const instrument = await this.instrumentsService.assertActiveBySymbol(normalizedSymbol);
 
-    // 4. Validate the compiled params against StrategyService (normalizes + re-validates)
+    // 4. Validate compiled params
     const validatedConfig = this.strategyService.validateConfig(strategy, {
       ...params,
       initialBalance: dto.initialBalance,
     });
 
-    // 5. Persist bot + strategyConfig + builderConfig
-    return this.prisma.bot.create({
-      data: {
-        name: dto.name,
-        description: dto.description,
-        symbol: normalizedSymbol,
-        userId,
-        strategyConfig: {
-          create: {
-            strategy: validatedConfig.normalizedStrategy,
-            params: validatedConfig.normalizedParams as Prisma.InputJsonValue,
-            builderConfig: dto.builderConfig as unknown as Prisma.InputJsonValue,
+    // 5. Atomic: billing limit check + bot creation in same transaction
+    return this.prisma.$transaction(async (tx) => {
+      const botCount = await tx.bot.count({ where: { userId } });
+      const sub = await tx.subscription.findUnique({ where: { userId } });
+      const plan = sub?.plan ?? 'FREE';
+      const limits = this.billingService.getPlanLimits(plan);
+      if (limits.maxBots !== -1 && botCount >= limits.maxBots) {
+        throw new ForbiddenException(
+          `Bot limit reached (${limits.maxBots}). Upgrade for more bots.`,
+        );
+      }
+
+      return tx.bot.create({
+        data: {
+          name: dto.name,
+          description: dto.description,
+          symbol: normalizedSymbol,
+          userId,
+          strategyConfig: {
+            create: {
+              strategy: validatedConfig.normalizedStrategy,
+              params: validatedConfig.normalizedParams as Prisma.InputJsonValue,
+              builderConfig: dto.builderConfig as unknown as Prisma.InputJsonValue,
+            },
           },
         },
-      },
-      include: {
-        strategyConfig: true,
-        executionSession: true,
-      },
+        include: { strategyConfig: true, executionSession: true },
+      });
     });
   }
 
@@ -309,6 +338,10 @@ export class BotsService {
   }
 
   async start(id: string, userId: string) {
+    // Fast-fail outside transaction: check subscription plan exists (not bot count yet)
+    const { allowed, reason } = await this.billingService.canRunBot(userId);
+    if (!allowed) throw new ForbiddenException(reason);
+
     const bot = await this.findOne(id, userId);
     if (bot.status === 'RUNNING') {
       throw new BadRequestException('Bot is already running');
@@ -329,50 +362,59 @@ export class BotsService {
         ? Number(params.initialBalance)
         : 10000;
 
-    await this.prisma.executionSession.upsert({
-      where: { botId: id },
-      create: {
-        botId: id,
-        initialBalance,
-        currentBalance: initialBalance,
-        profitLoss: 0,
-        totalTrades: 0,
-      },
-      update: {
-        startedAt: new Date(),
-        endedAt: null,
-        initialBalance,
-        currentBalance: initialBalance,
-        profitLoss: 0,
-        totalTrades: 0,
-      },
-    });
+    // Atomic: running bot count check + bot start in same transaction
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const runningCount = await tx.bot.count({
+        where: { userId, status: 'RUNNING' },
+      });
+      const sub = await tx.subscription.findUnique({ where: { userId } });
+      const plan = sub?.plan ?? 'FREE';
+      const limits = this.billingService.getPlanLimits(plan);
+      if (limits.maxRunningBots !== -1 && runningCount >= limits.maxRunningBots) {
+        throw new ForbiddenException(
+          `Running bot limit reached (${limits.maxRunningBots}). Upgrade for more concurrent bots.`,
+        );
+      }
 
-    const updated = await this.prisma.bot.update({
-      where: { id },
-      data: {
-        status: 'RUNNING',
-        strategyConfig: {
-          update: {
-            strategy: validatedStrategyConfig.strategy,
-            params: validatedStrategyConfig.params as Prisma.InputJsonValue,
+      await tx.executionSession.upsert({
+        where: { botId: id },
+        create: {
+          botId: id,
+          initialBalance,
+          currentBalance: initialBalance,
+          profitLoss: 0,
+          totalTrades: 0,
+        },
+        update: {
+          startedAt: new Date(),
+          endedAt: null,
+          initialBalance,
+          currentBalance: initialBalance,
+          profitLoss: 0,
+          totalTrades: 0,
+        },
+      });
+
+      return tx.bot.update({
+        where: { id },
+        data: {
+          status: 'RUNNING',
+          strategyConfig: {
+            update: {
+              strategy: validatedStrategyConfig.strategy,
+              params: validatedStrategyConfig.params as Prisma.InputJsonValue,
+            },
           },
         },
-      },
-      include: {
-        strategyConfig: true,
-        executionSession: true,
-      },
+        include: { strategyConfig: true, executionSession: true },
+      });
     });
 
     await this.appendLog(
       id,
       LogLevel.INFO,
       'Bot started',
-      {
-        symbol: updated.symbol,
-        strategy: updated.strategyConfig?.strategy,
-      },
+      { symbol: updated.symbol, strategy: updated.strategyConfig?.strategy },
       'lifecycle',
     );
 
@@ -634,12 +676,14 @@ export class BotsService {
   // ─── Sharing ──────────────────────────────────────────────────────────────────
 
   async publishBot(botId: string, userId: string): Promise<{ shareSlug: string }> {
+    const { allowed, reason } = await this.billingService.canPublish(userId);
+    if (!allowed) throw new ForbiddenException(reason);
+
     const bot = await this.findOne(botId, userId);
     if (!bot.strategyConfig) {
       throw new BadRequestException('Cannot publish a bot without a configured strategy');
     }
-    // Slug generation is handled by ShareService after we delegate
-    // For simplicity we generate it here too; ShareService.publishBot is called from controller
+
     const slug = generateSlug(bot.name);
     await this.prisma.bot.update({
       where: { id: botId },
@@ -669,6 +713,9 @@ export class BotsService {
     overrideName?: string,
     overrideSymbol?: string,
   ) {
+    const { allowed, reason } = await this.billingService.canCreateBot(userId);
+    if (!allowed) throw new ForbiddenException(reason);
+
     const symbol = (overrideSymbol ?? source.symbol).trim().toUpperCase();
     const instrument = await this.instrumentsService.assertActiveBySymbol(symbol);
 
@@ -681,23 +728,34 @@ export class BotsService {
 
     const cloneName = overrideName ? overrideName.trim() : `${source.name} (Copy)`;
 
-    return this.prisma.bot.create({
-      data: {
-        name: cloneName,
-        description: source.description ?? undefined,
-        symbol,
-        userId,
-        strategyConfig: {
-          create: {
-            strategy: validated.strategy,
-            params: validated.params as Prisma.InputJsonValue,
-            builderConfig: source.builderConfig as Prisma.InputJsonValue | undefined,
+    // Atomic: billing limit check + clone creation
+    return this.prisma.$transaction(async (tx) => {
+      const botCount = await tx.bot.count({ where: { userId } });
+      const sub = await tx.subscription.findUnique({ where: { userId } });
+      const plan = sub?.plan ?? 'FREE';
+      const limits = this.billingService.getPlanLimits(plan);
+      if (limits.maxBots !== -1 && botCount >= limits.maxBots) {
+        throw new ForbiddenException(
+          `Bot limit reached (${limits.maxBots}). Upgrade for more bots.`,
+        );
+      }
+
+      return tx.bot.create({
+        data: {
+          name: cloneName,
+          description: source.description ?? undefined,
+          symbol,
+          userId,
+          strategyConfig: {
+            create: {
+              strategy: validated.strategy,
+              params: validated.params as Prisma.InputJsonValue,
+              builderConfig: source.builderConfig as Prisma.InputJsonValue | undefined,
+            },
           },
         },
-      },
-      include: {
-        strategyConfig: true,
-      },
+        include: { strategyConfig: true },
+      });
     });
   }
 }
@@ -712,6 +770,6 @@ function generateSlug(name: string): string {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .slice(0, 40);
-  const suffix = Math.random().toString(36).slice(2, 7);
+  const suffix = randomBytes(4).toString('hex');
   return `${base}-${suffix}`;
 }
