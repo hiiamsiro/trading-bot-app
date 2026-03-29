@@ -54,10 +54,19 @@ function makeBotsService(overrides?: any) {
     },
   };
   // Always include notification mock so NotificationsService (which uses prisma.notification.create)
-  // never gets undefined
+  // never gets undefined. Deep-merge prisma models so partial overrides (e.g. only bot.findFirst)
+  // don't wipe out sibling methods like bot.create.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prisma: any = overrides?.prisma
-    ? ({ ...defaultPrisma, ...overrides.prisma })
+    ? {
+        ...defaultPrisma,
+        ...overrides.prisma,
+        bot: { ...defaultPrisma.bot, ...overrides.prisma?.bot },
+        executionSession: { ...defaultPrisma.executionSession, ...overrides.prisma?.executionSession },
+        trade: { ...defaultPrisma.trade, ...overrides.prisma?.trade },
+        botLog: { ...defaultPrisma.botLog, ...overrides.prisma?.botLog },
+        notification: { ...defaultPrisma.notification, ...overrides.prisma?.notification },
+      }
     : defaultPrisma;
 
   const marketData = overrides?.marketData ?? {
@@ -94,6 +103,10 @@ function makeBotsService(overrides?: any) {
       createdAt: new Date(),
     })),
   };
+  const strategyBuilderService = overrides?.strategyBuilderService ?? {
+    validateConfig: mockFn(() => undefined),
+    compileConfig: mockFn(() => ({ strategy: 'sma_crossover', params: {} })),
+  };
 
   return {
     service: new BotsService(
@@ -102,6 +115,7 @@ function makeBotsService(overrides?: any) {
       marketGateway,
       instrumentsService,
       strategyService,
+      strategyBuilderService,
       notificationsService,
     ),
     prisma,
