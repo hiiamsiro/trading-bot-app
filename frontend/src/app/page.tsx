@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   Activity, BadgeCheck, ChartCandlestick, CheckCircle2, ChevronRight,
   Cpu, Eye, Fingerprint, Globe, Headphones, LockKeyhole, Network,
-  Rocket, Shield, ShieldCheck, TrendingUp, Users, Wallet, Zap,
+  Menu, Rocket, Shield, ShieldCheck, TrendingUp, Users, Wallet, X, Zap,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import gsap from 'gsap'
@@ -62,6 +62,13 @@ const trustStats = [
   { label: 'Infrastructure uptime',value: 99.99,  suffix: '%',   raw: '99.99%',  icon: Globe,    color: 'text-emerald-300', fmt: (v: number) => `${v.toFixed(2)}%` },
   { label: 'Processed orders',    value: 430,   suffix: 'M+',  raw: '430M+',   icon: Activity, color: 'text-blue-300',   fmt: (v: number) => `${Math.round(v)}M+` },
 ]
+
+const landingNavLinks = [
+  { label: 'Market', href: '#market' },
+  { label: 'Security', href: '#security' },
+  { label: 'Features', href: '#features' },
+  { label: 'Trust', href: '#trust' },
+] as const
 
 const features = [
   { title: 'Real-time Execution',      desc: 'Sub-120ms order routing across major exchanges.',       icon: Zap,             color: 'text-amber-300',   bg: 'bg-amber-300/10',   wide: true  },
@@ -513,10 +520,37 @@ export default function Home() {
   const heroRef = useRef<HTMLDivElement>(null)
   const badgeRef = useRef<HTMLDivElement>(null)
   const [showMotionEffects, setShowMotionEffects] = useState(false)
+  const [headerScrolled, setHeaderScrolled] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     setShowMotionEffects(!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   }, [])
+
+  useEffect(() => {
+    const onScroll = () => setHeaderScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    if (!mobileNavOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileNavOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [mobileNavOpen])
+
+  useEffect(() => {
+    if (!mobileNavOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [mobileNavOpen])
 
   // GSAP Hero entrance timeline
   useEffect(() => {
@@ -567,9 +601,116 @@ export default function Home() {
     <>
       <RedirectToDashboardIfAuth />
       <CursorTrailer />
-      <main className="relative min-h-screen overflow-x-hidden bg-slate-950 font-exo text-slate-50">
+      <main id="top" className="relative min-h-screen overflow-x-hidden bg-slate-950 font-exo text-slate-50">
 
         {/* ── BACKGROUND LAYERS ────────────────── */}
+        {/* ── HEADER NAV ────────────────────────── */}
+        <header
+          className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+            headerScrolled
+              ? 'border-b border-white/10 bg-slate-950/70 backdrop-blur-xl'
+              : 'bg-transparent'
+          }`}
+        >
+          <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+            <a
+              href="#top"
+              onClick={() => setMobileNavOpen(false)}
+              className="inline-flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+              aria-label="TradingBot home"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-amber-500">
+                <Activity className="h-5 w-5 text-white" />
+              </span>
+              <span className="font-orbitron text-sm font-bold tracking-wide text-white">TradingBot</span>
+            </a>
+
+            <nav className="hidden items-center gap-6 md:flex" aria-label="Primary">
+              {landingNavLinks.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="text-sm text-slate-300 transition-colors duration-200 hover:text-white"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+
+            <div className="hidden items-center gap-3 md:flex">
+              <Link
+                href="/login"
+                className="rounded-lg px-3 py-2 text-sm text-slate-300 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+              >
+                Sign in
+              </Link>
+              <MagneticButton
+                href="/register"
+                strength={0.35}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35"
+              >
+                Create account
+                <ChevronRight className="h-4 w-4" />
+              </MagneticButton>
+            </div>
+
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 p-2.5 text-white backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 md:hidden"
+              onClick={() => setMobileNavOpen((v) => !v)}
+              aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileNavOpen}
+            >
+              {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {mobileNavOpen && (
+              <motion.div
+                key="mobile-nav"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="border-t border-white/10 bg-slate-950/85 backdrop-blur-xl md:hidden"
+              >
+                <div className="container mx-auto max-w-7xl px-4 py-4">
+                  <nav className="grid gap-2" aria-label="Mobile primary">
+                    {landingNavLinks.map((item) => (
+                      <a
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileNavOpen(false)}
+                        className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 transition-colors hover:bg-white/10"
+                      >
+                        {item.label}
+                      </a>
+                    ))}
+                  </nav>
+
+                  <div className="mt-4 grid gap-2">
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileNavOpen(false)}
+                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 transition-colors hover:bg-white/10"
+                    >
+                      Sign in
+                    </Link>
+                    <Link
+                      href="/register"
+                      onClick={() => setMobileNavOpen(false)}
+                      className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 px-4 py-3 text-sm font-semibold text-slate-950"
+                    >
+                      Create account
+                    </Link>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </header>
+
         <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
           {showMotionEffects && (
             <>
@@ -624,7 +765,7 @@ export default function Home() {
 
               {/* GSAP CTA buttons */}
               <div className="mt-12 flex flex-wrap items-center justify-center gap-5">
-                <div data-hero-cta className="opacity-0">
+                <div data-hero-cta>
                   <MagneticButton
                     href="/register"
                     strength={0.7}
@@ -638,7 +779,7 @@ export default function Home() {
                     </span>
                   </MagneticButton>
                 </div>
-                <div data-hero-cta className="opacity-0">
+                <div data-hero-cta>
                   <MagneticButton
                     href="/dashboard"
                     strength={0.5}
@@ -700,7 +841,7 @@ export default function Home() {
         </section>
 
         {/* ── MARKET PREVIEW ───────────────────── */}
-        <GsapSection className="relative z-10 container mx-auto max-w-7xl px-4 py-20 md:py-28">
+        <GsapSection id="market" className="relative z-10 container mx-auto max-w-7xl scroll-mt-24 px-4 py-20 md:py-28">
           <motion.div
             data-gsap="fadeUp"
             className="mb-8 flex flex-wrap items-center justify-between gap-4"
@@ -733,7 +874,7 @@ export default function Home() {
         </GsapSection>
 
         {/* ── SECURITY SECTION ─────────────────── */}
-        <GsapSection className="relative z-10 container mx-auto max-w-7xl px-4 py-20 md:py-28">
+        <GsapSection id="security" className="relative z-10 container mx-auto max-w-7xl scroll-mt-24 px-4 py-20 md:py-28">
           <motion.div
             data-gsap="fadeLeft"
             className="rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl md:p-12 lg:flex lg:gap-12"
@@ -774,7 +915,7 @@ export default function Home() {
         </GsapSection>
 
         {/* ── FEATURES ─────────────────────────── */}
-        <GsapSection className="relative z-10 container mx-auto max-w-7xl px-4 py-20 md:py-28">
+        <GsapSection id="features" className="relative z-10 container mx-auto max-w-7xl scroll-mt-24 px-4 py-20 md:py-28">
           <motion.div
             data-gsap="fadeUp"
             className="mb-12 text-center"
@@ -798,7 +939,7 @@ export default function Home() {
         </GsapSection>
 
         {/* ── WALLET + TRUST ────────────────────── */}
-        <GsapSection className="relative z-10 container mx-auto max-w-7xl px-4 py-20 md:py-28">
+        <GsapSection id="trust" className="relative z-10 container mx-auto max-w-7xl scroll-mt-24 px-4 py-20 md:py-28">
           <div className="grid gap-6 lg:grid-cols-2">
 
             {/* Wallet */}
@@ -884,7 +1025,7 @@ export default function Home() {
         </GsapSection>
 
         {/* ── CTA ───────────────────────────────── */}
-        <GsapSection className="relative z-10 container mx-auto max-w-7xl px-4 pb-24 md:pb-36">
+        <GsapSection id="get-started" className="relative z-10 container mx-auto max-w-7xl scroll-mt-24 px-4 pb-24 md:pb-36">
           <motion.div
             data-gsap="scale"
             className="animate-cta-glow relative overflow-hidden rounded-3xl border border-white/10
@@ -907,7 +1048,7 @@ export default function Home() {
               </p>
 
               <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-                <div data-hero-cta className="opacity-0">
+                <div data-hero-cta>
                   <MagneticButton
                     href="/register"
                     strength={0.8}
@@ -921,7 +1062,7 @@ export default function Home() {
                     </span>
                   </MagneticButton>
                 </div>
-                <div data-hero-cta className="opacity-0">
+                <div data-hero-cta>
                   <MagneticButton
                     href="/dashboard"
                     strength={0.5}
