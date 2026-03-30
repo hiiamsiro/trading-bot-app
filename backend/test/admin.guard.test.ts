@@ -1,5 +1,5 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
+import { test, describe, it, beforeEach, afterEach, before, after, mock } from 'node:test';
+import * as assert from 'node:assert';
 const { ForbiddenException } = require('@nestjs/common');
 
 const { AdminGuard } = require('../src/auth/guards/admin.guard.ts');

@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { NotFoundException } = require('@nestjs/common');
+import { test, describe, it, beforeEach, afterEach, before, after, mock } from 'node:test';
+import * as assert from 'node:assert';
+import { NotFoundException } from '@nestjs/common';
 
 const { InstrumentsService } = require('../src/instruments/instruments.service.ts');
 
@@ -17,9 +17,10 @@ test('InstrumentsService.assertActiveBySymbol throws when instrument is missing'
 
   await assert.rejects(
     () => svc.assertActiveBySymbol('BTCUSDT'),
-    (err) => {
+    (err: unknown) => {
+      const e = err as NotFoundException;
       assert.ok(err instanceof NotFoundException);
-      assert.match(err.message, /Active instrument not found/);
+      assert.match(e.message, /Active instrument not found/);
       return true;
     },
   );

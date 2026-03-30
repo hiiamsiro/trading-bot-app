@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { UnauthorizedException } = require('@nestjs/common');
+import { test, describe, it, beforeEach, afterEach, before, after, mock } from 'node:test';
+import * as assert from 'node:assert';
+import { UnauthorizedException } from '@nestjs/common';
 
 const { AuthService } = require('../src/auth/auth.service.ts');
 
@@ -8,7 +8,7 @@ const { mockAsyncFn, mockFn } = require('./helpers.ts');
 
 test('AuthService.register returns user profile + JWT token', async () => {
   const usersService = {
-    create: mockAsyncFn(async (dto) => ({
+    create: mockAsyncFn(async (dto: any) => ({
       id: 'user-1',
       email: dto.email,
       name: dto.name,
@@ -33,10 +33,11 @@ test('AuthService.register returns user profile + JWT token', async () => {
     id: 'user-1',
     email: 'alice@example.com',
     name: 'Alice',
+    isAdmin: undefined,
   });
   assert.equal(usersService.create.calls.length, 1);
   assert.equal(jwtService.sign.calls.length, 1);
-  assert.deepEqual(jwtService.sign.calls[0][0], { sub: 'user-1', email: 'alice@example.com' });
+  assert.deepEqual(jwtService.sign.calls[0][0], { sub: 'user-1', email: 'alice@example.com', isAdmin: undefined });
 });
 
 test('AuthService.login throws UnauthorizedException on invalid credentials', async () => {
@@ -48,9 +49,9 @@ test('AuthService.login throws UnauthorizedException on invalid credentials', as
 
   await assert.rejects(
     () => authService.login({ email: 'alice@example.com', password: 'wrong' }),
-    (err) => {
+    (err: unknown) => {
       assert.ok(err instanceof UnauthorizedException);
-      assert.equal(err.message, 'Invalid credentials');
+      assert.equal((err as Error).message, 'Invalid credentials');
       return true;
     },
   );
@@ -77,6 +78,7 @@ test('AuthService.login returns profile + JWT token on success', async () => {
     id: 'user-1',
     email: 'alice@example.com',
     name: 'Alice',
+    isAdmin: undefined,
   });
   assert.equal(jwtService.sign.calls.length, 1);
 });

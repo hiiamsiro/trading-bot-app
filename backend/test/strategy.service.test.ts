@@ -1,6 +1,5 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-
+import { test, describe, it, beforeEach, afterEach, before, after, mock } from 'node:test';
+import * as assert from 'node:assert';
 const { StrategyService } = require('../src/strategy/strategy.service.ts');
 
 function makeService() {

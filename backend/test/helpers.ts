@@ -1,3 +1,6 @@
+// NOTE: test, assert, describe, it, beforeEach, etc. are provided by the Node.js
+// test runner at runtime and must NOT be imported here (they conflict with globals).
+// Only destructure mockFn/mockAsyncFn/mockAsyncSequence below.
 function mockFn(impl) {
   const calls: unknown[][] = [];
   const fn = (...args) => {
@@ -36,5 +39,3 @@ module.exports = {
   mockAsyncFn,
   mockAsyncSequence,
 };
-
-export {};

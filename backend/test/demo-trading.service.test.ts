@@ -1,6 +1,5 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-
+import { test, describe, it, beforeEach, afterEach, before, after, mock } from 'node:test';
+import * as assert from 'node:assert';
 const { DemoTradingService } = require('../src/demo-trading/demo-trading.service.ts');
 
 const { mockAsyncFn, mockAsyncSequence, mockFn } = require('./helpers.ts');

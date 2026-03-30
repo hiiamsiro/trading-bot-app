@@ -1,5 +1,5 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
+import { test, describe, it, beforeEach, afterEach, before, after, mock } from 'node:test';
+import * as assert from 'node:assert';
 const { BadRequestException, NotFoundException } = require('@nestjs/common');
 
 const { BotsService } = require('../src/bots/bots.service.ts');
@@ -247,9 +247,9 @@ test('BotsService.findOne throws NotFound when bot does not belong to user', asy
 
   await assert.rejects(
     () => service.findOne('bot-1', 'user-1'),
-    (err) => {
+    (err: unknown) => {
       assert.ok(err instanceof NotFoundException);
-      assert.equal(err.message, 'Bot not found');
+      assert.equal((err as Error).message, 'Bot not found');
       return true;
     },
   );
@@ -283,9 +283,9 @@ test('BotsService.start requires strategy config and non-running status', async 
 
   await assert.rejects(
     () => service.start('bot-1', 'user-1'),
-    (err) => {
+    (err: unknown) => {
       assert.ok(err instanceof BadRequestException);
-      assert.equal(err.message, 'Configure a strategy before starting the bot');
+      assert.equal((err as Error).message, 'Configure a strategy before starting the bot');
       return true;
     },
   );
@@ -422,9 +422,9 @@ test('BotsService.stop throws when bot is not running', async () => {
 
   await assert.rejects(
     () => service.stop('bot-1', 'user-1'),
-    (err) => {
+    (err: unknown) => {
       assert.ok(err instanceof BadRequestException);
-      assert.equal(err.message, 'Bot is not running');
+      assert.equal((err as Error).message, 'Bot is not running');
       return true;
     },
   );

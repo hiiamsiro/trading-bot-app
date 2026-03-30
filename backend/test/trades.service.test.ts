@@ -1,5 +1,5 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
+import { test, describe, it, beforeEach, afterEach, before, after, mock } from 'node:test';
+import * as assert from 'node:assert';
 const { NotFoundException } = require('@nestjs/common');
 
 const { TradesService } = require('../src/trades/trades.service.ts');
@@ -44,9 +44,9 @@ test('TradesService.findOne throws NotFoundException for trade not owned by user
 
   await assert.rejects(
     () => service.findOne('trade-1', 'user-1'),
-    (err) => {
+    (err: unknown) => {
       assert.ok(err instanceof NotFoundException);
-      assert.equal(err.message, 'Trade not found');
+      assert.equal((err as Error).message, 'Trade not found');
       return true;
     },
   );
