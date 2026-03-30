@@ -128,11 +128,7 @@ export default function AdminMonitoringPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Your account is not allowed to access platform monitoring.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Add your email to <code className="text-xs">ADMIN_EMAILS</code> in the backend
-            environment (comma-separated) and sign in again.
+            Your account is not allowed to access platform monitoring. Contact an administrator to grant your account elevated access.
           </p>
         </CardContent>
       </Card>

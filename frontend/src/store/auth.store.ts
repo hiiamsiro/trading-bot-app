@@ -4,11 +4,6 @@ import { create } from 'zustand'
 import { Plan, User } from '@/types'
 import { disconnectWebSocket } from '@/lib/websocket'
 
-const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? '')
-  .split(',')
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean)
-
 interface AuthState {
   user: User | null
   token: string | null
@@ -63,8 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   isAuthenticated: () => !!get().token,
   isAdmin: () => {
-    const email = get().user?.email?.toLowerCase()
-    return !!email && ADMIN_EMAILS.includes(email)
+    return get().user?.isAdmin === true
   },
   getPlan: () => get().user?.subscription?.plan ?? Plan.FREE,
   canBacktest: () => {

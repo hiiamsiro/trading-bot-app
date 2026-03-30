@@ -1,7 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { ForbiddenException } = require('@nestjs/common');
-const { ConfigService } = require('@nestjs/config');
 
 const { AdminGuard } = require('../src/auth/guards/admin.guard.ts');
 
@@ -17,23 +16,31 @@ function makeContext(user) {
   };
 }
 
-test('AdminGuard denies when email is not in ADMIN_EMAILS', () => {
-  const configService = new ConfigService({ ADMIN_EMAILS: 'admin@example.com' });
-  const guard = new AdminGuard(configService);
+test('AdminGuard allows when user.isAdmin is true', () => {
+  const guard = new AdminGuard();
+  const allowed = guard.canActivate(makeContext({ userId: 'u1', email: 'x@y.com', isAdmin: true }));
+  assert.equal(allowed, true);
+});
 
-  assert.throws(() => guard.canActivate(makeContext({ userId: 'u1', email: 'user@example.com' })), {
+test('AdminGuard denies when user.isAdmin is false', () => {
+  const guard = new AdminGuard();
+  assert.throws(() => guard.canActivate(makeContext({ userId: 'u1', email: 'x@y.com', isAdmin: false })), {
     name: ForbiddenException.name,
   });
 });
 
-test('AdminGuard allows when email is listed (case-insensitive, comma-separated)', () => {
-  const configService = new ConfigService({
-    ADMIN_EMAILS: ' admin@example.com,Admin2@Example.com ',
+test('AdminGuard denies when user.isAdmin is undefined', () => {
+  const guard = new AdminGuard();
+  assert.throws(() => guard.canActivate(makeContext({ userId: 'u1', email: 'x@y.com' })), {
+    name: ForbiddenException.name,
   });
-  const guard = new AdminGuard(configService);
+});
 
-  const allowed = guard.canActivate(makeContext({ userId: 'u1', email: 'ADMIN2@example.com' }));
-  assert.equal(allowed, true);
+test('AdminGuard denies when no user on request', () => {
+  const guard = new AdminGuard();
+  assert.throws(() => guard.canActivate(makeContext(undefined)), {
+    name: ForbiddenException.name,
+  });
 });
 
 export {};

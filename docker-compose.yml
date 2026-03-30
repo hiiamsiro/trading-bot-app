@@ -45,7 +45,6 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:?jwt-secret-is-required-set-jwt_secret-env-var}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       APP_URL: ${APP_URL:-http://localhost:3001}

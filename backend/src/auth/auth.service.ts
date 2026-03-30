@@ -13,12 +13,13 @@ export class AuthService {
 
   async register(registerDto: RegisterDto) {
     const user = await this.usersService.create(registerDto);
-    const token = this.generateToken(user.id, user.email);
+    const token = this.generateToken(user.id, user.email, user.isAdmin);
     return {
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
+        isAdmin: user.isAdmin,
       },
       token,
     };
@@ -31,18 +32,19 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const token = this.generateToken(user.id, user.email);
+    const token = this.generateToken(user.id, user.email, user.isAdmin);
     return {
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
+        isAdmin: user.isAdmin,
       },
       token,
     };
   }
 
-  private generateToken(userId: string, email: string): string {
-    return this.jwtService.sign({ sub: userId, email });
+  private generateToken(userId: string, email: string, isAdmin: boolean): string {
+    return this.jwtService.sign({ sub: userId, email, isAdmin });
   }
 }

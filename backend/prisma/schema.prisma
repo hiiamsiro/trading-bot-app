@@ -12,6 +12,7 @@ model User {
   email            String   @unique
   password         String
   name             String?
+  isAdmin          Boolean  @default(false) @map("is_admin")
   stripeCustomerId String?  @unique
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

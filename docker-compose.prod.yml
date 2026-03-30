@@ -45,7 +45,6 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       PORT: 3001
       CORS_ORIGIN: ${CORS_ORIGIN:?Set CORS_ORIGIN in .env}
     ports:

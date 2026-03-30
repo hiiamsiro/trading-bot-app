@@ -43,6 +43,7 @@ export class UsersService {
       id: user.id,
       email: user.email,
       name: user.name,
+      isAdmin: user.isAdmin,
       createdAt: user.createdAt,
     };
   }
@@ -67,6 +68,7 @@ export class UsersService {
       id: user.id,
       email: user.email,
       name: user.name,
+      isAdmin: user.isAdmin,
       createdAt: user.createdAt,
       subscription: user.subscription ?? null,
     };
@@ -91,6 +93,7 @@ export class UsersService {
       id: user.id,
       email: user.email,
       name: user.name,
+      isAdmin: user.isAdmin,
     };
   }
 
