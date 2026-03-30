@@ -51,6 +51,8 @@ services:
       APP_URL: ${APP_URL:-http://localhost:3001}
       PORT: 3001
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?SEED_ADMIN_EMAIL is required — set it in .env}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?SEED_ADMIN_PASSWORD is required — set it in .env}
       # Bind-mount (esp. Windows + Docker): native fs events often miss → enable polling so `nest start --watch` reloads
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
