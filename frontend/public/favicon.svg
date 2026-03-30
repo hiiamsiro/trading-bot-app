@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+    <linearGradient id="chart" x1="4" y1="24" x2="28" y2="8" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="32" height="32" rx="8" fill="url(#bg)"/>
+  <!-- Chart line (candlestick trending up) -->
+  <polyline
+    points="4,22 9,18 13,20 17,14 22,12 28,8"
+    fill="none"
+    stroke="url(#chart)"
+    stroke-width="2.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Pulse dot -->
+  <circle cx="28" cy="8" r="2.5" fill="#34D399"/>
+  <!-- Arrow up indicator -->
+  <polyline
+    points="20,26 24,26 28,26"
+    fill="none"
+    stroke="white"
+    stroke-width="1.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

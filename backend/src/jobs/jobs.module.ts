@@ -19,6 +19,10 @@ import {
   MARKET_DATA_BACKOFF_BASE,
   INSTRUMENT_SYNC_MAX_RETRIES,
   INSTRUMENT_SYNC_BACKOFF_DELAY,
+  DATA_RETENTION_QUEUE_MAX_RETRIES,
+  DATA_RETENTION_QUEUE_BACKOFF_DELAY,
+  DATA_RETENTION_QUEUE_REMOVE_ON_COMPLETE,
+  DATA_RETENTION_QUEUE_REMOVE_ON_FAIL,
 } from './worker.constants';
 
 @Module({
@@ -57,6 +61,15 @@ import {
           // retries. Completed cap of 50 preserves enough history for forensics.
           removeOnComplete: { count: 50 },
           removeOnFail: { count: 100 },
+        },
+      },
+      {
+        name: 'data-retention',
+        defaultJobOptions: {
+          attempts: DATA_RETENTION_QUEUE_MAX_RETRIES,
+          backoff: { type: 'exponential', delay: DATA_RETENTION_QUEUE_BACKOFF_DELAY },
+          removeOnComplete: { count: DATA_RETENTION_QUEUE_REMOVE_ON_COMPLETE },
+          removeOnFail: { count: DATA_RETENTION_QUEUE_REMOVE_ON_FAIL },
         },
       },
     ),

@@ -1,8 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import helmet from 'helmet';
 import pinoHttp from 'pino-http';
-import express from 'express';
 import { AppModule } from './app.module';
 import { resolveCorsOrigin } from './common/cors';
 import { AppLogger } from './common/logging/logger.service';
@@ -50,8 +50,14 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Security headers (CSP, HSTS, X-Frame-Options, etc.)
+  app.use(helmet());
+
   // Stripe webhook endpoint needs the raw (unparsed) request body to verify signatures.
   // Apply express.raw() specifically for /billing/webhook so it bypasses the JSON parser.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const express = require('express');
   app.use('/billing/webhook', express.raw({ type: 'application/json' }));
 
   app.useGlobalPipes(

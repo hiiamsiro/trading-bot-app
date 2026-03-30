@@ -36,3 +36,10 @@ export const INSTRUMENT_SYNC_MAX_RETRIES = parseInt(
   10,
 );
 export const INSTRUMENT_SYNC_BACKOFF_DELAY = 60_000; // 1 min — sync is infrequent so back-off can be generous
+
+// data-retention queue — these are intentionally small: a retention job that fails repeatedly
+// is worse than a missed run (data sits longer, which is safe).
+export const DATA_RETENTION_QUEUE_MAX_RETRIES = 3;
+export const DATA_RETENTION_QUEUE_BACKOFF_DELAY = 1_000; // ms, exponential
+export const DATA_RETENTION_QUEUE_REMOVE_ON_COMPLETE = 10;
+export const DATA_RETENTION_QUEUE_REMOVE_ON_FAIL = 20;

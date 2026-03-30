@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import AuthLayout from '@/components/layout/auth-layout'
-import { LoginForm } from './login-form'
+import { LoginForm } from '@/components/auth/login-form'
 
 function LoginFallback() {
   return (

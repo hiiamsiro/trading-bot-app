@@ -1,10 +1,12 @@
-'use client' 
- 
-import { useCallback, useEffect, useMemo, useState } from 'react' 
-import Link from 'next/link' 
+'use client'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Instrument, TradeStatus, type DashboardSnapshot } from '@/types' 
-import { useAuthStore } from '@/store/auth.store' 
+import { motion, AnimatePresence } from 'framer-motion'
+import { FadeInSection } from '@/components/ui/fade-in-section'
+import { Instrument, TradeStatus, type DashboardSnapshot } from '@/types'
+import { useAuthStore } from '@/store/auth.store'
 import {
   fetchAllInstruments,
   fetchDashboard,
@@ -49,6 +51,8 @@ import { LogLevelBadge } from '@/components/log-level-badge'
 import { TradeStatusBadge } from '@/components/trade-status-badge'
 import { LiveMarketChartPanel } from '@/components/charts/live-market-chart-panel'
 import { EquityCurveChart } from '@/components/charts/equity-curve-chart'
+import { fadeUp, staggerContainer, spring } from '@/lib/animations'
+import { AnimatedCounter } from '@/components/ui/animated-counter'
 
 function formatPnl(value: number) {
   const abs = Math.abs(value).toLocaleString(undefined, {
@@ -65,10 +69,10 @@ function formatPct(value: number | null) {
   return `${value.toFixed(1)}%`
 }
 
-export default function DashboardPage() { 
+export default function DashboardPage() {
   const router = useRouter()
-  const token = useAuthStore((s) => s.token) 
-  const user = useAuthStore((s) => s.user) 
+  const token = useAuthStore((s) => s.token)
+  const user = useAuthStore((s) => s.user)
   const clearAuth = useAuthStore((s) => s.clearAuth)
   const handleError = useHandleApiError() 
   const [loading, setLoading] = useState(true) 
@@ -268,16 +272,16 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="space-y-8">
-        <div>
+        <div className="animate-fade-scale">
           <Skeleton className="h-9 w-64" />
           <Skeleton className="mt-2 h-4 w-96" />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" data-stagger>
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-28 rounded-lg" />
+            <Skeleton key={i} className="h-28 rounded-xl animate-shimmer" />
           ))}
         </div>
-        <Skeleton className="h-72 rounded-lg" />
+        <Skeleton className="h-72 rounded-xl animate-shimmer" />
       </div>
     )
   }
@@ -302,31 +306,37 @@ export default function DashboardPage() {
     clearAuth()
     router.replace('/login')
   }
- 
-  return ( 
-    <div className="space-y-8"> 
-      <div className="rounded-xl border border-border/70 bg-card/70 p-6 shadow-sm backdrop-blur-xl"> 
-        <div className="flex flex-wrap items-center justify-between gap-4"> 
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-            <p className="mt-1 text-muted-foreground"> 
-              Welcome back{user?.name ? `, ${user.name}` : ''}. Performance from stored trades; PnL uses closed positions with realized PnL. 
-            </p> 
-          </div> 
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Badge className="border border-primary/40 bg-primary/15 px-3 py-1 text-primary"> 
-              Live monitoring enabled 
-            </Badge> 
-            <Button variant="outline" size="sm" className="gap-2" onClick={onSignOut}>
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
-          </div>
-        </div> 
-      </div> 
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+  return (
+    <div className="space-y-8">
+
+      {/* Page header */}
+      <FadeInSection>
+        <div className="rounded-xl border border-border/70 bg-card/70 p-6 shadow-sm backdrop-blur-xl">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
+              <p className="mt-1 text-muted-foreground">
+                Welcome back{user?.name ? `, ${user.name}` : ''}. Performance from stored trades; PnL uses closed positions with realized PnL.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Badge className="animate-pulse border-primary/30 bg-primary/15 px-3 py-1 text-primary">
+                Live monitoring enabled
+              </Badge>
+              <Button variant="outline" size="sm" className="gap-2 cursor-pointer transition-all duration-200 hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive" onClick={onSignOut}>
+                <LogOut className="h-4 w-4" />
+                Logout
+              </Button>
+            </div>
+          </div>
+        </div>
+      </FadeInSection>
+
+      {/* Primary metrics */}
+      <FadeInSection stagger threshold={0.05}>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Total PnL
@@ -351,7 +361,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+          <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Today (UTC)
@@ -374,7 +384,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">Realized PnL from closes today</p>
           </CardContent>
         </Card>
-        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+          <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Win rate
@@ -389,7 +399,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+          <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Bots
@@ -404,10 +414,13 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </FadeInSection>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+      {/* Secondary metrics */}
+      <FadeInSection stagger threshold={0.05}>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Avg win
@@ -422,7 +435,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">Mean realized PnL on winners</p>
           </CardContent>
         </Card>
-        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+          <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Avg loss
@@ -452,7 +465,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">Peak-to-trough on cumulative PnL</p>
           </CardContent>
         </Card>
-        <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+          <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Catalog
@@ -465,9 +478,11 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">Active instruments on this page</p>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </FadeInSection>
 
-      <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+      <FadeInSection>
+        <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-lg">Equity curve</CardTitle>
           <History className="h-4 w-4 text-muted-foreground" />
@@ -482,18 +497,22 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+      </FadeInSection>
 
       {chartDefaultSymbol ? (
-        <LiveMarketChartPanel
-          token={token ?? undefined}
-          instrumentSymbols={chartInstrumentSymbols}
-          activeSymbol={chartDefaultSymbol}
-          title="Market overview"
-          chartHeight={320}
-        />
+        <FadeInSection>
+          <LiveMarketChartPanel
+            token={token ?? undefined}
+            instrumentSymbols={chartInstrumentSymbols}
+            activeSymbol={chartDefaultSymbol}
+            title="Market overview"
+            chartHeight={320}
+          />
+        </FadeInSection>
       ) : null}
 
-      <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
+      <FadeInSection>
+        <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Instrument catalog</CardTitle>
           <Button
@@ -618,14 +637,16 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+      </FadeInSection>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="border-border/70 bg-card/80 backdrop-blur-xl lg:col-span-3">
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base">Quick actions</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+      <FadeInSection stagger>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl lg:col-span-3 transition-all duration-300">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-base">Quick actions</CardTitle>
+              <Zap className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
             <Button asChild size="sm" className="cursor-pointer">
               <Link href="/bots/new">Create bot</Link>
             </Button>
@@ -640,9 +661,11 @@ export default function DashboardPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </FadeInSection>
 
-      {totalBots === 0 ? (
+      <FadeInSection stagger>
+        {totalBots === 0 ? (
         <EmptyState
           icon={BotIcon}
           title="No bots yet"
@@ -790,6 +813,7 @@ export default function DashboardPage() {
           </Card>
         </div>
       )}
+      </FadeInSection>
     </div>
   )
 }

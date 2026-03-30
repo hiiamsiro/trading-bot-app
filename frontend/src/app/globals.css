@@ -69,6 +69,9 @@
   }
 }
 
+/* ─────────────────────────────────────────
+   DESIGN TOKENS & LAYER BASE
+───────────────────────────────────────── */
 @layer utilities {
   /* Typography */
   .font-orbitron {
@@ -105,53 +108,153 @@
     box-shadow: 0 0 40px rgba(139, 92, 246, 0.15), 0 0 80px rgba(139, 92, 246, 0.05);
   }
 
-  /* Animations */
+  /* ── KEYFRAMES ────────────────────────── */
+
+  /* Floating orbs (ambient) */
   @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+    0%, 100% { transform: translateY(0px) translateX(0px); }
+    33%       { transform: translateY(-12px) translateX(4px); }
+    66%       { transform: translateY(-6px) translateX(-4px); }
   }
 
+  @keyframes float-delayed {
+    0%, 100% { transform: translateY(0px) translateX(0px); }
+    33%       { transform: translateY(-8px) translateX(-3px); }
+    66%       { transform: translateY(-14px) translateX(3px); }
+  }
+
+  /* Pulsing glow (ambient orbs) */
   @keyframes pulse-glow {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 1; }
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50%       { opacity: 0.7; transform: scale(1.05); }
   }
 
+  /* Slide-up entrance (hero) */
   @keyframes slide-up {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+  /* Slide-in from left */
+  @keyframes slide-in-left {
+    from { opacity: 0; transform: translateX(-32px); }
+    to   { opacity: 1; transform: translateX(0); }
   }
 
+  /* Slide-in from right */
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(32px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Fade-in scale entrance */
+  @keyframes fade-scale {
+    from { opacity: 0; transform: scale(0.92); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* Gradient shimmer for hero text */
   @keyframes gradient-shift {
     0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+    50%       { background-position: 100% 50%; }
   }
 
-  @keyframes ping-dot {
-    75%, 100% {
-      transform: scale(2);
-      opacity: 0;
-    }
+  /* Card shimmer loading */
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
   }
+
+  /* Grid line scanning effect */
+  @keyframes scan {
+    0%   { transform: translateY(-100%); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateY(400%); opacity: 0; }
+  }
+
+  /* Typing cursor blink */
+  @keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+
+  /* Sparkle burst on price card hover */
+  @keyframes sparkle {
+    0%   { opacity: 0; transform: scale(0) rotate(0deg); }
+    50%  { opacity: 1; transform: scale(1.2) rotate(180deg); }
+    100% { opacity: 0; transform: scale(0) rotate(360deg); }
+  }
+
+  /* Number ticker count-up */
+  @keyframes count-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Accordion down */
+  @keyframes accordion-down {
+    from { height: 0; opacity: 0; }
+    to   { height: var(--radix-accordion-content-height); opacity: 1; }
+  }
+
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); opacity: 1; }
+    to   { height: 0; opacity: 0; }
+  }
+
+  /* Scroll-reveal: crossfade + translate */
+  @keyframes reveal-up {
+    from { opacity: 0; transform: translateY(40px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Trust pill bounce-in */
+  @keyframes bounce-in {
+    0%   { opacity: 0; transform: scale(0.7); }
+    60%  { opacity: 1; transform: scale(1.08); }
+    80%  { transform: scale(0.96); }
+    100% { transform: scale(1); }
+  }
+
+  /* CTA section glow pulse */
+  @keyframes cta-glow {
+    0%, 100% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.2), 0 0 80px rgba(245, 158, 11, 0.1); }
+    50%       { box-shadow: 0 0 60px rgba(139, 92, 246, 0.4), 0 0 100px rgba(245, 158, 11, 0.2); }
+  }
+
+  /* ── ANIMATION CLASSES ────────────────── */
 
   .animate-float {
-    animation: float 6s ease-in-out infinite;
+    animation: float 7s ease-in-out infinite;
   }
 
   .animate-float-delayed {
-    animation: float 6s ease-in-out 2s infinite;
+    animation: float-delayed 8s ease-in-out 3s infinite;
   }
 
   .animate-pulse-glow {
-    animation: pulse-glow 3s ease-in-out infinite;
+    animation: pulse-glow 4s ease-in-out infinite;
   }
 
   .animate-slide-up {
-    animation: slide-up 0.6s ease-out forwards;
+    animation: slide-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    opacity: 0;
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    opacity: 0;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    opacity: 0;
+  }
+
+  .animate-fade-scale {
+    animation: fade-scale 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    opacity: 0;
   }
 
   .animate-shimmer {
@@ -163,5 +266,181 @@
   .animate-gradient {
     background-size: 200% 200%;
     animation: gradient-shift 8s ease infinite;
+  }
+
+  .animate-bounce-in {
+    animation: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    opacity: 0;
+  }
+
+  .animate-cta-glow {
+    animation: cta-glow 4s ease-in-out infinite;
+  }
+
+  /* ── SCROLL ANIMATION STATES ─────────── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(36px);
+    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .reveal-left {
+    opacity: 0;
+    transform: translateX(-36px);
+    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .reveal-left.visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .reveal-right {
+    opacity: 0;
+    transform: translateX(36px);
+    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .reveal-right.visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .reveal-scale {
+    opacity: 0;
+    transform: scale(0.88);
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .reveal-scale.visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Staggered children: set stagger on parent, auto on children */
+  [data-stagger] > * {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  [data-stagger].visible > *:nth-child(1)  { opacity: 1; transform: none; transition-delay: 0ms; }
+  [data-stagger].visible > *:nth-child(2)  { opacity: 1; transform: none; transition-delay: 80ms; }
+  [data-stagger].visible > *:nth-child(3)  { opacity: 1; transform: none; transition-delay: 160ms; }
+  [data-stagger].visible > *:nth-child(4)  { opacity: 1; transform: none; transition-delay: 240ms; }
+  [data-stagger].visible > *:nth-child(5)  { opacity: 1; transform: none; transition-delay: 320ms; }
+  [data-stagger].visible > *:nth-child(6)  { opacity: 1; transform: none; transition-delay: 400ms; }
+  [data-stagger].visible > *:nth-child(7)  { opacity: 1; transform: none; transition-delay: 480ms; }
+  [data-stagger].visible > *:nth-child(8)  { opacity: 1; transform: none; transition-delay: 560ms; }
+
+  /* Reduced motion: disable everything */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    .reveal, .reveal-left, .reveal-right, .reveal-scale {
+      opacity: 1;
+      transform: none;
+    }
+    [data-stagger] > * {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* ── CARD HOVER EFFECTS ───────────────── */
+  .card-3d-hover {
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.35s ease,
+                border-color 0.35s ease,
+                background 0.35s ease;
+    transform-style: preserve-3d;
+    perspective: 800px;
+  }
+
+  .card-3d-hover:hover {
+    transform: translateY(-6px) scale(1.01);
+  }
+
+  /* Border shimmer on hover */
+  .border-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .border-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(255,255,255,0.08) 50%,
+      transparent 60%
+    );
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+  }
+
+  .border-shimmer:hover::after {
+    transform: translateX(100%);
+  }
+
+  /* CTA button glow trail */
+  .cta-glow-btn {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cta-glow-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .cta-glow-btn:hover::before {
+    opacity: 1;
+  }
+
+  /* Market price pulse */
+  .price-pulse-up {
+    animation: price-pulse-up 0.5s ease;
+  }
+
+  @keyframes price-pulse-up {
+    0%   { color: inherit; }
+    30%  { color: #34d399; transform: scale(1.04); }
+    100% { color: inherit; transform: scale(1); }
+  }
+
+  .price-pulse-down {
+    animation: price-pulse-down 0.5s ease;
+  }
+
+  @keyframes price-pulse-down {
+    0%   { color: inherit; }
+    30%  { color: #f87171; transform: scale(1.04); }
+    100% { color: inherit; transform: scale(1); }
+  }
+
+  /* Trust badge entrance */
+  .trust-badge {
+    animation: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    opacity: 0;
   }
 }

@@ -1,10 +1,19 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-const ADMIN_EMAIL = 'admin@example.com';
-const ADMIN_PASSWORD = 'password123';
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`[seed] ${name} environment variable is required`);
+    process.exit(1);
+  }
+  return value;
+}
+
+const ADMIN_EMAIL = requireEnv('SEED_ADMIN_EMAIL');
+const ADMIN_PASSWORD = requireEnv('SEED_ADMIN_PASSWORD');
 
 async function main() {
   const password = await bcrypt.hash(ADMIN_PASSWORD, 10);
@@ -13,7 +22,7 @@ async function main() {
     update: { name: 'Admin', password },
     create: { email: ADMIN_EMAIL, password, name: 'Admin' },
   });
-  console.log(`Admin: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+  console.log(`[seed] Admin account ready: ${ADMIN_EMAIL}`);
 }
 
 main()

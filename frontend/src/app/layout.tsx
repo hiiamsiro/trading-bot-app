@@ -16,8 +16,17 @@ const firaCode = Fira_Code({
 })
 
 export const metadata: Metadata = {
-  title: 'Trading Bot App',
-  description: 'Demo trading bot application',
+  title: 'TradingBot — AI-Powered Crypto Trading Platform',
+  description: 'Non-custodial trading bots with institutional-grade security, real-time execution, and smart risk management. Join 128K+ traders protecting $2.4B+ in assets.',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
+  openGraph: {
+    title: 'TradingBot — AI-Powered Crypto Trading',
+    description: 'Trade smarter with AI-powered bots and institutional security.',
+    type: 'website',
+  },
 }
 
 export default function RootLayout({
