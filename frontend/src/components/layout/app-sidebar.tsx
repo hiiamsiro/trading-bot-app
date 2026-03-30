@@ -30,14 +30,16 @@ const nav = [
   { href: '/logs', label: 'Logs', icon: ScrollText },
   { href: '/health', label: 'Health', icon: HeartPulse },
   { href: '/settings', label: 'Settings', icon: Settings },
-  { href: '/admin', label: 'Monitoring', icon: Activity },
 ]
+
+const adminNav = { href: '/admin', label: 'Monitoring', icon: Activity }
 
 export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const user = useAuthStore((s) => s.user)
   const clearAuth = useAuthStore((s) => s.clearAuth)
+  const isAdmin = useAuthStore((s) => s.isAdmin)
 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-border/70 bg-card/70 backdrop-blur-xl">
@@ -68,6 +70,20 @@ export function AppSidebar() {
             </Link>
           )
         })}
+        {isAdmin() && (
+          <Link
+            href={adminNav.href}
+            className={cn(
+              'flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200',
+              pathname === adminNav.href || pathname.startsWith(`${adminNav.href}/`)
+                ? 'bg-primary/20 text-primary ring-1 ring-primary/40'
+                : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+            )}
+          >
+            <adminNav.icon className="h-4 w-4 shrink-0" />
+            {adminNav.label}
+          </Link>
+        )}
       </nav>
       <div className="border-t p-2">
         <Button
