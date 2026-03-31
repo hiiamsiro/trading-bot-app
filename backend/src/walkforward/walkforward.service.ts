@@ -275,28 +275,28 @@ export class WalkforwardService {
   }
 
   async listWalkforwards(userId: string, take = 20, skip = 0) {
-    const [items, total] = await Promise.all([
-      this.prisma.walkforward.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take,
-        skip,
-        select: {
-          id: true,
-          symbol: true,
-          interval: true,
-          strategy: true,
-          status: true,
-          trainPnl: true,
-          testPnl: true,
-          trainDrawdown: true,
-          testDrawdown: true,
-          error: true,
-          createdAt: true,
-        },
-      }),
-      this.prisma.walkforward.count({ where: { userId } }),
+    // Use raw query to bypass Prisma schema mismatch on `createdAt` vs `created_at`.
+    // The volume-mounted node_modules uses a stale Prisma client built before the walkforward migration.
+    const [items, totalArr] = await Promise.all([
+      this.prisma.$queryRaw<{
+        id: string; symbol: string; interval: string; strategy: string;
+        status: string; trainPnl: number | null; testPnl: number | null;
+        trainDrawdown: number | null; testDrawdown: number | null;
+        error: string | null; createdAt: Date;
+      }[]>`
+        SELECT id, symbol, interval, strategy, status,
+               "train_pnl", "test_pnl", "train_drawdown", "test_drawdown",
+               error, "created_at" AS "createdAt"
+        FROM walkforwards
+        WHERE "user_id" = ${userId}
+        ORDER BY "created_at" DESC
+        LIMIT ${take} OFFSET ${skip}
+      `,
+      this.prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(*) AS count FROM walkforwards WHERE "user_id" = ${userId}
+      `,
     ]);
+    const total = Number(totalArr[0]?.count ?? 0);
     return { items, total, take, skip };
   }
 
