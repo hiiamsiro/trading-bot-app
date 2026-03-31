@@ -20,6 +20,7 @@ export default function BacktestPage() {
   const token = useAuthStore((s) => s.token)
   const handleError = useHandleApiError()
   const [result, setResult] = useState<BacktestResult | null>(null)
+  const [backtestId, setBacktestId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit(values: {
@@ -75,6 +76,7 @@ export default function BacktestPage() {
 
     try {
       const res = await runBacktest(token, payload)
+      setBacktestId(res.id)
       setResult(res.result)
       const pnl = res.result.metrics.totalPnl
       toast({
@@ -112,7 +114,7 @@ export default function BacktestPage() {
         {/* ── Results ───────────────────────────── */}
         <div className="lg:col-span-2">
           {result ? (
-            <BacktestResults result={result} />
+            <BacktestResults result={result} backtestId={backtestId ?? undefined} token={token ?? undefined} />
           ) : (
             <Card className="flex h-full min-h-96 items-center justify-center">
               <CardContent className="text-center text-sm text-muted-foreground">

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, HttpCode, HttpStatus, Get, Param, NotFoundException } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BacktestService } from './backtest.service';
@@ -6,6 +6,8 @@ import { RunBacktestDto } from './dto/run-backtest.dto';
 import { PreviewBacktestDto } from './dto/preview-backtest.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { BinanceMarketDataAdapter } from '../market-data/providers/binance-market-data.adapter';
+import { MarketKlineInterval } from '../market-data/providers/market-data-provider.types';
 
 type AuthUserPayload = { userId: string; email: string };
 
@@ -17,6 +19,7 @@ export class BacktestController {
   constructor(
     private readonly backtestService: BacktestService,
     private readonly prisma: PrismaService,
+    private readonly marketDataAdapter: BinanceMarketDataAdapter,
   ) {}
 
   /** Quick preview against the last 100 candles — no DB record created. */
@@ -111,5 +114,35 @@ export class BacktestController {
       });
       throw error;
     }
+  }
+
+  @Get(':id/candles')
+  async getBacktestCandles(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    const record = await this.prisma.backtest.findFirst({
+      where: { id, userId: user.userId },
+      select: { symbol: true, interval: true, fromDate: true, toDate: true },
+    });
+    if (!record) throw new NotFoundException('Backtest not found');
+
+    const instrument = await this.prisma.instrument.findUnique({
+      where: { symbol: record.symbol },
+      select: { sourceSymbol: true },
+    });
+    const sourceSymbol = (instrument?.sourceSymbol ?? record.symbol).replace('/', '').toUpperCase();
+
+    const candles = await this.marketDataAdapter.getKlines(
+      sourceSymbol,
+      record.interval as MarketKlineInterval,
+      1500,
+    );
+
+    const filtered = candles.filter(
+      (c) => c.openTime >= record.fromDate.getTime() && c.openTime <= record.toDate.getTime() + 86400000,
+    );
+
+    return { candles: filtered };
   }
 }

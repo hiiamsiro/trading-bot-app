@@ -286,6 +286,13 @@ export async function runBacktest(
   return api.post<{ id: string; status: string; result: BacktestResult }>('/backtest', payload, token)
 }
 
+export async function getBacktestCandles(
+  token: string,
+  backtestId: string,
+): Promise<{ candles: MarketKline[] }> {
+  return api.get<{ candles: MarketKline[] }>(`/backtest/${backtestId}/candles`, token)
+}
+
 export interface PreviewBacktestPayload {
   symbol: string
   interval: string

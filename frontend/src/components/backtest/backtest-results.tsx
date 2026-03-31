@@ -1,24 +1,28 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   TrendingUp,
-  TrendingDown,
   ArrowDown,
-  ArrowUp,
-  BarChart3,
   DollarSign,
   Target,
   TimerReset,
+  BarChart2,
+  Loader2,
 } from 'lucide-react'
-import type { BacktestResult, BacktestTrade } from '@/types'
+import type { BacktestResult, BacktestTrade, MarketKline } from '@/types'
+import { getBacktestCandles } from '@/lib/api-client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EquityCurveChart } from '@/components/charts/equity-curve-chart'
+import { MarketCandlestickChart } from '@/components/charts/market-candlestick-chart'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 type Props = {
   result: BacktestResult
+  backtestId?: string
+  token?: string
 }
 
 function fmt(value: number, decimals = 2) {
@@ -37,8 +41,11 @@ function fmtPct(value: number | null) {
   return `${(value * 100).toFixed(1)}%`
 }
 
-export function BacktestResults({ result }: Props) {
+export function BacktestResults({ result, backtestId, token }: Props) {
   const { metrics, trades, equityCurve } = result
+  const [showCandlestick, setShowCandlestick] = useState(false)
+  const [candles, setCandles] = useState<MarketKline[] | null>(null)
+  const [loadingCandles, setLoadingCandles] = useState(false)
 
   const equityPoints = useMemo(
     () => equityCurve.map((p) => ({ at: p.at, cumulativePnl: p.cumulativePnl })),
@@ -46,6 +53,43 @@ export function BacktestResults({ result }: Props) {
   )
 
   const closedTrades = useMemo(() => trades.filter((t) => t.exitTime !== null), [trades])
+
+  // Map BacktestTrade fields to what computeTradeMarkers needs
+  const chartTrades = useMemo(
+    () => trades.map((t) => ({
+      id: String(t.id),
+      createdAt: new Date(t.entryTime).toISOString(),
+      side: t.side as 'BUY' | 'SELL',
+      status: t.exitTime ? 'CLOSED' : 'OPEN' as const,
+      closedAt: t.exitTime ? new Date(t.exitTime).toISOString() : null,
+      realizedPnl: t.netPnl ?? t.pnl ?? null,
+      price: t.executedEntryPrice ?? t.entryPrice,
+      quantity: t.quantity,
+    })),
+    [trades],
+  )
+
+  const loadCandles = useCallback(async () => {
+    if (!token || !backtestId) return
+    // Skip if already loaded
+    if (candles) return
+    setLoadingCandles(true)
+    try {
+      const data = await getBacktestCandles(token, backtestId)
+      setCandles(data.candles)
+    } catch {
+      // Keep candles null so user can retry
+    } finally {
+      setLoadingCandles(false)
+    }
+  }, [token, backtestId])
+
+  const handleToggleChart = useCallback(() => {
+    if (!showCandlestick) {
+      void loadCandles()
+    }
+    setShowCandlestick((v) => !v)
+  }, [showCandlestick, loadCandles])
 
   return (
     <div className="space-y-6">
@@ -116,6 +160,59 @@ export function BacktestResults({ result }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Chart section ───────────────────────── */}
+      {backtestId && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base">Candlestick Chart</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToggleChart}
+              disabled={loadingCandles}
+            >
+              {loadingCandles ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : showCandlestick ? (
+                'Hide'
+              ) : (
+                'Show'
+              )}
+              &nbsp;Chart
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {showCandlestick && (
+              candles && candles.length > 0 ? (
+                <MarketCandlestickChart
+                  bars={candles}
+                  trades={chartTrades as any}
+                  height={320}
+                  indicatorConfig={{
+                    mas: [
+                      { period: 7, color: '#38bdf8', label: 'MA(7)', type: 'SMA' },
+                      { period: 25, color: '#facc15', label: 'MA(25)', type: 'SMA' },
+                      { period: 99, color: '#a78bfa', label: 'MA(99)', type: 'SMA' },
+                    ],
+                    showRsi: true,
+                    rsiPeriod: 14,
+                  }}
+                />
+              ) : (
+                <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+                  {loadingCandles ? 'Loading candles…' : 'No candle data available'}
+                </div>
+              )
+            )}
+            {!showCandlestick && (
+              <div className="flex h-20 items-center justify-center text-sm text-muted-foreground">
+                Click &quot;Show Chart&quot; to view candlestick chart with trade markers.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Equity curve ─────────────────────────── */}
       <Card>
