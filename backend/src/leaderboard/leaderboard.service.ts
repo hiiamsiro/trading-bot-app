@@ -27,35 +27,12 @@ export class LeaderboardService {
       limit?: number;
       offset?: number;
     },
-    requestingUserId?: string,
   ): Promise<{ items: LeaderboardItem[]; total: number }> {
     const limit = Math.min(opts.limit ?? 20, 100);
     const offset = opts.offset ?? 0;
 
-    // Only public bots OR the requesting user's own bots (if authenticated)
-    const botWhere: Prisma.BotWhereInput = requestingUserId
-      ? { OR: [{ isPublic: true }, { userId: requestingUserId }] }
-      : { isPublic: true };
-
-    // Aggregate trade stats per bot
-    const tradeStatsRows = await this.prisma.trade.groupBy({
-      by: ['botId'],
-      where: {
-        status: 'CLOSED',
-        netPnl: { not: null },
-        bot: botWhere,
-      },
-      _count: { id: true },
-      _sum: { netPnl: true },
-    });
-
-    const statsMap = new Map<string, { totalPnl: number; totalTrades: number }>();
-    for (const row of tradeStatsRows) {
-      statsMap.set(row.botId, {
-        totalPnl: row._sum.netPnl ?? 0,
-        totalTrades: row._count.id,
-      });
-    }
+    // Only public bots are shown on the public leaderboard
+    const botWhere: Prisma.BotWhereInput = { isPublic: true };
 
     // Fetch bots with closed trades that match criteria
     const bots = await this.prisma.bot.findMany({
@@ -70,52 +47,44 @@ export class LeaderboardService {
         shareSlug: true,
         strategyConfig: { select: { strategy: true } },
         _count: { select: { trades: { where: { status: 'CLOSED' } } } },
+        trades: {
+          where: { status: 'CLOSED', netPnl: { not: null } },
+          select: { netPnl: true, closedAt: true },
+          orderBy: { closedAt: 'asc' },
+        },
       },
     });
 
-    // Compute winRate and maxDrawdown per bot
-    const enriched: (LeaderboardItem & { winRate: number | null; maxDrawdown: number })[] = [];
-
-    for (const bot of bots) {
-      const stats = statsMap.get(bot.id);
-
-      // Win rate
-      const wins = await this.prisma.trade.count({
-        where: { botId: bot.id, status: 'CLOSED', netPnl: { gt: 0 } },
-      });
-      const total = stats?.totalTrades ?? bot._count.trades;
-      const winRate = total > 0 ? (wins / total) * 100 : null;
-
-      // Max drawdown from equity curve
-      const equityPoints = await this.prisma.trade.findMany({
-        where: { botId: bot.id, status: 'CLOSED', netPnl: { not: null } },
-        select: { netPnl: true, closedAt: true },
-        orderBy: { closedAt: 'asc' },
-      });
+    // Compute totalPnl, winRate, and maxDrawdown in a single pass per bot — no extra queries
+    const enriched: LeaderboardItem[] = bots.map((bot) => {
+      const totalTrades = bot.trades.length;
+      const totalPnl = bot.trades.reduce((sum, t) => sum + (t.netPnl ?? 0), 0);
+      const wins = bot.trades.filter((t) => (t.netPnl ?? 0) > 0).length;
+      const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : null;
 
       let maxDrawdown = 0;
       let peak = 0;
       let cumulative = 0;
-      for (const pt of equityPoints) {
+      for (const pt of bot.trades) {
         cumulative += pt.netPnl ?? 0;
         if (cumulative > peak) peak = cumulative;
         const drawdown = peak > 0 ? (peak - cumulative) / peak : 0;
         if (drawdown > maxDrawdown) maxDrawdown = drawdown;
       }
 
-      enriched.push({
+      return {
         rank: 0,
         botId: bot.id,
         botName: bot.name,
         symbol: bot.symbol,
         strategy: bot.strategyConfig?.strategy ?? 'unknown',
-        totalPnl: stats?.totalPnl ?? 0,
+        totalPnl,
         winRate,
         maxDrawdown: maxDrawdown * 100,
-        totalTrades: total,
+        totalTrades,
         shareSlug: bot.shareSlug,
-      });
-    }
+      };
+    });
 
     // Sort in memory
     if (opts.sortBy === 'pnl') {
@@ -128,10 +97,7 @@ export class LeaderboardService {
     }
 
     const page = enriched.slice(offset, offset + limit);
-    const ranked: LeaderboardItem[] = page.map((item, idx) => ({
-      ...item,
-      rank: offset + idx + 1,
-    }));
+    const ranked = page.map((item, idx) => ({ ...item, rank: offset + idx + 1 }));
 
     return { items: ranked, total: enriched.length };
   }

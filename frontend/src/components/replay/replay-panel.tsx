@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Play, Pause, Gauge } from 'lucide-react'
-import type { BacktestResult, BacktestTrade, MarketKline } from '@/types'
+import type { BacktestResult, BacktestTrade, MarketKline, Trade, TradeSide, TradeStatus } from '@/types'
 import { MarketCandlestickChart } from '@/components/charts/market-candlestick-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,21 +38,23 @@ export function ReplayPanel({ result, candles }: Props) {
     return trades.filter((t) => t.entryTime <= cutoffTime)
   }, [trades, candles, currentIndex])
 
-  // Map to chart trade format
-  const chartTrades = useMemo(
-    () =>
-      visibleTrades.map((t) => ({
-        id: String(t.id),
-        createdAt: new Date(t.entryTime).toISOString(),
-        side: t.side as 'BUY' | 'SELL',
-        status: t.exitTime ? 'CLOSED' : 'OPEN' as const,
-        closedAt: t.exitTime ? new Date(t.exitTime).toISOString() : null,
-        realizedPnl: t.netPnl ?? t.pnl ?? null,
-        price: t.executedEntryPrice ?? t.entryPrice,
-        quantity: t.quantity,
-      })),
-    [visibleTrades],
-  )
+  // Map BacktestTrade to the Trade interface expected by the chart
+  const chartTrades = useMemo((): Trade[] => {
+    return visibleTrades.map((t): Trade => ({
+      id: String(t.id),
+      botId: '',
+      symbol: '',
+      side: t.side as TradeSide,
+      quantity: t.quantity,
+      price: t.executedEntryPrice ?? t.entryPrice,
+      totalValue: (t.executedEntryPrice ?? t.entryPrice) * t.quantity,
+      status: (t.exitTime ? 'CLOSED' : 'OPEN') as TradeStatus,
+      createdAt: new Date(t.entryTime).toISOString(),
+      executedAt: new Date(t.entryTime).toISOString(),
+      closedAt: t.exitTime ? new Date(t.exitTime).toISOString() : null,
+      realizedPnl: t.netPnl ?? t.pnl ?? null,
+    }))
+  }, [visibleTrades])
 
   const currentTime = useMemo(() => {
     if (!candles[currentIndex]) return null
@@ -121,7 +123,7 @@ export function ReplayPanel({ result, candles }: Props) {
       {/* ── Chart ─────────────────────────────── */}
       <MarketCandlestickChart
         bars={visibleCandles}
-        trades={chartTrades as any}
+        trades={chartTrades}
         height={400}
         indicatorConfig={{
           mas: [

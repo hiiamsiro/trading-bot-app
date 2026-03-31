@@ -303,8 +303,8 @@ export async function fetchBacktest(
 export async function getBacktestReplay(
   token: string,
   backtestId: string,
-): Promise<{ candles: MarketKline[]; trades: object[] }> {
-  return api.get<{ candles: MarketKline[]; trades: object[] }>(`/backtest/${backtestId}/replay`, token)
+): Promise<{ candles: MarketKline[] }> {
+  return api.get<{ candles: MarketKline[] }>(`/backtest/${backtestId}/replay`, token)
 }
 
 export interface PreviewBacktestPayload {

@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { LeaderboardService } from './leaderboard.service';
 
@@ -7,10 +7,12 @@ import { LeaderboardService } from './leaderboard.service';
 export class LeaderboardController {
   constructor(private readonly leaderboardService: LeaderboardService) {}
 
-  /** GET /leaderboard?sortBy=pnl|winRate|drawdown&limit=20&offset=0 */
+  /**
+   * Public leaderboard — returns top public bots ranked by PnL, win rate, or drawdown.
+   * No authentication required. Intentionally unauthenticated so anyone can browse rankings.
+   */
   @Get()
   async getLeaderboard(
-    @Req() req: { user?: { userId: string } },
     @Query('sortBy') sortBy: 'pnl' | 'winRate' | 'drawdown' = 'pnl',
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
@@ -20,7 +22,7 @@ export class LeaderboardController {
 
     return this.leaderboardService.getLeaderboard(
       { sortBy, limit: parsedLimit, offset: parsedOffset },
-      req.user?.userId,
+      // intentionally public — requestingUserId is always undefined
     );
   }
 }

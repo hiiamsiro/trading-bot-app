@@ -1,11 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface DailyReturn {
-  date: string; // YYYY-MM-DD
-  returnPct: number;
-}
-
 interface BotReturns {
   botId: string;
   botName: string;
@@ -40,6 +35,8 @@ function pearsonCorrelation(xs: number[], ys: number[]): number {
   return cov / (stdX * stdY);
 }
 
+const ASSUMED_INITIAL_BALANCE = 10_000;
+
 function computeEquityCurve(trades: {
   closedAt: Date | null;
   netPnl: number | null;
@@ -51,7 +48,7 @@ function computeEquityCurve(trades: {
     .filter((t) => t.closedAt && t.netPnl != null)
     .sort((a, b) => new Date(a.closedAt!).getTime() - new Date(b.closedAt!).getTime());
 
-  let runningBalance = 10000; // assumed initial
+  let runningBalance = ASSUMED_INITIAL_BALANCE;
   for (const t of closed) {
     const date = t.closedAt!.toISOString().slice(0, 10);
     runningBalance += t.netPnl!;
@@ -66,7 +63,7 @@ function computeEquityCurve(trades: {
   // Build return series: daily % change
   const returns = new Map<string, number>();
   const dates = Array.from(byDate.keys()).sort();
-  let prevBalance = 10000;
+  let prevBalance = ASSUMED_INITIAL_BALANCE;
   for (const date of dates) {
     const { balance } = byDate.get(date)!;
     const ret = prevBalance > 0 ? (balance - prevBalance) / prevBalance : 0;
@@ -145,15 +142,12 @@ export class CorrelationService {
     }
 
     // 5. Symbol-level correlations
+    // Use the first bot's daily returns per symbol as the representative return series.
+    // Without position-sizing data, summing across bots would overweight symbols with
+    // multiple bots and bias the correlation toward zero.
     const symbolMap = new Map<string, Map<string, number>>();
     for (const botRet of botReturns) {
-      const existing = symbolMap.get(botRet.symbol);
-      if (existing) {
-        for (const [date, ret] of botRet.returns) {
-          const prev = existing.get(date);
-          existing.set(date, prev != null ? (prev + ret) / 2 : ret);
-        }
-      } else {
+      if (!symbolMap.has(botRet.symbol)) {
         symbolMap.set(botRet.symbol, new Map(botRet.returns));
       }
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth.store'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,7 +32,6 @@ interface CorrelationData {
 }
 
 function correlationColor(r: number): string {
-  // Green for positive, red for negative, gray for neutral
   if (r >= 0.7) return 'bg-emerald-600'
   if (r >= 0.3) return 'bg-emerald-400'
   if (r >= 0) return 'bg-emerald-200'
@@ -68,6 +67,17 @@ export default function CorrelationPage() {
 
   useEffect(() => { void load() }, [load])
 
+  // Build O(1) lookup map once when data changes — avoids O(n²) find() per cell
+  const matrixLookup = useMemo(() => {
+    const m = new Map<string, number>()
+    if (!data) return m
+    for (const e of data.matrix) {
+      m.set(`${e.botId}|${e.otherBotId}`, e.correlation)
+      m.set(`${e.otherBotId}|${e.botId}`, e.correlation)
+    }
+    return m
+  }, [data])
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -88,7 +98,7 @@ export default function CorrelationPage() {
     )
   }
 
-  const { bots, matrix, symbolCorrelations } = data
+  const { bots, symbolCorrelations } = data
 
   return (
     <div className="space-y-6">
@@ -129,8 +139,8 @@ export default function CorrelationPage() {
             ) : (
               <div className="overflow-x-auto">
                 <div
-                  style={{ display: 'grid', gridTemplateColumns: `120px repeat(${bots.length}, 80px)` }}
-                  className="gap-px"
+                  className="grid gap-px"
+                  style={{ gridTemplateColumns: `120px repeat(${bots.length}, 80px)` }}
                 >
                   {/* Header row */}
                   <div /> {/* top-left empty */}
@@ -146,42 +156,28 @@ export default function CorrelationPage() {
 
                   {/* Data rows */}
                   {bots.map((rowBot) => (
-                    <>
+                    <React.Fragment key={rowBot.id}>
                       <div
-                        key={`label-${rowBot.id}`}
                         className="flex items-center px-2 py-1 text-xs font-medium text-muted-foreground"
                         title={rowBot.name}
                       >
                         <span className="truncate">{rowBot.name}</span>
                       </div>
                       {bots.map((colBot) => {
-                        if (rowBot.id === colBot.id) {
-                          return (
-                            <div
-                              key={`diag-${colBot.id}`}
-                              className="flex items-center justify-center bg-muted/50 text-xs text-muted-foreground"
-                            >
-                              1.0
-                            </div>
-                          )
-                        }
-                        const entry = matrix.find(
-                          (e) =>
-                            (e.botId === rowBot.id && e.otherBotId === colBot.id) ||
-                            (e.botId === colBot.id && e.otherBotId === rowBot.id),
-                        )
-                        const r = entry?.correlation ?? 0
+                        const r = rowBot.id === colBot.id
+                          ? 1
+                          : matrixLookup.get(`${rowBot.id}|${colBot.id}`) ?? 0
                         return (
                           <div
                             key={`${rowBot.id}-${colBot.id}`}
-                            className={`flex items-center justify-center text-xs font-medium ${correlationColor(r)} ${correlationTextColor(r)}`}
-                            title={`${rowBot.name} ↔ ${colBot.name}: ${r.toFixed(3)}`}
+                            className={`flex items-center justify-center text-xs font-medium ${rowBot.id === colBot.id ? 'bg-muted/50 text-muted-foreground' : `${correlationColor(r)} ${correlationTextColor(r)}`}`}
+                            title={rowBot.id === colBot.id ? undefined : `${rowBot.name} ↔ ${colBot.name}: ${r.toFixed(3)}`}
                           >
                             {r.toFixed(2)}
                           </div>
                         )
                       })}
-                    </>
+                    </React.Fragment>
                   ))}
                 </div>
 

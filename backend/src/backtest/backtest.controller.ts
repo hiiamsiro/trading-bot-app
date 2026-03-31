@@ -120,6 +120,13 @@ export class BacktestController {
   async getBacktest(@Param('id') id: string, @CurrentUser() user: AuthUserPayload) {
     const record = await this.prisma.backtest.findFirst({
       where: { id, userId: user.userId },
+      select: {
+        id: true,
+        status: true,
+        metrics: true,
+        trades: true,
+        equityCurve: true,
+      },
     });
     if (!record) throw new NotFoundException('Backtest not found');
     return {
@@ -156,8 +163,9 @@ export class BacktestController {
       1500,
     );
 
+    // NOTE: +1 day on toDate to include candles from the final trading day
     const filtered = candles.filter(
-      (c) => c.openTime >= record.fromDate.getTime() && c.openTime <= record.toDate.getTime() + 86400000,
+      (c) => c.openTime >= record.fromDate.getTime() && c.openTime <= record.toDate.getTime() + 86_400_000,
     );
 
     return { candles: filtered };
@@ -175,7 +183,6 @@ export class BacktestController {
         interval: true,
         fromDate: true,
         toDate: true,
-        trades: true,
         status: true,
       },
     });
@@ -193,15 +200,13 @@ export class BacktestController {
       1500,
     );
 
+    // NOTE: +1 day on toDate to include candles from the final trading day
     const filteredCandles = candles.filter(
       (c) =>
         c.openTime >= record.fromDate.getTime() &&
-        c.openTime <= record.toDate.getTime() + 86400000,
+        c.openTime <= record.toDate.getTime() + 86_400_000,
     );
 
-    // Return trades as-is from the stored backtest result
-    const trades = (record.trades ?? []) as object[];
-
-    return { candles: filteredCandles, trades };
+    return { candles: filteredCandles };
   }
 }
