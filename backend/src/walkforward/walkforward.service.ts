@@ -50,6 +50,12 @@ export class WalkforwardService {
       trainSplitPct: number;
     },
   ): Promise<{ id: string }> {
+    // Compute date split immediately so the DB record has correct initial windows
+    const fromMs = new Date(params.fromDate).getTime();
+    const toMs = new Date(params.toDate).getTime();
+    const splitMs = fromMs + (toMs - fromMs) * (params.trainSplitPct / 100);
+    const splitDate = new Date(splitMs);
+
     const record = await this.prisma.walkforward.create({
       data: {
         userId,
@@ -58,8 +64,8 @@ export class WalkforwardService {
         strategy: params.strategy,
         paramRanges: params.paramRanges as object,
         trainFromDate: new Date(params.fromDate),
-        trainToDate: new Date(params.toDate),
-        testFromDate: new Date(params.toDate),
+        trainToDate: splitDate,
+        testFromDate: new Date(splitMs + 1),
         testToDate: new Date(params.toDate),
         trainSplitPct: params.trainSplitPct,
         status: 'PENDING',
@@ -151,8 +157,9 @@ export class WalkforwardService {
           bestTrainPnl = result.metrics.totalPnl;
           bestParams = combo;
         }
-      } catch {
-        // Skip failed combinations
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Walkforward combination skipped (${combo}): ${msg}`);
       }
     }
 

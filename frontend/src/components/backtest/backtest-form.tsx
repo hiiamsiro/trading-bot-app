@@ -37,6 +37,9 @@ export interface BacktestFormValues {
   positionSizeMode: 'fixed' | 'balance_percent' | 'risk_based'
   quantity: string
   riskPercent: string
+  // exit strategies
+  trailingStopDistance: string
+  partialTpPercent: string
   stopLossPercent: string
   takeProfitPercent: string
   maxDailyLoss: string
@@ -75,6 +78,8 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
   const [takeProfitPercent, setTakeProfitPercent] = useState('')
   const [maxDailyLoss, setMaxDailyLoss] = useState('')
   const [trendInterval, setTrendInterval] = useState('')
+  const [trailingStopDistance, setTrailingStopDistance] = useState('')
+  const [partialTpPercent, setPartialTpPercent] = useState('')
 
   useEffect(() => {
     if (!token) return
@@ -102,6 +107,8 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       ...(stopLossPercent ? { stopLossPercent: parseFloat(stopLossPercent) } : {}),
       ...(takeProfitPercent ? { takeProfitPercent: parseFloat(takeProfitPercent) } : {}),
       ...(maxDailyLoss ? { maxDailyLoss: parseFloat(maxDailyLoss) } : {}),
+      ...(trailingStopDistance ? { trailingStopDistance: parseFloat(trailingStopDistance) } : {}),
+      ...(partialTpPercent ? { partialTpPercent: parseFloat(partialTpPercent) } : {}),
       interval,
       ...(activeTrend ? { trendInterval: activeTrend } : {}),
     }
@@ -145,6 +152,8 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       stopLossPercent,
       takeProfitPercent,
       maxDailyLoss,
+      trailingStopDistance,
+      partialTpPercent,
     }
     await onSubmit(values)
   }
@@ -426,7 +435,7 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       </div>
 
       {/* ── Risk params ─────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <div className="space-y-1.5">
           <Label htmlFor="stopLossPercent">Stop Loss %</Label>
           <Input
@@ -464,6 +473,37 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
             onChange={(e) => setMaxDailyLoss(e.target.value)}
             placeholder="Optional"
           />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="trailingStopDistance">Trailing Stop %</Label>
+          <Input
+            id="trailingStopDistance"
+            type="number"
+            min="0"
+            max="99"
+            step="0.1"
+            value={trailingStopDistance}
+            onChange={(e) => setTrailingStopDistance(e.target.value)}
+            placeholder="Optional"
+          />
+        </div>
+      </div>
+
+      {/* ── Partial TP ────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="partialTpPercent">Partial Take Profit % (e.g. 50)</Label>
+          <Input
+            id="partialTpPercent"
+            type="number"
+            min="1"
+            max="99"
+            step="1"
+            value={partialTpPercent}
+            onChange={(e) => setPartialTpPercent(e.target.value)}
+            placeholder="Optional — close portion at TP"
+          />
+          <p className="text-xs text-muted-foreground">Close % of position when TP is hit. Remaining stays open.</p>
         </div>
       </div>
 

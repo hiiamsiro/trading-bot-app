@@ -298,28 +298,32 @@ export class BotsService {
     botId: string;
     tradeId: string;
     symbol: string;
-    type: 'TRADE_OPENED' | 'TRADE_CLOSED' | 'STOP_LOSS_HIT' | 'TAKE_PROFIT_HIT';
+    type: 'TRADE_OPENED' | 'TRADE_CLOSED' | 'STOP_LOSS_HIT' | 'TAKE_PROFIT_HIT' | 'TRAILING_STOP_HIT' | 'PARTIAL_TP_HIT';
     realizedPnl?: number;
     closeReason?: string;
   }) {
     const titleByType: Record<
-      'TRADE_OPENED' | 'TRADE_CLOSED' | 'STOP_LOSS_HIT' | 'TAKE_PROFIT_HIT',
+      'TRADE_OPENED' | 'TRADE_CLOSED' | 'STOP_LOSS_HIT' | 'TAKE_PROFIT_HIT' | 'TRAILING_STOP_HIT' | 'PARTIAL_TP_HIT',
       string
     > = {
       TRADE_OPENED: 'Trade opened',
       TRADE_CLOSED: 'Trade closed',
       STOP_LOSS_HIT: 'Stop loss hit',
       TAKE_PROFIT_HIT: 'Take profit hit',
+      TRAILING_STOP_HIT: 'Trailing stop hit',
+      PARTIAL_TP_HIT: 'Partial take profit hit',
     };
 
     const messageByType: Record<
-      'TRADE_OPENED' | 'TRADE_CLOSED' | 'STOP_LOSS_HIT' | 'TAKE_PROFIT_HIT',
+      'TRADE_OPENED' | 'TRADE_CLOSED' | 'STOP_LOSS_HIT' | 'TAKE_PROFIT_HIT' | 'TRAILING_STOP_HIT' | 'PARTIAL_TP_HIT',
       string
     > = {
       TRADE_OPENED: `${input.symbol} position opened.`,
       TRADE_CLOSED: `${input.symbol} position closed${input.realizedPnl != null ? ` (${input.realizedPnl >= 0 ? '+' : ''}${input.realizedPnl.toFixed(2)} PnL)` : ''}.`,
       STOP_LOSS_HIT: `${input.symbol} position closed by stop loss${input.realizedPnl != null ? ` (${input.realizedPnl >= 0 ? '+' : ''}${input.realizedPnl.toFixed(2)} PnL)` : ''}.`,
       TAKE_PROFIT_HIT: `${input.symbol} position closed by take profit${input.realizedPnl != null ? ` (${input.realizedPnl >= 0 ? '+' : ''}${input.realizedPnl.toFixed(2)} PnL)` : ''}.`,
+      TRAILING_STOP_HIT: `${input.symbol} position closed by trailing stop${input.realizedPnl != null ? ` (${input.realizedPnl >= 0 ? '+' : ''}${input.realizedPnl.toFixed(2)} PnL)` : ''}.`,
+      PARTIAL_TP_HIT: `${input.symbol} partial take profit triggered${input.realizedPnl != null ? ` (${input.realizedPnl >= 0 ? '+' : ''}${input.realizedPnl.toFixed(2)} PnL)` : ''}.`,
     };
 
     return this.createNotification({

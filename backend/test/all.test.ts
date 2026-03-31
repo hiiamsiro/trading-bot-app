@@ -12,5 +12,6 @@ require('./market-data.processor.test.ts');
 require('./bot-execution.processor.test.ts');
 require('./billing.service.test.ts');
 require('./webhook.handler.test.ts');
+require('./walkforward.service.test.ts');
 
 export {};

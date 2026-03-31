@@ -158,7 +158,9 @@ export class DemoTradingService {
     });
 
     if (openTrade) {
-      const hit = this.checkStopTake(openTrade, livePrice);
+      const params = (bot.strategyConfig.params ?? {}) as Record<string, unknown>;
+      const explanation = (openTrade.openExplanation ?? {}) as Record<string, unknown>;
+      const hit = this.checkStopTake(openTrade, livePrice, params, explanation);
       if (hit) {
         await this.closeTrade(bot, openTrade, livePrice, `risk:${hit}`, {
           signal: 'RISK_EXIT',
@@ -232,12 +234,46 @@ export class DemoTradingService {
     }
   }
 
-  private checkStopTake(trade: Trade, price: number): 'stop_loss' | 'take_profit' | null {
+  private checkStopTake(
+    trade: Trade,
+    price: number,
+    params: Record<string, unknown>,
+    explanation: Record<string, unknown>,
+  ): 'stop_loss' | 'trailing_stop' | 'take_profit' | 'partial_take_profit' | null {
     if (trade.side === TradeSide.BUY) {
-      if (trade.stopLoss != null && price <= trade.stopLoss) {
+      const trailingDistance = params.trailingStopDistance != null
+        ? Number(params.trailingStopDistance) : null;
+      const partialTpPercent = params.partialTpPercent != null
+        ? Number(params.partialTpPercent) : null;
+      const highestPrice = (explanation.highestPrice as number) ?? trade.price;
+
+      // Update highest price if current is higher
+      if (price > highestPrice) {
+        (explanation as { highestPrice: number }).highestPrice = price;
+      }
+
+      // Trailing stop: stop = highest - distance%
+      if (trailingDistance != null && trailingDistance > 0) {
+        const trailingStop = highestPrice * (1 - trailingDistance / 100);
+        // Active stop = max(static SL, trailing stop)
+        const activeStop = trade.stopLoss != null
+          ? Math.max(trade.stopLoss, trailingStop)
+          : trailingStop;
+        if (activeStop != null && price <= activeStop) {
+          return activeStop > (trade.stopLoss ?? -Infinity)
+            ? 'trailing_stop' : 'stop_loss';
+        }
+      } else if (trade.stopLoss != null && price <= trade.stopLoss) {
         return 'stop_loss';
       }
+
+      // Take profit check
       if (trade.takeProfit != null && price >= trade.takeProfit) {
+        // Partial TP if enabled and not yet executed
+        const partialExecuted = explanation.partialTpExecuted === true;
+        if (partialTpPercent != null && partialTpPercent > 0 && !partialExecuted) {
+          return 'partial_take_profit';
+        }
         return 'take_profit';
       }
     }
@@ -318,6 +354,18 @@ export class DemoTradingService {
         ? executedEntryPrice * (1 + tpPct / 100)
         : null;
 
+    const trailingDistance = params.trailingStopDistance != null
+      ? Number(params.trailingStopDistance) : null;
+    const partialTpPct = params.partialTpPercent != null
+      ? Number(params.partialTpPercent) : null;
+    const openExplanation = {
+      ...decision.metadata,
+      highestPrice: executedEntryPrice,
+      trailingStopDistance: trailingDistance,
+      partialTpPercent: partialTpPct,
+      partialTpExecuted: false,
+    };
+
     const trade = await this.prisma.trade.create({
       data: {
         botId: bot.id,
@@ -329,7 +377,7 @@ export class DemoTradingService {
         status: 'EXECUTED',
         executedAt: new Date(),
         openReason: `strategy:${decision.reason}`,
-        openExplanation: decision.metadata as Prisma.InputJsonValue,
+        openExplanation: openExplanation as Prisma.InputJsonValue,
         stopLoss,
         takeProfit,
         entryFee,
@@ -396,6 +444,15 @@ export class DemoTradingService {
     reason: string,
     decision?: { signal: string; reason: string; metadata: Record<string, unknown> },
   ): Promise<void> {
+    const isPartialTp = reason === 'risk:partial_take_profit';
+    const params = (bot.strategyConfig?.params ?? {}) as Record<string, unknown>;
+    const partialTpPct = params.partialTpPercent != null ? Number(params.partialTpPercent) : 0;
+    const partialPct = isPartialTp && partialTpPct > 0 ? partialTpPct / 100 : 1;
+
+    // Qty to close this round
+    const qtyToClose = trade.quantity * partialPct;
+    const remainingQty = trade.quantity - qtyToClose;
+
     // --- Realistic exit execution simulation ---
     const slippageBps = this.randomSlippageBps(DEFAULT_MAX_SLIPPAGE_BPS);
     const exitFeeBps = DEFAULT_FEE_BPS;
@@ -403,16 +460,19 @@ export class DemoTradingService {
     // Slippage moves price against the trader on exit (lower for sells / long closes)
     const slippageMultiplier = 1 - slippageBps / 10000;
     const executedExitPrice = exitPrice * slippageMultiplier;
-    const exitNotional = trade.quantity * executedExitPrice;
+    const exitNotional = qtyToClose * executedExitPrice;
     const exitFee = this.computeFee(exitNotional, exitFeeBps);
 
-    // Gross PnL based on executed prices
+    // Gross PnL based on executed prices for qtyToClose
     const grossPnl =
-      trade.side === TradeSide.BUY ? this.computePnlLong(trade, executedExitPrice) : 0;
+      trade.side === TradeSide.BUY
+        ? (executedExitPrice - trade.price) * qtyToClose
+        : 0;
 
-    // Net PnL = gross PnL - entry fee - exit fee
+    // Entry fee proportion for the closed qty
     const entryFee = trade.entryFee ?? 0;
-    const netPnl = grossPnl - entryFee - exitFee;
+    const entryFeeClosed = entryFee * partialPct;
+    const netPnl = grossPnl - entryFeeClosed - exitFee;
 
     const updated = await this.prisma.trade.update({
       where: { id: trade.id },
@@ -478,9 +538,13 @@ export class DemoTradingService {
     const notificationType =
       reason === 'risk:stop_loss'
         ? NotificationType.STOP_LOSS_HIT
-        : reason === 'risk:take_profit'
-          ? NotificationType.TAKE_PROFIT_HIT
-          : NotificationType.TRADE_CLOSED;
+        : reason === 'risk:trailing_stop'
+          ? NotificationType.TRAILING_STOP_HIT
+          : reason === 'risk:take_profit'
+            ? NotificationType.TAKE_PROFIT_HIT
+            : reason === 'risk:partial_take_profit'
+              ? NotificationType.PARTIAL_TP_HIT
+              : NotificationType.TRADE_CLOSED;
 
     await this.botsService.notifyTradeEvent({
       userId: bot.userId,
@@ -491,6 +555,34 @@ export class DemoTradingService {
       realizedPnl: netPnl,
       closeReason: reason,
     });
+
+    // If partial TP: re-open remaining position with updated openExplanation
+    if (isPartialTp && remainingQty > 0) {
+      const remainingEntryFee = entryFee * (remainingQty / trade.quantity);
+      const newOpenExplanation = {
+        ...(trade.openExplanation as Record<string, unknown>),
+        partialTpExecuted: true,
+        highestPrice: executedExitPrice,
+      };
+      await this.prisma.trade.create({
+        data: {
+          botId: bot.id,
+          symbol: bot.symbol,
+          side: TradeSide.BUY,
+          quantity: remainingQty,
+          price: trade.price, // same entry price
+          totalValue: remainingQty * trade.price,
+          status: 'EXECUTED',
+          executedAt: trade.executedAt,
+          openReason: `partial_tp:${reason}`,
+          openExplanation: newOpenExplanation as Prisma.InputJsonValue,
+          stopLoss: trade.stopLoss,
+          takeProfit: trade.takeProfit,
+          entryFee: remainingEntryFee,
+          slippageBps: trade.slippageBps,
+        },
+      });
+    }
   }
 
   private async enforceMaxDailyLoss(

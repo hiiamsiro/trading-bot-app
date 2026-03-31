@@ -68,6 +68,12 @@ type OpenPosition = {
   takeProfit: number | null;
   slippageBps: number;
   entryFee: number;
+  // Trailing stop
+  trailingStopDistance: number | null; // e.g. 0.02 = 2%
+  highestPrice: number;
+  // Partial take profit
+  partialTpPercent: number | null; // e.g. 50 = close 50% at TP
+  partialTpExecuted: boolean;
 };
 
 @Injectable()
@@ -213,6 +219,12 @@ export class BacktestService {
     const maxDailyLoss = Number(params.maxDailyLoss);
     const feeBps = DEFAULT_FEE_BPS;
     const maxSlippageBps = DEFAULT_MAX_SLIPPAGE_BPS;
+    // Trailing stop: distance in % (e.g. 2 = 2% from high)
+    const trailingStopDistance = params.trailingStopDistance != null
+      ? Number(params.trailingStopDistance) : null;
+    // Partial TP: % of position to close at TP (e.g. 50 = close 50% at TP)
+    const partialTpPercent = params.partialTpPercent != null
+      ? Number(params.partialTpPercent) : null;
     // Position sizing: 'fixed' | 'balance_percent' | 'risk_based'
     const positionSizeMode = (params.positionSizeMode as string) ?? 'fixed';
     const sizeParam = Number(params.quantity) > 0 ? Number(params.quantity) : 0.01;
@@ -270,29 +282,58 @@ export class BacktestService {
       // 1. Check stop-loss / take-profit on open position
       if (openPosition) {
         const price = currentCandle.close;
+
+        // Compute trailing stop: stop price = high - distance%
+        const trailingStop = openPosition.trailingStopDistance != null
+          ? openPosition.highestPrice * (1 - openPosition.trailingStopDistance)
+          : null;
+        // Active stop = max of static SL and trailing stop (trailing only moves up)
+        const activeStopLoss = trailingStop != null
+          ? (openPosition.stopLoss == null
+            ? trailingStop
+            : Math.max(openPosition.stopLoss, trailingStop))
+          : openPosition.stopLoss;
+
         let closed = false;
         let closeReason = '';
+        let partialClose = false;
 
-        if (openPosition.stopLoss != null && price <= openPosition.stopLoss) {
+        if (activeStopLoss != null && price <= activeStopLoss) {
           closed = true;
-          closeReason = 'stop_loss';
+          closeReason = openPosition.trailingStopDistance != null && activeStopLoss > (openPosition.stopLoss ?? -Infinity)
+            ? 'trailing_stop'
+            : 'stop_loss';
         } else if (openPosition.takeProfit != null && price >= openPosition.takeProfit) {
-          closed = true;
-          closeReason = 'take_profit';
+          // Check partial TP first
+          if (openPosition.partialTpPercent != null && !openPosition.partialTpExecuted) {
+            partialClose = true;
+            closeReason = 'partial_take_profit';
+          } else {
+            closed = true;
+            closeReason = 'take_profit';
+          }
         }
 
-        if (closed) {
+        if (closed || partialClose) {
           const exitSlippageBps = randomSlippageBps();
           const executedExitPrice = applySlippage(price, exitSlippageBps, false);
-          const exitNotional = openPosition.quantity * executedExitPrice;
+          const closedQty = partialClose
+            ? openPosition.quantity * openPosition.partialTpPercent!
+            : openPosition.quantity;
+          const remainingQty = partialClose
+            ? openPosition.quantity * (1 - openPosition.partialTpPercent!)
+            : 0;
+          const exitNotional = closedQty * executedExitPrice;
           const exitFee = computeFee(exitNotional, feeBps);
 
-          // Gross PnL (executed prices)
-          const grossPnl = (executedExitPrice - openPosition.executedEntryPrice) * openPosition.quantity;
-          const netPnl = grossPnl - openPosition.entryFee - exitFee;
+          // Gross PnL on the closed qty
+          const grossPnl = (executedExitPrice - openPosition.executedEntryPrice) * closedQty;
+          // Entry fee proportion for the closed qty
+          const entryFeeClosed = openPosition.entryFee * (closedQty / openPosition.quantity);
+          const netPnl = grossPnl - entryFeeClosed - exitFee;
 
           cumulativePnl += netPnl;
-          cumulativeFees += openPosition.entryFee + exitFee;
+          cumulativeFees += entryFeeClosed + exitFee;
 
           if (grossPnl > 0) {
             winningTrades += 1;
@@ -307,7 +348,7 @@ export class BacktestService {
             entryTime: openPosition.entryTime,
             entryPrice: openPosition.entryPrice,
             executedEntryPrice: openPosition.executedEntryPrice,
-            quantity: openPosition.quantity,
+            quantity: closedQty,
             side: 'BUY',
             exitTime: currentCandle.closeTime,
             exitPrice: price,
@@ -315,9 +356,9 @@ export class BacktestService {
             pnl: netPnl,
             grossPnl,
             netPnl,
-            entryFee: openPosition.entryFee,
+            entryFee: entryFeeClosed,
             exitFee,
-            totalFees: openPosition.entryFee + exitFee,
+            totalFees: entryFeeClosed + exitFee,
             slippageBps: exitSlippageBps,
             closeReason,
           });
@@ -325,7 +366,14 @@ export class BacktestService {
           currentBalance += netPnl;
           if (currentBalance < 0) currentBalance = 0;
           tradeCounter += 1;
-          openPosition = null;
+
+          if (partialClose) {
+            // Update remaining position
+            openPosition.quantity = remainingQty;
+            openPosition.partialTpExecuted = true;
+          } else {
+            openPosition = null;
+          }
         }
       }
 
@@ -413,11 +461,22 @@ export class BacktestService {
             takeProfit,
             slippageBps,
             entryFee,
+            trailingStopDistance: trailingStopDistance != null && trailingStopDistance > 0 ? trailingStopDistance / 100 : null,
+            highestPrice: executedEntryPrice,
+            partialTpPercent: partialTpPercent != null && partialTpPercent > 0 ? partialTpPercent / 100 : null,
+            partialTpExecuted: false,
           };
         }
       }
 
-      // 4. Record equity point at close of this candle
+      // 4. Update trailing stop highest price on each candle
+      if (openPosition) {
+        if (currentCandle.high > openPosition.highestPrice) {
+          openPosition.highestPrice = currentCandle.high;
+        }
+      }
+
+      // 5. Record equity point at close of this candle
       const equity = currentBalance;
       if (equity > peakEquity) peakEquity = equity;
       const drawdown = peakEquity > 0 ? (peakEquity - equity) / peakEquity : 0;

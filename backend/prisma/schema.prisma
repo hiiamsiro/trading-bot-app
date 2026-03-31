@@ -284,6 +284,8 @@ enum NotificationType {
   TRADE_CLOSED
   STOP_LOSS_HIT
   TAKE_PROFIT_HIT
+  TRAILING_STOP_HIT
+  PARTIAL_TP_HIT
 }
 
 model Backtest {
