@@ -655,3 +655,29 @@ export async function fetchWalkforwardList(
 ): Promise<WalkforwardListResponse> {
   return api.get<WalkforwardListResponse>('/walkforward', token)
 }
+
+export interface LeaderboardItem {
+  rank: number
+  botId: string
+  botName: string
+  symbol: string
+  strategy: string
+  totalPnl: number
+  winRate: number | null
+  maxDrawdown: number
+  totalTrades: number
+  shareSlug: string | null
+}
+
+export async function getLeaderboard(opts?: {
+  sortBy?: 'pnl' | 'winRate' | 'drawdown'
+  limit?: number
+  offset?: number
+}): Promise<{ items: LeaderboardItem[]; total: number }> {
+  const params = new URLSearchParams()
+  if (opts?.sortBy) params.set('sortBy', opts.sortBy)
+  if (opts?.limit) params.set('limit', String(opts.limit))
+  if (opts?.offset) params.set('offset', String(opts.offset))
+  const qs = params.toString()
+  return api.get<{ items: LeaderboardItem[]; total: number }>(`/leaderboard${qs ? `?${qs}` : ''}`)
+}

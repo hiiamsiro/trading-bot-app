@@ -26,6 +26,7 @@ import { StripeModule } from './stripe/stripe.module';
 import { OptimizationModule } from './optimization/optimization.module';
 import { WalkforwardModule } from './walkforward/walkforward.module';
 import { CorrelationModule } from './correlation/correlation.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { CorrelationModule } from './correlation/correlation.module';
     OptimizationModule,
     WalkforwardModule,
     CorrelationModule,
+    LeaderboardModule,
   ],
 })
 export class AppModule {}

@@ -12,6 +12,7 @@ import {
   BarChart3,
   FolderOpen,
   Globe,
+  Trophy,
   HeartPulse,
   Settings,
 } from 'lucide-react'
@@ -25,6 +26,7 @@ const nav = [
   { href: '/portfolios', label: 'Portfolios', icon: FolderOpen },
   { href: '/bots', label: 'Bots', icon: Bot },
   { href: '/marketplace', label: 'Marketplace', icon: Globe },
+  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { href: '/backtest', label: 'Backtest', icon: BarChart3 },
   { href: '/optimization', label: 'Optimize', icon: Activity },
   { href: '/walkforward', label: 'Walk-Forward', icon: Activity },
