@@ -293,6 +293,20 @@ export async function getBacktestCandles(
   return api.get<{ candles: MarketKline[] }>(`/backtest/${backtestId}/candles`, token)
 }
 
+export async function fetchBacktest(
+  token: string,
+  id: string,
+): Promise<{ id: string; status: string; result: BacktestResult }> {
+  return api.get<{ id: string; status: string; result: BacktestResult }>(`/backtest/${id}`, token)
+}
+
+export async function getBacktestReplay(
+  token: string,
+  backtestId: string,
+): Promise<{ candles: MarketKline[]; trades: object[] }> {
+  return api.get<{ candles: MarketKline[]; trades: object[] }>(`/backtest/${backtestId}/replay`, token)
+}
+
 export interface PreviewBacktestPayload {
   symbol: string
   interval: string

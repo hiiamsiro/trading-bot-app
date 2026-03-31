@@ -116,6 +116,23 @@ export class BacktestController {
     }
   }
 
+  @Get(':id')
+  async getBacktest(@Param('id') id: string, @CurrentUser() user: AuthUserPayload) {
+    const record = await this.prisma.backtest.findFirst({
+      where: { id, userId: user.userId },
+    });
+    if (!record) throw new NotFoundException('Backtest not found');
+    return {
+      id: record.id,
+      status: record.status,
+      result: {
+        metrics: record.metrics,
+        trades: record.trades,
+        equityCurve: record.equityCurve,
+      },
+    };
+  }
+
   @Get(':id/candles')
   async getBacktestCandles(
     @Param('id') id: string,
@@ -144,5 +161,47 @@ export class BacktestController {
     );
 
     return { candles: filtered };
+  }
+
+  @Get(':id/replay')
+  async getBacktestReplay(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    const record = await this.prisma.backtest.findFirst({
+      where: { id, userId: user.userId },
+      select: {
+        symbol: true,
+        interval: true,
+        fromDate: true,
+        toDate: true,
+        trades: true,
+        status: true,
+      },
+    });
+    if (!record) throw new NotFoundException('Backtest not found');
+
+    const instrument = await this.prisma.instrument.findUnique({
+      where: { symbol: record.symbol },
+      select: { sourceSymbol: true },
+    });
+    const sourceSymbol = (instrument?.sourceSymbol ?? record.symbol).replace('/', '').toUpperCase();
+
+    const candles = await this.marketDataAdapter.getKlines(
+      sourceSymbol,
+      record.interval as MarketKlineInterval,
+      1500,
+    );
+
+    const filteredCandles = candles.filter(
+      (c) =>
+        c.openTime >= record.fromDate.getTime() &&
+        c.openTime <= record.toDate.getTime() + 86400000,
+    );
+
+    // Return trades as-is from the stored backtest result
+    const trades = (record.trades ?? []) as object[];
+
+    return { candles: filteredCandles, trades };
   }
 }

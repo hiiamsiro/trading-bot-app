@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
+import Link from 'next/link'
 import {
   TrendingUp,
   ArrowDown,
   DollarSign,
   Target,
   TimerReset,
-  BarChart2,
   Loader2,
+  Play,
 } from 'lucide-react'
 import type { BacktestResult, BacktestTrade, MarketKline } from '@/types'
 import { getBacktestCandles } from '@/lib/api-client'
@@ -165,7 +166,17 @@ export function BacktestResults({ result, backtestId, token }: Props) {
       {backtestId && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base">Candlestick Chart</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">Candlestick Chart</CardTitle>
+              {backtestId && (
+                <Button asChild variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+                  <Link href={`/backtest/replay/${backtestId}`}>
+                    <Play className="h-3 w-3" />
+                    Replay
+                  </Link>
+                </Button>
+              )}
+            </div>
             <Button
               variant="outline"
               size="sm"
