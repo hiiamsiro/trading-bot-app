@@ -50,19 +50,45 @@ export function BacktestResults({ result }: Props) {
   return (
     <div className="space-y-6">
       {/* ── Metrics grid ─────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Total P&amp;L</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground">Net P&amp;L</CardTitle>
             <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className={`text-xl font-bold tabular-nums ${metrics.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {metrics.totalPnl >= 0 ? '+' : '−'}${fmt(Math.abs(metrics.totalPnl))}
+            <p className={`text-xl font-bold tabular-nums ${(metrics.netPnl ?? metrics.totalPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {(metrics.netPnl ?? metrics.totalPnl) >= 0 ? '+' : '−'}${fmt(Math.abs(metrics.netPnl ?? metrics.totalPnl))}
             </p>
             <p className="text-xs text-muted-foreground">
               {metrics.finalBalance >= metrics.initialBalance ? '↑' : '↓'} ${fmt(metrics.finalBalance)} final
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Gross P&amp;L</CardTitle>
+            <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className={`text-xl font-bold tabular-nums ${(metrics.grossPnl ?? metrics.totalPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {(metrics.grossPnl ?? metrics.totalPnl) >= 0 ? '+' : '−'}${fmt(Math.abs(metrics.grossPnl ?? metrics.totalPnl))}
+            </p>
+            <p className="text-xs text-muted-foreground">Before fees</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Fees Paid</CardTitle>
+            <TimerReset className="h-3.5 w-3.5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-xl font-bold tabular-nums text-orange-400">
+              −${fmt(metrics.totalFees ?? 0)}
+            </p>
+            <p className="text-xs text-muted-foreground">Total fees + slippage</p>
           </CardContent>
         </Card>
 
@@ -87,19 +113,6 @@ export function BacktestResults({ result }: Props) {
           <CardContent>
             <p className="text-xl font-bold tabular-nums text-red-400">−{fmt(metrics.maxDrawdown * 100, 1)}%</p>
             <p className="text-xs text-muted-foreground">Peak-to-trough</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Total Trades</CardTitle>
-            <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold tabular-nums">{metrics.totalTrades}</p>
-            <p className="text-xs text-muted-foreground">
-              Avg win ${fmt(metrics.averageWin ?? 0)} · Avg loss ${fmt(metrics.averageLoss ?? 0)}
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -135,16 +148,20 @@ export function BacktestResults({ result }: Props) {
                     <TableHead>Entry</TableHead>
                     <TableHead>Exit</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
-                    <TableHead className="text-right">Entry Price</TableHead>
-                    <TableHead className="text-right">Exit Price</TableHead>
-                    <TableHead className="text-right">P&amp;L</TableHead>
+                    <TableHead className="text-right">Exec. Entry</TableHead>
+                    <TableHead className="text-right">Exec. Exit</TableHead>
+                    <TableHead className="text-right">Gross P&amp;L</TableHead>
+                    <TableHead className="text-right">Net P&amp;L</TableHead>
+                    <TableHead className="text-right">Fees</TableHead>
                     <TableHead>Reason</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {closedTrades.map((trade: BacktestTrade) => {
-                    const pnl = trade.pnl ?? 0
-                    const pnlClass = pnl > 0 ? 'text-emerald-400' : pnl < 0 ? 'text-red-400' : 'text-muted-foreground'
+                    const netPnl = trade.netPnl ?? trade.pnl ?? 0
+                    const grossPnl = trade.grossPnl ?? trade.pnl ?? 0
+                    const netClass = netPnl > 0 ? 'text-emerald-400' : netPnl < 0 ? 'text-red-400' : 'text-muted-foreground'
+                    const grossClass = grossPnl > 0 ? 'text-emerald-400' : grossPnl < 0 ? 'text-red-400' : 'text-muted-foreground'
                     return (
                       <TableRow key={trade.id}>
                         <TableCell className="font-mono text-xs text-muted-foreground">{trade.id}</TableCell>
@@ -165,12 +182,20 @@ export function BacktestResults({ result }: Props) {
                           )}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-xs">{trade.quantity}</TableCell>
-                        <TableCell className="text-right tabular-nums text-xs">${fmt(trade.entryPrice)}</TableCell>
                         <TableCell className="text-right tabular-nums text-xs">
-                          {trade.exitPrice != null ? `$${fmt(trade.exitPrice)}` : '—'}
+                          ${fmt(trade.executedEntryPrice ?? trade.entryPrice)}
                         </TableCell>
-                        <TableCell className={`text-right tabular-nums text-xs font-medium ${pnlClass}`}>
-                          {trade.exitPrice != null ? fmtPnl(pnl) : '—'}
+                        <TableCell className="text-right tabular-nums text-xs">
+                          {trade.executedExitPrice != null ? `$${fmt(trade.executedExitPrice)}` : '—'}
+                        </TableCell>
+                        <TableCell className={`text-right tabular-nums text-xs font-medium ${grossClass}`}>
+                          {trade.executedExitPrice != null ? fmtPnl(grossPnl) : '—'}
+                        </TableCell>
+                        <TableCell className={`text-right tabular-nums text-xs font-medium ${netClass}`}>
+                          {trade.executedExitPrice != null ? fmtPnl(netPnl) : '—'}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-xs text-orange-400">
+                          −${fmt(trade.totalFees ?? (trade.entryFee ?? 0) + (trade.exitFee ?? 0))}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">

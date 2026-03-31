@@ -14,22 +14,33 @@ export type BacktestMetrics = {
   losingTrades: number;
   winRate: number | null;
   totalPnl: number;
+  netPnl: number;
   maxDrawdown: number;
   initialBalance: number;
   finalBalance: number;
   averageWin: number | null;
   averageLoss: number | null;
+  totalFees: number;
+  grossPnl: number;
 };
 
 export type BacktestTrade = {
   id: number;
   entryTime: number;
   entryPrice: number;
+  executedEntryPrice: number;
   quantity: number;
   side: string;
   exitTime: number | null;
   exitPrice: number | null;
+  executedExitPrice: number | null;
   pnl: number | null;
+  grossPnl: number | null;
+  netPnl: number | null;
+  entryFee: number;
+  exitFee: number;
+  totalFees: number;
+  slippageBps: number;
   closeReason: string | null;
 };
 
@@ -44,12 +55,19 @@ export type BacktestResult = {
   equityCurve: BacktestEquityPoint[];
 };
 
+// Realistic trading simulation defaults (same as DemoTradingService)
+const DEFAULT_FEE_BPS = 10; // 0.10% per side (typical crypto spot fee)
+const DEFAULT_MAX_SLIPPAGE_BPS = 5; // up to 0.05% slippage per side
+
 type OpenPosition = {
   entryTime: number;
   entryPrice: number;
+  executedEntryPrice: number;
   quantity: number;
   stopLoss: number | null;
   takeProfit: number | null;
+  slippageBps: number;
+  entryFee: number;
 };
 
 @Injectable()
@@ -181,6 +199,7 @@ export class BacktestService {
 
     let openPosition: OpenPosition | null = null;
     let cumulativePnl = 0;
+    let cumulativeFees = 0;
     let peakEquity = initialBalance;
     let maxDrawdown = 0;
     let totalWinningPnl = 0;
@@ -193,6 +212,30 @@ export class BacktestService {
     const tpPct = Number(params.takeProfitPercent);
     const quantity = Number(params.quantity) > 0 ? Number(params.quantity) : 0.01;
     const maxDailyLoss = Number(params.maxDailyLoss);
+    const feeBps = DEFAULT_FEE_BPS;
+    const maxSlippageBps = DEFAULT_MAX_SLIPPAGE_BPS;
+
+    function randomSlippageBps(): number {
+      // Spread the slippage across [0, maxBps] — biased toward lower values
+      const rand = Math.random();
+      return Math.max(0, Math.min(Math.round(Math.sqrt(rand) * maxSlippageBps), maxSlippageBps));
+    }
+
+    function computeFee(notional: number, bps: number): number {
+      return notional * (bps / 10000);
+    }
+
+    /**
+     * Apply realistic slippage: price moves against trader.
+     * Entry: BUY -> price goes up (slippage multiplier > 1)
+     * Exit (BUY): SELL -> price goes down (slippage multiplier < 1)
+     */
+    function applySlippage(price: number, slippageBps: number, isEntry: boolean): number {
+      const multiplier = isEntry
+        ? 1 + slippageBps / 10000  // buys: price goes up
+        : 1 - slippageBps / 10000; // sells/closes: price goes down
+      return price * multiplier;
+    }
 
     // Slide window: evaluate on each completed candle
     for (let i = requiredCandles; i < candles.length; i += 1) {
@@ -215,26 +258,43 @@ export class BacktestService {
         }
 
         if (closed) {
-          const pnl = (price - openPosition.entryPrice) * openPosition.quantity;
-          cumulativePnl += pnl;
+          const exitSlippageBps = randomSlippageBps();
+          const executedExitPrice = applySlippage(price, exitSlippageBps, false);
+          const exitNotional = openPosition.quantity * executedExitPrice;
+          const exitFee = computeFee(exitNotional, feeBps);
 
-          if (pnl > 0) {
+          // Gross PnL (executed prices)
+          const grossPnl = (executedExitPrice - openPosition.executedEntryPrice) * openPosition.quantity;
+          const netPnl = grossPnl - openPosition.entryFee - exitFee;
+
+          cumulativePnl += netPnl;
+          cumulativeFees += openPosition.entryFee + exitFee;
+
+          if (grossPnl > 0) {
             winningTrades += 1;
-            totalWinningPnl += pnl;
+            totalWinningPnl += netPnl;
           } else {
             losingTrades += 1;
-            totalLosingPnl += pnl;
+            totalLosingPnl += netPnl;
           }
 
           trades.push({
             id: tradeCounter,
             entryTime: openPosition.entryTime,
             entryPrice: openPosition.entryPrice,
+            executedEntryPrice: openPosition.executedEntryPrice,
             quantity: openPosition.quantity,
             side: 'BUY',
             exitTime: currentCandle.closeTime,
             exitPrice: price,
-            pnl,
+            executedExitPrice,
+            pnl: netPnl,
+            grossPnl,
+            netPnl,
+            entryFee: openPosition.entryFee,
+            exitFee,
+            totalFees: openPosition.entryFee + exitFee,
+            slippageBps: exitSlippageBps,
             closeReason,
           });
           tradeCounter += 1;
@@ -246,26 +306,41 @@ export class BacktestService {
       if (maxDailyLoss > 0 && cumulativePnl < -maxDailyLoss) {
         if (openPosition) {
           const price = currentCandle.close;
-          const pnl = (price - openPosition.entryPrice) * openPosition.quantity;
-          cumulativePnl += pnl;
+          const exitSlippageBps = randomSlippageBps();
+          const executedExitPrice = applySlippage(price, exitSlippageBps, false);
+          const exitNotional = openPosition.quantity * executedExitPrice;
+          const exitFee = computeFee(exitNotional, feeBps);
+          const grossPnl = (executedExitPrice - openPosition.executedEntryPrice) * openPosition.quantity;
+          const netPnl = grossPnl - openPosition.entryFee - exitFee;
 
-          if (pnl > 0) {
+          cumulativePnl += netPnl;
+          cumulativeFees += openPosition.entryFee + exitFee;
+
+          if (grossPnl > 0) {
             winningTrades += 1;
-            totalWinningPnl += pnl;
+            totalWinningPnl += netPnl;
           } else {
             losingTrades += 1;
-            totalLosingPnl += pnl;
+            totalLosingPnl += netPnl;
           }
 
           trades.push({
             id: tradeCounter,
             entryTime: openPosition.entryTime,
             entryPrice: openPosition.entryPrice,
+            executedEntryPrice: openPosition.executedEntryPrice,
             quantity: openPosition.quantity,
             side: 'BUY',
             exitTime: currentCandle.closeTime,
             exitPrice: price,
-            pnl,
+            executedExitPrice,
+            pnl: netPnl,
+            grossPnl,
+            netPnl,
+            entryFee: openPosition.entryFee,
+            exitFee,
+            totalFees: openPosition.entryFee + exitFee,
+            slippageBps: exitSlippageBps,
             closeReason: 'max_daily_loss',
           });
           tradeCounter += 1;
@@ -286,15 +361,27 @@ export class BacktestService {
 
         if (decision.signal === 'BUY') {
           const entryPrice = currentCandle.close;
-          const stopLoss = slPct > 0 && slPct < 100 ? entryPrice * (1 - slPct / 100) : null;
-          const takeProfit = tpPct > 0 && tpPct < 100 ? entryPrice * (1 + tpPct / 100) : null;
+          const slippageBps = randomSlippageBps();
+          const executedEntryPrice = applySlippage(entryPrice, slippageBps, true);
+          const entryNotional = quantity * executedEntryPrice;
+          const entryFee = computeFee(entryNotional, feeBps);
+
+          // Net cost: subtract entry fee immediately from equity
+          cumulativePnl -= entryFee;
+          cumulativeFees += entryFee;
+
+          const stopLoss = slPct > 0 && slPct < 100 ? executedEntryPrice * (1 - slPct / 100) : null;
+          const takeProfit = tpPct > 0 && tpPct < 100 ? executedEntryPrice * (1 + tpPct / 100) : null;
 
           openPosition = {
             entryTime: currentCandle.openTime,
             entryPrice,
+            executedEntryPrice,
             quantity,
             stopLoss,
             takeProfit,
+            slippageBps,
+            entryFee,
           };
         }
       }
@@ -315,32 +402,51 @@ export class BacktestService {
     if (openPosition) {
       const lastCandle = candles[candles.length - 1];
       const price = lastCandle.close;
-      const pnl = (price - openPosition.entryPrice) * openPosition.quantity;
-      cumulativePnl += pnl;
+      const exitSlippageBps = randomSlippageBps();
+      const executedExitPrice = applySlippage(price, exitSlippageBps, false);
+      const exitNotional = openPosition.quantity * executedExitPrice;
+      const exitFee = computeFee(exitNotional, feeBps);
 
-      if (pnl > 0) {
+      const grossPnl = (executedExitPrice - openPosition.executedEntryPrice) * openPosition.quantity;
+      const netPnl = grossPnl - openPosition.entryFee - exitFee;
+      cumulativePnl += netPnl;
+      cumulativeFees += openPosition.entryFee + exitFee;
+
+      if (grossPnl > 0) {
         winningTrades += 1;
-        totalWinningPnl += pnl;
+        totalWinningPnl += netPnl;
       } else {
         losingTrades += 1;
-        totalLosingPnl += pnl;
+        totalLosingPnl += netPnl;
       }
 
       trades.push({
         id: tradeCounter,
         entryTime: openPosition.entryTime,
         entryPrice: openPosition.entryPrice,
+        executedEntryPrice: openPosition.executedEntryPrice,
         quantity: openPosition.quantity,
         side: 'BUY',
         exitTime: lastCandle.closeTime,
         exitPrice: price,
-        pnl,
+        executedExitPrice,
+        pnl: netPnl,
+        grossPnl,
+        netPnl,
+        entryFee: openPosition.entryFee,
+        exitFee,
+        totalFees: openPosition.entryFee + exitFee,
+        slippageBps: exitSlippageBps,
         closeReason: 'backtest_end',
       });
     }
 
     const totalTrades = winningTrades + losingTrades;
     const finalBalance = initialBalance + cumulativePnl;
+    // Net PnL = cumulative PnL after all fees
+    const netPnlTotal = cumulativePnl;
+    // Gross PnL = net + total fees (PnL before fees were deducted)
+    const grossPnlTotal = cumulativePnl + cumulativeFees;
 
     return {
       metrics: {
@@ -348,12 +454,15 @@ export class BacktestService {
         winningTrades,
         losingTrades,
         winRate: totalTrades > 0 ? winningTrades / totalTrades : null,
-        totalPnl: cumulativePnl,
+        totalPnl: netPnlTotal,
+        netPnl: netPnlTotal,
         maxDrawdown,
         initialBalance,
         finalBalance,
         averageWin: winningTrades > 0 ? totalWinningPnl / winningTrades : null,
         averageLoss: losingTrades > 0 ? totalLosingPnl / losingTrades : null,
+        totalFees: cumulativeFees,
+        grossPnl: grossPnlTotal,
       },
       trades,
       equityCurve,

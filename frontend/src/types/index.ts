@@ -496,22 +496,33 @@ export interface BacktestMetrics {
   losingTrades: number
   winRate: number | null
   totalPnl: number
+  netPnl: number
   maxDrawdown: number
   initialBalance: number
   finalBalance: number
   averageWin: number | null
   averageLoss: number | null
+  totalFees: number
+  grossPnl: number
 }
 
 export interface BacktestTrade {
   id: number
   entryTime: number
   entryPrice: number
+  executedEntryPrice: number
   quantity: number
   side: string
   exitTime: number | null
   exitPrice: number | null
+  executedExitPrice: number | null
   pnl: number | null
+  grossPnl: number | null
+  netPnl: number | null
+  entryFee: number
+  exitFee: number
+  totalFees: number
+  slippageBps: number
   closeReason: string | null
 }
 
