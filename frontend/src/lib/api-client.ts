@@ -450,3 +450,97 @@ export async function updatePlan(
 ): Promise<import('@/types').SubscriptionWithLimits> {
   return api.patch<import('@/types').SubscriptionWithLimits>('/billing/plan', { plan }, token)
 }
+
+// ─── Optimization ─────────────────────────────────────────────────────────────────
+
+export interface OptimizationParamRange {
+  param: string
+  values: number[]
+}
+
+export interface StartOptimizationPayload {
+  symbol: string
+  interval: string
+  strategy: string
+  paramRanges: OptimizationParamRange[]
+  fromDate: string
+  toDate: string
+  initialBalance?: number
+  botId?: string
+}
+
+export interface OptimizationResult {
+  params: Record<string, unknown>
+  metrics: {
+    totalTrades: number
+    winningTrades: number
+    losingTrades: number
+    winRate: number | null
+    totalPnl: number
+    maxDrawdown: number
+    initialBalance: number
+    finalBalance: number
+    averageWin: number | null
+    averageLoss: number | null
+  }
+}
+
+export interface OptimizationRecord {
+  id: string
+  symbol: string
+  interval: string
+  strategy: string
+  paramRanges: OptimizationParamRange[]
+  status: string
+  progress: number
+  totalCombinations: number
+  completedCombinations: number
+  bestByPnl: OptimizationResult | null
+  bestByDrawdown: OptimizationResult | null
+  bestByWinrate: OptimizationResult | null
+  allResults: OptimizationResult[]
+  error: string | null
+  createdAt: string
+}
+
+export interface OptimizationListResponse {
+  items: OptimizationRecord[]
+  total: number
+  take: number
+  skip: number
+}
+
+export async function startOptimization(
+  token: string,
+  payload: StartOptimizationPayload,
+): Promise<{ id: string; message: string }> {
+  return api.post<{ id: string; message: string }>('/optimization', payload, token)
+}
+
+export async function fetchOptimization(
+  token: string,
+  id: string,
+): Promise<OptimizationRecord> {
+  return api.get<OptimizationRecord>(`/optimization/${id}`, token)
+}
+
+export async function fetchOptimizationList(
+  token: string,
+  take = 20,
+  skip = 0,
+): Promise<OptimizationListResponse> {
+  return api.get<OptimizationListResponse>(`/optimization?take=${take}&skip=${skip}`, token)
+}
+
+// ─── Apply best config to bot ───────────────────────────────────────────────────
+
+export async function applyBestConfigToBot(
+  token: string,
+  botId: string,
+  strategy: string,
+  params: Record<string, unknown>,
+): Promise<import('@/types').Bot> {
+  return api.patch<import('@/types').Bot>(`/bots/${botId}`, {
+    strategyConfig: { strategy, params },
+  }, token)
+}

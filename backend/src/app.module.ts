@@ -23,6 +23,7 @@ import { ShareModule } from './share/share.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { BillingModule } from './billing/billing.module';
 import { StripeModule } from './stripe/stripe.module';
+import { OptimizationModule } from './optimization/optimization.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { StripeModule } from './stripe/stripe.module';
     ShareModule,
     BillingModule,
     StripeModule,
+    OptimizationModule,
   ],
 })
 export class AppModule {}

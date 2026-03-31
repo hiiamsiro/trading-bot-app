@@ -22,6 +22,7 @@ model User {
   portfolios    Portfolio[]
   notifications Notification[]
   botTemplates  BotTemplate[]
+  optimizations Optimization[]
 
   @@map("users")
 }
@@ -307,6 +308,39 @@ model Backtest {
 }
 
 enum BacktestStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model Optimization {
+  id                 String             @id @default(uuid())
+  userId             String
+  symbol             String
+  interval           String
+  strategy           String
+  paramRanges        Json               @map("param_ranges")
+  status             OptimizationStatus @default(PENDING)
+  progress           Int                @default(0)
+  totalCombinations  Int                @default(0) @map("total_combinations")
+  completedCombinations Int             @default(0) @map("completed_combinations")
+  bestByPnl          Json?              @map("best_by_pnl")
+  bestByDrawdown     Json?              @map("best_by_drawdown")
+  bestByWinrate      Json?              @map("best_by_winrate")
+  allResults         Json?              @map("all_results")
+  error              String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("optimizations")
+}
+
+enum OptimizationStatus {
   PENDING
   RUNNING
   COMPLETED
