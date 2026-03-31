@@ -210,10 +210,34 @@ export class BacktestService {
 
     const slPct = Number(params.stopLossPercent);
     const tpPct = Number(params.takeProfitPercent);
-    const quantity = Number(params.quantity) > 0 ? Number(params.quantity) : 0.01;
     const maxDailyLoss = Number(params.maxDailyLoss);
     const feeBps = DEFAULT_FEE_BPS;
     const maxSlippageBps = DEFAULT_MAX_SLIPPAGE_BPS;
+    // Position sizing: 'fixed' | 'balance_percent' | 'risk_based'
+    const positionSizeMode = (params.positionSizeMode as string) ?? 'fixed';
+    const sizeParam = Number(params.quantity) > 0 ? Number(params.quantity) : 0.01;
+    let currentBalance = initialBalance;
+
+    function resolveQuantity(entryPrice: number): number {
+      if (positionSizeMode === 'fixed') {
+        return sizeParam;
+      }
+      if (positionSizeMode === 'balance_percent') {
+        // sizeParam = percentage of balance as decimal (e.g. 0.01 = 1%)
+        const notional = currentBalance * sizeParam;
+        return notional / entryPrice;
+      }
+      if (positionSizeMode === 'risk_based') {
+        // Risk-based: risk sizeParam% of balance, stop loss limits max loss
+        if (slPct <= 0 || slPct >= 100) {
+          return sizeParam; // fallback to fixed if no stop loss defined
+        }
+        const riskAmount = currentBalance * (sizeParam / 100);
+        const lossPerUnit = entryPrice * (slPct / 100);
+        return riskAmount / lossPerUnit;
+      }
+      return sizeParam;
+    }
 
     function randomSlippageBps(): number {
       // Spread the slippage across [0, maxBps] — biased toward lower values
@@ -297,6 +321,9 @@ export class BacktestService {
             slippageBps: exitSlippageBps,
             closeReason,
           });
+          // Update running balance with net PnL
+          currentBalance += netPnl;
+          if (currentBalance < 0) currentBalance = 0;
           tradeCounter += 1;
           openPosition = null;
         }
@@ -343,6 +370,8 @@ export class BacktestService {
             slippageBps: exitSlippageBps,
             closeReason: 'max_daily_loss',
           });
+          currentBalance += netPnl;
+          if (currentBalance < 0) currentBalance = 0;
           tradeCounter += 1;
           openPosition = null;
         }
@@ -363,10 +392,12 @@ export class BacktestService {
           const entryPrice = currentCandle.close;
           const slippageBps = randomSlippageBps();
           const executedEntryPrice = applySlippage(entryPrice, slippageBps, true);
+          const quantity = resolveQuantity(executedEntryPrice);
           const entryNotional = quantity * executedEntryPrice;
           const entryFee = computeFee(entryNotional, feeBps);
 
-          // Net cost: subtract entry fee immediately from equity
+          // Subtract entry fee from running balance immediately
+          currentBalance -= entryFee;
           cumulativePnl -= entryFee;
           cumulativeFees += entryFee;
 
@@ -387,14 +418,14 @@ export class BacktestService {
       }
 
       // 4. Record equity point at close of this candle
-      const equity = initialBalance + cumulativePnl;
+      const equity = currentBalance;
       if (equity > peakEquity) peakEquity = equity;
       const drawdown = peakEquity > 0 ? (peakEquity - equity) / peakEquity : 0;
       if (drawdown > maxDrawdown) maxDrawdown = drawdown;
 
       equityCurve.push({
         at: new Date(currentCandle.closeTime).toISOString(),
-        cumulativePnl,
+        cumulativePnl: currentBalance - initialBalance,
       });
     }
 
@@ -439,10 +470,12 @@ export class BacktestService {
         slippageBps: exitSlippageBps,
         closeReason: 'backtest_end',
       });
+      currentBalance += netPnl;
+      if (currentBalance < 0) currentBalance = 0;
     }
 
     const totalTrades = winningTrades + losingTrades;
-    const finalBalance = initialBalance + cumulativePnl;
+    const finalBalance = currentBalance;
     // Net PnL = cumulative PnL after all fees
     const netPnlTotal = cumulativePnl;
     // Gross PnL = net + total fees (PnL before fees were deducted)

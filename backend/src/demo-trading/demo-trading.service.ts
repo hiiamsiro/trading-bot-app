@@ -277,8 +277,26 @@ export class DemoTradingService {
       return;
     }
 
-    // --- Realistic execution simulation ---
-    const quantity = Number(params.quantity) > 0 ? Number(params.quantity) : 0.01;
+    // --- Dynamic position sizing ---
+    const positionSizeMode = (params.positionSizeMode as string) ?? 'fixed';
+    const sizeParam = Number(params.quantity) > 0 ? Number(params.quantity) : 0.01;
+    const slPct = Number(params.stopLossPercent ?? 0);
+    let quantity = sizeParam;
+
+    if (positionSizeMode === 'balance_percent') {
+      // sizeParam = percentage as decimal (0.01 = 1% of balance)
+      const balance = bot.executionSession?.currentBalance ?? 10000;
+      quantity = (balance * sizeParam) / entryPrice;
+    } else if (positionSizeMode === 'risk_based') {
+      // Risk-based: sizeParam = risk % of balance
+      if (slPct > 0 && slPct < 100) {
+        const balance = bot.executionSession?.currentBalance ?? 10000;
+        const riskAmount = balance * (sizeParam / 100);
+        const lossPerUnit = entryPrice * (slPct / 100);
+        quantity = riskAmount / lossPerUnit;
+      }
+    }
+
     const slippageBps = this.randomSlippageBps(DEFAULT_MAX_SLIPPAGE_BPS);
     const entryFeeBps = DEFAULT_FEE_BPS;
 
@@ -289,16 +307,15 @@ export class DemoTradingService {
     const entryFee = this.computeFee(notional, entryFeeBps);
 
     const totalValue = quantity * executedEntryPrice;
-    const slPct = params.stopLossPercent;
-    const tpPct = params.takeProfitPercent;
+    const tpPct = Number(params.takeProfitPercent ?? 0);
     // Stop-loss and take-profit are set relative to the executed price (after slippage)
     const stopLoss =
-      slPct != null && !Number.isNaN(Number(slPct))
-        ? executedEntryPrice * (1 - Number(slPct) / 100)
+      slPct > 0
+        ? executedEntryPrice * (1 - slPct / 100)
         : null;
     const takeProfit =
-      tpPct != null && !Number.isNaN(Number(tpPct))
-        ? executedEntryPrice * (1 + Number(tpPct) / 100)
+      tpPct > 0
+        ? executedEntryPrice * (1 + tpPct / 100)
         : null;
 
     const trade = await this.prisma.trade.create({

@@ -33,8 +33,10 @@ export interface BacktestFormValues {
   overbought: string
   // multi-timeframe
   trendInterval: string
-  // shared
+  // position sizing
+  positionSizeMode: 'fixed' | 'balance_percent' | 'risk_based'
   quantity: string
+  riskPercent: string
   stopLossPercent: string
   takeProfitPercent: string
   maxDailyLoss: string
@@ -67,6 +69,8 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
   const [oversold, setOversold] = useState('30')
   const [overbought, setOverbought] = useState('70')
   const [quantity, setQuantity] = useState('0.01')
+  const [positionSizeMode, setPositionSizeMode] = useState<'fixed' | 'balance_percent' | 'risk_based'>('fixed')
+  const [riskPercent, setRiskPercent] = useState('1')
   const [stopLossPercent, setStopLossPercent] = useState('')
   const [takeProfitPercent, setTakeProfitPercent] = useState('')
   const [maxDailyLoss, setMaxDailyLoss] = useState('')
@@ -92,28 +96,30 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
 
   function buildParams(): Record<string, unknown> {
     const activeTrend = trendInterval && trendInterval !== '__none__' ? trendInterval : undefined
-    if (strategy === 'sma_crossover') {
-      return {
-        shortPeriod: parseInt(shortPeriod, 10),
-        longPeriod: parseInt(longPeriod, 10),
-        quantity: parseFloat(quantity),
-        ...(stopLossPercent ? { stopLossPercent: parseFloat(stopLossPercent) } : {}),
-        ...(takeProfitPercent ? { takeProfitPercent: parseFloat(takeProfitPercent) } : {}),
-        ...(maxDailyLoss ? { maxDailyLoss: parseFloat(maxDailyLoss) } : {}),
-        interval,
-        ...(activeTrend ? { trendInterval: activeTrend } : {}),
-      }
-    }
-    return {
-      period: parseInt(rsiPeriod, 10),
-      oversold: parseFloat(oversold),
-      overbought: parseFloat(overbought),
+    const base = {
+      positionSizeMode,
       quantity: parseFloat(quantity),
       ...(stopLossPercent ? { stopLossPercent: parseFloat(stopLossPercent) } : {}),
       ...(takeProfitPercent ? { takeProfitPercent: parseFloat(takeProfitPercent) } : {}),
       ...(maxDailyLoss ? { maxDailyLoss: parseFloat(maxDailyLoss) } : {}),
       interval,
       ...(activeTrend ? { trendInterval: activeTrend } : {}),
+    }
+    if (positionSizeMode === 'risk_based') {
+      return { ...base, quantity: parseFloat(riskPercent) }
+    }
+    if (strategy === 'sma_crossover') {
+      return {
+        ...base,
+        shortPeriod: parseInt(shortPeriod, 10),
+        longPeriod: parseInt(longPeriod, 10),
+      }
+    }
+    return {
+      ...base,
+      period: parseInt(rsiPeriod, 10),
+      oversold: parseFloat(oversold),
+      overbought: parseFloat(overbought),
     }
   }
 
@@ -133,7 +139,9 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       oversold,
       overbought,
       trendInterval,
+      positionSizeMode,
       quantity,
+      riskPercent,
       stopLossPercent,
       takeProfitPercent,
       maxDailyLoss,
@@ -340,6 +348,82 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── Position sizing ───────────────────── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="positionSizeMode">Position Size Mode</Label>
+          <Select value={positionSizeMode} onValueChange={(v: 'fixed' | 'balance_percent' | 'risk_based') => setPositionSizeMode(v)}>
+            <SelectTrigger id="positionSizeMode">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fixed">Fixed quantity</SelectItem>
+              <SelectItem value="balance_percent">% of balance</SelectItem>
+              <SelectItem value="risk_based">Risk-based</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {positionSizeMode === 'fixed' && (
+          <div className="space-y-1.5">
+            <Label htmlFor="qty-fixed">Quantity</Label>
+            <Input
+              id="qty-fixed"
+              type="number"
+              min="0"
+              step="any"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="0.01"
+            />
+          </div>
+        )}
+        {positionSizeMode === 'balance_percent' && (
+          <div className="space-y-1.5">
+            <Label htmlFor="qty-pct">Balance % (e.g. 0.01 = 1%)</Label>
+            <Input
+              id="qty-pct"
+              type="number"
+              min="0"
+              max="1"
+              step="0.001"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="0.01"
+            />
+          </div>
+        )}
+        {positionSizeMode === 'risk_based' && (
+          <>
+            <div className="space-y-1.5">
+              <Label htmlFor="risk-pct">Risk % of balance</Label>
+              <Input
+                id="risk-pct"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={riskPercent}
+                onChange={(e) => setRiskPercent(e.target.value)}
+                placeholder="1"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sl-for-risk">Stop Loss % (required)</Label>
+              <Input
+                id="sl-for-risk"
+                type="number"
+                min="0.1"
+                max="99"
+                step="0.1"
+                value={stopLossPercent}
+                onChange={(e) => setStopLossPercent(e.target.value)}
+                placeholder="Required"
+              />
+            </div>
+          </>
+        )}
+      </div>
 
       {/* ── Risk params ─────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
