@@ -544,3 +544,93 @@ export async function applyBestConfigToBot(
     strategyConfig: { strategy, params },
   }, token)
 }
+
+// ─── Walk-forward testing ───────────────────────────────────────────────────
+
+export interface WalkforwardParamRange {
+  param: string
+  values: number[]
+}
+
+export interface StartWalkforwardPayload {
+  symbol: string
+  interval: string
+  strategy: string
+  paramRanges: WalkforwardParamRange[]
+  fromDate: string
+  toDate: string
+  initialBalance?: number
+  trainSplitPct?: number
+}
+
+export interface WalkforwardMetrics {
+  totalTrades: number
+  winningTrades: number
+  losingTrades: number
+  winRate: number | null
+  totalPnl: number
+  maxDrawdown: number
+  initialBalance: number
+  finalBalance: number
+  averageWin: number | null
+  averageLoss: number | null
+}
+
+export interface WalkforwardEquityPoint {
+  at: string
+  cumulativePnl: number
+}
+
+export interface WalkforwardRecord {
+  id: string
+  symbol: string
+  interval: string
+  strategy: string
+  paramRanges: WalkforwardParamRange[]
+  trainFromDate: string
+  trainToDate: string
+  testFromDate: string
+  testToDate: string
+  trainSplitPct: number
+  status: string
+  error: string | null
+  bestTrainParams: Record<string, unknown> | null
+  trainMetrics: WalkforwardMetrics | null
+  testMetrics: WalkforwardMetrics | null
+  trainEquityCurve: WalkforwardEquityPoint[]
+  testEquityCurve: WalkforwardEquityPoint[]
+  trainPnl: number | null
+  testPnl: number | null
+  trainDrawdown: number | null
+  testDrawdown: number | null
+  trainWinRate: number | null
+  testWinRate: number | null
+  createdAt: string
+}
+
+export interface WalkforwardListResponse {
+  items: WalkforwardRecord[]
+  total: number
+  take: number
+  skip: number
+}
+
+export async function startWalkforward(
+  token: string,
+  payload: StartWalkforwardPayload,
+): Promise<{ id: string; message: string }> {
+  return api.post<{ id: string; message: string }>('/walkforward', payload, token)
+}
+
+export async function fetchWalkforward(
+  token: string,
+  id: string,
+): Promise<WalkforwardRecord> {
+  return api.get<WalkforwardRecord>(`/walkforward/${id}`, token)
+}
+
+export async function fetchWalkforwardList(
+  token: string,
+): Promise<WalkforwardListResponse> {
+  return api.get<WalkforwardListResponse>('/walkforward', token)
+}

@@ -27,6 +27,7 @@ const nav = [
   { href: '/marketplace', label: 'Marketplace', icon: Globe },
   { href: '/backtest', label: 'Backtest', icon: BarChart3 },
   { href: '/optimization', label: 'Optimize', icon: Activity },
+  { href: '/walkforward', label: 'Walk-Forward', icon: Activity },
   { href: '/trades', label: 'Trade history', icon: History },
   { href: '/logs', label: 'Logs', icon: ScrollText },
   { href: '/health', label: 'Health', icon: HeartPulse },

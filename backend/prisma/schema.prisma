@@ -23,6 +23,7 @@ model User {
   notifications Notification[]
   botTemplates  BotTemplate[]
   optimizations Optimization[]
+  walkforwards   Walkforward[]
 
   @@map("users")
 }
@@ -340,7 +341,50 @@ model Optimization {
   @@map("optimizations")
 }
 
+model Walkforward {
+  id              String           @id @default(uuid())
+  userId          String
+  symbol          String
+  interval        String
+  strategy        String
+  paramRanges     Json             @map("param_ranges")
+  trainFromDate   DateTime         @map("train_from_date")
+  trainToDate     DateTime         @map("train_to_date")
+  testFromDate    DateTime         @map("test_from_date")
+  testToDate      DateTime         @map("test_to_date")
+  trainSplitPct   Int              @default(70) @map("train_split_pct")
+  status          WalkforwardStatus @default(PENDING)
+  error           String?
+  bestTrainParams Json?            @map("best_train_params")
+  trainMetrics    Json?            @map("train_metrics")
+  trainEquityCurve Json?           @map("train_equity_curve")
+  testMetrics     Json?            @map("test_metrics")
+  testEquityCurve Json?            @map("test_equity_curve")
+  testTrades      Json?            @map("test_trades")
+  trainTrades     Json?            @map("train_trades")
+  trainPnl        Float?           @map("train_pnl")
+  testPnl         Float?           @map("test_pnl")
+  trainDrawdown   Float?           @map("train_drawdown")
+  testDrawdown    Float?           @map("test_drawdown")
+  trainWinRate    Float?           @map("train_win_rate")
+  testWinRate     Float?           @map("test_win_rate")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("walkforwards")
+}
+
 enum OptimizationStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum WalkforwardStatus {
   PENDING
   RUNNING
   COMPLETED

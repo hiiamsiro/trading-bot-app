@@ -24,6 +24,7 @@ import { LoggingModule } from './common/logging/logging.module';
 import { BillingModule } from './billing/billing.module';
 import { StripeModule } from './stripe/stripe.module';
 import { OptimizationModule } from './optimization/optimization.module';
+import { WalkforwardModule } from './walkforward/walkforward.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { OptimizationModule } from './optimization/optimization.module';
     BillingModule,
     StripeModule,
     OptimizationModule,
+    WalkforwardModule,
   ],
 })
 export class AppModule {}
