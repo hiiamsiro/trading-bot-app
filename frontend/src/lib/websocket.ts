@@ -2,7 +2,8 @@ import { io, Socket } from 'socket.io-client'
 
 function defaultWsUrl(): string {
   if (typeof window === 'undefined') {
-    return 'http://localhost:3001'
+    // Server-side (SSR): use host.docker.internal for Docker, localhost for local dev
+    return 'http://host.docker.internal:3001'
   }
 
   try {

@@ -100,7 +100,10 @@ export function OptimizationResults({ record, onApplyBest }: Props) {
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/optimization/${liveRecord.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-store',
+          },
         })
         if (res.ok) {
           const data = await res.json()

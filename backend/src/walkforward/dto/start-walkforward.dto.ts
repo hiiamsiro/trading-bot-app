@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsPositive, IsString, ValidateNested } from 'class-validator';
+import { Allow, IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { MarketKlineInterval } from '../../market-data/providers/market-data-provider.types';
 
@@ -7,6 +7,9 @@ export class ParamRange {
   @IsNotEmpty()
   param!: string;
 
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @Allow()
   values!: number[];
 }
 

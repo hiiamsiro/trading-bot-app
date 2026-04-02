@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { BadRequestException, NotFoundException, Controller, Get, Post, Body, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { WalkforwardService } from './walkforward.service';
@@ -23,10 +23,10 @@ export class WalkforwardController {
     const fromDate = new Date(dto.fromDate);
     const toDate = new Date(dto.toDate);
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-      throw new Error('Invalid date format. Use ISO 8601 format (e.g. 2024-01-01).');
+      throw new BadRequestException('Invalid date format. Use ISO 8601 format (e.g. 2024-01-01).');
     }
     if (fromDate >= toDate) {
-      throw new Error('fromDate must be before toDate.');
+      throw new BadRequestException('fromDate must be before toDate.');
     }
 
     const result = await this.walkforwardService.startWalkforward(user.userId, {
@@ -50,7 +50,7 @@ export class WalkforwardController {
   ) {
     const record = await this.walkforwardService.getWalkforward(user.userId, id);
     if (!record) {
-      throw new Error('Walk-forward analysis not found');
+      throw new NotFoundException('Walk-forward analysis not found');
     }
     return record;
   }

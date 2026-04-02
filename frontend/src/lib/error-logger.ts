@@ -63,7 +63,7 @@ export function getLastTraceId(): string | undefined {
 async function sendToBackend(payload: ErrorLogPayload): Promise<void> {
   try {
     const token = (window as Window & { __authToken__?: string }).__authToken__;
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/bots/system-logs`, {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://host.docker.internal:3001'}/bots/system-logs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

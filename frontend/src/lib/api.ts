@@ -1,6 +1,9 @@
 function defaultApiUrl(): string {
   if (typeof window === 'undefined') {
-    return 'http://localhost:3001';
+    // Server-side (SSR / Route Handler / API route):
+    // In Docker, localhost inside Next.js container != backend.
+    // Use host.docker.internal so server-side fetch reaches the backend container.
+    return 'http://host.docker.internal:3001';
   }
 
   try {

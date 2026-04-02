@@ -100,7 +100,10 @@ export function WalkforwardResults({ record: initialRecord, onApplyBest }: Props
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/walkforward/${liveRecord.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-store',
+          },
         })
         if (res.ok) {
           const data: WalkforwardRecord = await res.json()

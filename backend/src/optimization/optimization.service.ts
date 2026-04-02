@@ -178,7 +178,8 @@ export class OptimizationService {
 
   /**
    * Called by OptimizationProcessor for each combination result.
-   * Accumulates results and updates best-by-X counters.
+   * Uses a transaction so that reading current results and writing the updated
+   * list is atomic — this prevents lost updates when concurrency > 1.
    */
   async recordCombinationResult(
     optimizationId: string,
@@ -186,62 +187,70 @@ export class OptimizationService {
     combinationIndex: number,
     totalCombinations: number,
   ): Promise<void> {
-    const record = await this.prisma.optimization.findUnique({
-      where: { id: optimizationId },
-      select: {
-        completedCombinations: true,
-        bestByPnl: true,
-        bestByDrawdown: true,
-        bestByWinrate: true,
-        allResults: true,
-        status: true,
-      },
-    });
+    await this.prisma.$transaction(async (tx) => {
+      const record = await tx.optimization.findUnique({
+        where: { id: optimizationId },
+        select: {
+          completedCombinations: true,
+          bestByPnl: true,
+          bestByDrawdown: true,
+          bestByWinrate: true,
+          allResults: true,
+          status: true,
+        },
+      });
 
-    if (!record || record.status === 'COMPLETED') return;
+      if (!record || record.status === 'COMPLETED') return;
 
-    const completedSoFar = record.completedCombinations + 1;
-    const progress = Math.round((completedSoFar / totalCombinations) * 100);
+      // Atomic increment inside the transaction so concurrent workers never clash
+      const [updated] = await tx.$queryRaw<{ completed_combinations: bigint }[]>`
+        UPDATE optimizations
+        SET completed_combinations = completed_combinations + 1
+        WHERE id::text = ${optimizationId}
+        RETURNING completed_combinations
+      `;
+      const completedSoFar = Number(updated.completed_combinations);
+      const progress = Math.round((completedSoFar / totalCombinations) * 100);
 
-    const currentResults = (record.allResults ?? []) as OptimizationResult[];
-    const updatedResults = [...currentResults, result];
+      const currentResults = (record.allResults ?? []) as OptimizationResult[];
+      const updatedResults = [...currentResults, result];
 
-    const newBestByPnl = this.compareAndUpdateBest(
-      record.bestByPnl as OptimizationResult | null,
-      result,
-      'pnl',
-    );
-    const newBestByDrawdown = this.compareAndUpdateBest(
-      record.bestByDrawdown as OptimizationResult | null,
-      result,
-      'drawdown',
-    );
-    const newBestByWinrate = this.compareAndUpdateBest(
-      record.bestByWinrate as OptimizationResult | null,
-      result,
-      'winrate',
-    );
-
-    const isComplete = completedSoFar >= totalCombinations;
-
-    await this.prisma.optimization.update({
-      where: { id: optimizationId },
-      data: {
-        completedCombinations: completedSoFar,
-        progress,
-        bestByPnl: (newBestByPnl ?? undefined) as Prisma.InputJsonValue,
-        bestByDrawdown: (newBestByDrawdown ?? undefined) as Prisma.InputJsonValue,
-        bestByWinrate: (newBestByWinrate ?? undefined) as Prisma.InputJsonValue,
-        allResults: updatedResults as Prisma.InputJsonValue,
-        status: isComplete ? 'COMPLETED' : 'RUNNING',
-      },
-    });
-
-    if (isComplete) {
-      this.logger.log(
-        `Optimization ${optimizationId} completed. ${totalCombinations} combinations tested.`,
+      const newBestByPnl = this.compareAndUpdateBest(
+        record.bestByPnl as OptimizationResult | null,
+        result,
+        'pnl',
       );
-    }
+      const newBestByDrawdown = this.compareAndUpdateBest(
+        record.bestByDrawdown as OptimizationResult | null,
+        result,
+        'drawdown',
+      );
+      const newBestByWinrate = this.compareAndUpdateBest(
+        record.bestByWinrate as OptimizationResult | null,
+        result,
+        'winrate',
+      );
+
+      const isComplete = completedSoFar >= totalCombinations;
+
+      await tx.optimization.update({
+        where: { id: optimizationId },
+        data: {
+          progress,
+          bestByPnl: (newBestByPnl ?? undefined) as Prisma.InputJsonValue,
+          bestByDrawdown: (newBestByDrawdown ?? undefined) as Prisma.InputJsonValue,
+          bestByWinrate: (newBestByWinrate ?? undefined) as Prisma.InputJsonValue,
+          allResults: updatedResults as Prisma.InputJsonValue,
+          status: isComplete ? 'COMPLETED' : 'RUNNING',
+        },
+      });
+
+      if (isComplete) {
+        this.logger.log(
+          `Optimization ${optimizationId} completed. ${totalCombinations} combinations tested.`,
+        );
+      }
+    });
   }
 
   private generateCombinations(

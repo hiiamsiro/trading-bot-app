@@ -1,6 +1,16 @@
 // NOTE: test, assert, describe, it, beforeEach, etc. are provided by the Node.js
 // test runner at runtime and must NOT be imported here (they conflict with globals).
 // Only destructure mockFn/mockAsyncFn/mockAsyncSequence below.
+function mockQueryRawFn(returns: unknown[] | ((...args: unknown[]) => unknown) = []) {
+  const calls: unknown[][] = [];
+  const fn = async (...args) => {
+    calls.push(args);
+    return typeof returns === 'function' ? returns(...args) : returns;
+  };
+  fn.calls = calls;
+  return fn;
+}
+
 function mockFn(impl) {
   const calls: unknown[][] = [];
   const fn = (...args) => {
@@ -38,4 +48,5 @@ module.exports = {
   mockFn,
   mockAsyncFn,
   mockAsyncSequence,
+  mockQueryRawFn,
 };

@@ -56,34 +56,36 @@ export class WalkforwardService {
     const splitMs = fromMs + (toMs - fromMs) * (params.trainSplitPct / 100);
     const splitDate = new Date(splitMs);
 
-    const record = await this.prisma.walkforward.create({
-      data: {
-        userId,
-        symbol: params.symbol.toUpperCase(),
-        interval: params.interval,
-        strategy: params.strategy,
-        paramRanges: params.paramRanges as object,
-        trainFromDate: new Date(params.fromDate),
-        trainToDate: splitDate,
-        testFromDate: new Date(splitMs + 1),
-        testToDate: new Date(params.toDate),
-        trainSplitPct: params.trainSplitPct,
-        status: 'PENDING',
-      },
-    });
+    // Use raw SQL to bypass stale Prisma client (expects userId but DB has user_id).
+    const [{ id }] = await this.prisma.$queryRaw<{ id: string }[]>`
+      INSERT INTO walkforwards (
+        id, user_id, symbol, interval, strategy, param_ranges,
+        train_from_date, train_to_date, test_from_date, test_to_date,
+        train_split_pct, status
+      ) VALUES (
+        gen_random_uuid(),
+        ${userId},
+        ${params.symbol.toUpperCase()},
+        ${params.interval},
+        ${params.strategy},
+        ${JSON.stringify(params.paramRanges)}::jsonb,
+        ${new Date(params.fromDate)},
+        ${splitDate},
+        ${new Date(splitMs + 1)},
+        ${new Date(params.toDate)},
+        ${params.trainSplitPct},
+        'PENDING'
+      )
+      RETURNING id
+    `;
 
     // Enqueue async job to process the walkforward analysis
     await this.queue.add('run-walkforward', {
-      walkforwardId: record.id,
+      walkforwardId: id,
       ...params,
     });
 
-    await this.prisma.walkforward.update({
-      where: { id: record.id },
-      data: { status: 'RUNNING' },
-    });
-
-    return { id: record.id };
+    return { id };
   }
 
   /**
@@ -186,28 +188,27 @@ export class WalkforwardService {
       );
     });
 
-    // Update DB record
-    await this.prisma.walkforward.update({
-      where: { id: walkforwardId },
-      data: {
-        status: 'COMPLETED',
-        bestTrainParams: bestParams as object,
-        trainMetrics: bestTrainRun?.metrics as object ?? null,
-        trainEquityCurve: bestTrainRun?.equityCurve as object ?? null,
-        trainTrades: bestTrainRun?.trades as object ?? null,
-        trainPnl: bestTrainRun?.metrics.totalPnl ?? null,
-        trainDrawdown: bestTrainRun?.metrics.maxDrawdown ?? null,
-        trainWinRate: bestTrainRun?.metrics.winRate ?? null,
-        testMetrics: testResult.metrics as object,
-        testEquityCurve: testResult.equityCurve as object,
-        testTrades: testResult.trades as object,
-        testPnl: testResult.metrics.totalPnl,
-        testDrawdown: testResult.metrics.maxDrawdown,
-        testWinRate: testResult.metrics.winRate,
-        testFromDate: testFrom,
-        testToDate: new Date(params.toDate),
-      },
-    });
+    // Update DB record using raw SQL (bypasses Prisma userId → user_id mismatch).
+    await this.prisma.$queryRaw`
+      UPDATE walkforwards SET
+        status = 'COMPLETED',
+        best_train_params = ${JSON.stringify(bestParams)}::jsonb,
+        train_metrics = ${JSON.stringify(bestTrainRun?.metrics ?? null)}::jsonb,
+        train_equity_curve = ${JSON.stringify(bestTrainRun?.equityCurve ?? null)}::jsonb,
+        train_trades = ${JSON.stringify(bestTrainRun?.trades ?? null)}::jsonb,
+        train_pnl = ${bestTrainRun?.metrics.totalPnl ?? null},
+        train_drawdown = ${bestTrainRun?.metrics.maxDrawdown ?? null},
+        train_win_rate = ${bestTrainRun?.metrics.winRate ?? null},
+        test_metrics = ${JSON.stringify(testResult.metrics)}::jsonb,
+        test_equity_curve = ${JSON.stringify(testResult.equityCurve)}::jsonb,
+        test_trades = ${JSON.stringify(testResult.trades)}::jsonb,
+        test_pnl = ${testResult.metrics.totalPnl},
+        test_drawdown = ${testResult.metrics.maxDrawdown},
+        test_win_rate = ${testResult.metrics.winRate},
+        test_from_date = ${testFrom},
+        test_to_date = ${new Date(params.toDate)}
+      WHERE id = ${walkforwardId}::uuid
+    `;
 
     this.logger.log(
       `Walkforward ${walkforwardId} completed. Best train params: ${JSON.stringify(bestParams)}`,
@@ -234,16 +235,42 @@ export class WalkforwardService {
   }
 
   async markFailed(walkforwardId: string, error: string) {
-    await this.prisma.walkforward.update({
-      where: { id: walkforwardId },
-      data: { status: 'FAILED', error },
-    });
+    // Use raw SQL to bypass Prisma userId → user_id mismatch.
+    await this.prisma.$queryRaw`
+      UPDATE walkforwards SET status = 'FAILED', error = ${error}
+      WHERE id = ${walkforwardId}::uuid
+    `;
   }
 
   async getWalkforward(userId: string, id: string) {
-    const record = await this.prisma.walkforward.findUnique({
-      where: { id, userId },
-    });
+    const [record] = await this.prisma.$queryRaw<{
+        id: string;
+        symbol: string;
+        interval: string;
+        strategy: string;
+        param_ranges: object;
+        train_from_date: Date;
+        train_to_date: Date;
+        test_from_date: Date | null;
+        test_to_date: Date | null;
+        train_split_pct: number;
+        status: string;
+        error: string | null;
+        best_train_params: object | null;
+        train_metrics: object | null;
+        test_metrics: object | null;
+        train_equity_curve: object | null;
+        test_equity_curve: object | null;
+        train_trades: object | null;
+        test_trades: object | null;
+        train_pnl: number | null;
+        test_pnl: number | null;
+        train_drawdown: number | null;
+        test_drawdown: number | null;
+        train_win_rate: number | null;
+        test_win_rate: number | null;
+        created_at: Date;
+      }[]>`SELECT * FROM walkforwards WHERE id = ${id}::uuid AND user_id = ${userId}`;
     if (!record) return null;
 
     return {
@@ -251,52 +278,52 @@ export class WalkforwardService {
       symbol: record.symbol,
       interval: record.interval,
       strategy: record.strategy,
-      paramRanges: record.paramRanges,
-      trainFromDate: record.trainFromDate,
-      trainToDate: record.trainToDate,
-      testFromDate: record.testFromDate,
-      testToDate: record.testToDate,
-      trainSplitPct: record.trainSplitPct,
+      paramRanges: record.param_ranges,
+      trainFromDate: record.train_from_date,
+      trainToDate: record.train_to_date,
+      testFromDate: record.test_from_date,
+      testToDate: record.test_to_date,
+      trainSplitPct: record.train_split_pct,
       status: record.status,
       error: record.error,
-      bestTrainParams: record.bestTrainParams,
-      trainMetrics: record.trainMetrics,
-      testMetrics: record.testMetrics,
-      trainEquityCurve: record.trainEquityCurve,
-      testEquityCurve: record.testEquityCurve,
-      trainPnl: record.trainPnl,
-      testPnl: record.testPnl,
-      trainDrawdown: record.trainDrawdown,
-      testDrawdown: record.testDrawdown,
-      trainWinRate: record.trainWinRate,
-      testWinRate: record.testWinRate,
-      createdAt: record.createdAt,
+      bestTrainParams: record.best_train_params,
+      trainMetrics: record.train_metrics,
+      testMetrics: record.test_metrics,
+      trainEquityCurve: record.train_equity_curve,
+      testEquityCurve: record.test_equity_curve,
+      trainPnl: record.train_pnl,
+      testPnl: record.test_pnl,
+      trainDrawdown: record.train_drawdown,
+      testDrawdown: record.test_drawdown,
+      trainWinRate: record.train_win_rate,
+      testWinRate: record.test_win_rate,
+      createdAt: record.created_at,
     };
   }
 
   async listWalkforwards(userId: string, take = 20, skip = 0) {
-    // Use raw query to bypass Prisma schema mismatch on `createdAt` vs `created_at`.
-    // The volume-mounted node_modules uses a stale Prisma client built before the walkforward migration.
-    const [items, totalArr] = await Promise.all([
-      this.prisma.$queryRaw<{
-        id: string; symbol: string; interval: string; strategy: string;
-        status: string; trainPnl: number | null; testPnl: number | null;
-        trainDrawdown: number | null; testDrawdown: number | null;
-        error: string | null; createdAt: Date;
-      }[]>`
-        SELECT id, symbol, interval, strategy, status,
-               "train_pnl", "test_pnl", "train_drawdown", "test_drawdown",
-               error, "created_at" AS "createdAt"
-        FROM walkforwards
-        WHERE "user_id" = ${userId}
-        ORDER BY "created_at" DESC
-        LIMIT ${take} OFFSET ${skip}
-      `,
-      this.prisma.$queryRaw<{ count: bigint }[]>`
-        SELECT COUNT(*) AS count FROM walkforwards WHERE "user_id" = ${userId}
-      `,
+    const [items, total] = await Promise.all([
+      this.prisma.walkforward.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
+        select: {
+          id: true,
+          symbol: true,
+          interval: true,
+          strategy: true,
+          status: true,
+          trainPnl: true,
+          testPnl: true,
+          trainDrawdown: true,
+          testDrawdown: true,
+          error: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.walkforward.count({ where: { userId } }),
     ]);
-    const total = Number(totalArr[0]?.count ?? 0);
     return { items, total, take, skip };
   }
 

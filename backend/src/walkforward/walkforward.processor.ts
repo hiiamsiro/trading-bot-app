@@ -2,7 +2,6 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { WalkforwardService } from './walkforward.service';
-import { PrismaService } from '../prisma/prisma.service';
 
 type WalkforwardJobData = {
   walkforwardId: string;
@@ -20,10 +19,7 @@ type WalkforwardJobData = {
 export class WalkforwardProcessor extends WorkerHost {
   private readonly logger = new Logger(WalkforwardProcessor.name);
 
-  constructor(
-    private readonly walkforwardService: WalkforwardService,
-    private readonly prisma: PrismaService,
-  ) {
+  constructor(private readonly walkforwardService: WalkforwardService) {
     super();
   }
 
@@ -40,14 +36,9 @@ export class WalkforwardProcessor extends WorkerHost {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Walkforward ${walkforwardId} failed: ${message}`);
 
-      try {
-        await this.prisma.walkforward.update({
-          where: { id: walkforwardId },
-          data: { status: 'FAILED', error: message },
-        });
-      } catch {
-        this.logger.error(`Failed to update walkforward status for ${walkforwardId}`);
-      }
+      // markFailed uses raw SQL — bypasses Prisma's camelCase→snake_case field mismatch
+      // and is safe to call even if onModuleInit hasn't fully connected yet.
+      await this.walkforwardService.markFailed(walkforwardId, message);
     }
   }
 }
