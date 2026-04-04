@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { cn } from '@/lib/utils'
+import React, { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 interface SimpleTooltipProps {
   children: React.ReactNode
@@ -9,37 +9,57 @@ interface SimpleTooltipProps {
   side?: 'top' | 'bottom' | 'left' | 'right'
 }
 
-const SIDE_CLASSES = {
-  top: 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
-  bottom: 'top-full left-1/2 -translate-x-1/2 mt-1.5',
-  left: 'right-full top-1/2 -translate-y-1/2 mr-1.5',
-  right: 'left-full top-1/2 -translate-y-1/2 ml-1.5',
+const SIDE_STYLES: Record<string, React.CSSProperties> = {
+  top: { top: 'auto', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '6px' },
+  bottom: { top: '100%', bottom: 'auto', left: '50%', transform: 'translateX(-50%)', marginTop: '6px' },
+  left: { top: '50%', bottom: 'auto', left: 'auto', right: '100%', transform: 'translateY(-50%)', marginRight: '6px' },
+  right: { top: '50%', bottom: 'auto', left: '100%', right: 'auto', transform: 'translateY(-50%)', marginLeft: '6px' },
 }
 
 export function SimpleTooltip({ children, content, side = 'top' }: SimpleTooltipProps) {
   const [visible, setVisible] = useState(false)
+  const [coords, setCoords] = useState({ x: 0, y: 0 })
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => { setMounted(true) }, [])
 
   return (
     <div
+      ref={containerRef}
       className="relative inline-flex"
-      onMouseEnter={() => setVisible(true)}
+      onMouseEnter={() => {
+        const rect = containerRef.current!.getBoundingClientRect()
+        setCoords({ x: rect.left, y: rect.top })
+        setVisible(true)
+      }}
       onMouseLeave={() => setVisible(false)}
-      onFocus={() => setVisible(true)}
+      onFocus={() => {
+        const rect = containerRef.current!.getBoundingClientRect()
+        setCoords({ x: rect.left, y: rect.top })
+        setVisible(true)
+      }}
       onBlur={() => setVisible(false)}
     >
       {children}
-      {visible && (
-        <div
-          role="tooltip"
-          className={cn(
-            'pointer-events-none absolute z-50 whitespace-nowrap rounded-md border border-border/70 bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-xl',
-            'animate-in fade-in-0 zoom-in-95 duration-150',
-            SIDE_CLASSES[side],
-          )}
-        >
-          {content}
-        </div>
-      )}
+      {mounted &&
+        visible &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{
+              position: 'fixed',
+              zIndex: 100000,
+              ...SIDE_STYLES[side],
+              x: coords.x,
+              y: coords.y,
+            }}
+            className="pointer-events-none whitespace-nowrap rounded-md border border-border/70 bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
+          >
+            {content}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

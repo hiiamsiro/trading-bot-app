@@ -25,7 +25,7 @@ export class BacktestController {
   /** Quick preview against the last 100 candles — no DB record created. */
   @Post('preview')
   @HttpCode(HttpStatus.OK)
-  async preview(@Body() dto: PreviewBacktestDto, @CurrentUser() _user: AuthUserPayload) {
+  async preview(@Body() dto: PreviewBacktestDto, @CurrentUser() user: AuthUserPayload) {
     const symbol = dto.symbol.trim().toUpperCase();
 
     const instrument = await this.prisma.instrument.findUnique({
@@ -35,6 +35,7 @@ export class BacktestController {
     const sourceSymbol = (instrument?.sourceSymbol ?? symbol).replace('/', '').toUpperCase();
 
     const result = await this.backtestService.preview({
+      userId: user.userId,
       symbol,
       interval: dto.interval,
       strategyKey: dto.strategy,
@@ -85,6 +86,7 @@ export class BacktestController {
 
     try {
       const result = await this.backtestService.runBacktest({
+        userId,
         symbol: dto.symbol.trim().toUpperCase(),
         interval: dto.interval,
         strategyKey: dto.strategy,

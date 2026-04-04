@@ -8,9 +8,7 @@ import { useHandleApiError } from '@/hooks/use-handle-api-error'
 import { Instrument, MARKET_KLINE_INTERVALS } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { InfoTooltip } from '@/components/ui/info-tooltip'
-import { optimizationTooltips } from '@/lib/tooltip-content'
+import { FormField } from '@/components/ui/form-field'
 import {
   Select,
   SelectContent,
@@ -18,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { optimizationTooltips } from '@/lib/tooltip-content'
 
 export interface ParamRange {
   param: string
@@ -132,13 +131,9 @@ export function OptimizationForm({ onSubmit, submitting, adminOnly = false }: Pr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* ── Instrument + Strategy ─────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="opt-symbol" className="inline-flex items-center gap-1">
-            Instrument
-            <InfoTooltip content={optimizationTooltips.instrument} side="top" />
-          </Label>
+      {/* ── Core params ───────────────────────────── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <FormField label="Instrument" tooltip={optimizationTooltips.instrument} id="opt-symbol">
           {adminOnly ? (
             loadingInstruments ? (
               <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
@@ -166,32 +161,22 @@ export function OptimizationForm({ onSubmit, submitting, adminOnly = false }: Pr
               placeholder="e.g. BTCUSDT"
             />
           )}
-        </div>
+        </FormField>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="opt-interval" className="inline-flex items-center gap-1">
-            Timeframe
-            <InfoTooltip content={optimizationTooltips.timeframe} side="top" />
-          </Label>
+        <FormField label="Timeframe" tooltip={optimizationTooltips.timeframe} id="opt-interval">
           <Select value={interval} onValueChange={setInterval}>
             <SelectTrigger id="opt-interval">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {MARKET_KLINE_INTERVALS.map((iv) => (
-                <SelectItem key={iv} value={iv}>
-                  {iv}
-                </SelectItem>
+                <SelectItem key={iv} value={iv}>{iv}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </FormField>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="opt-strategy" className="inline-flex items-center gap-1">
-            Strategy
-            <InfoTooltip content={optimizationTooltips.strategy} side="top" />
-          </Label>
+        <FormField label="Strategy" tooltip={optimizationTooltips.strategy} id="opt-strategy">
           <Select value={strategy} onValueChange={handleStrategyChange}>
             <SelectTrigger id="opt-strategy">
               <SelectValue />
@@ -201,13 +186,9 @@ export function OptimizationForm({ onSubmit, submitting, adminOnly = false }: Pr
               <SelectItem value="sma_crossover">SMA Crossover</SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </FormField>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="opt-balance" className="inline-flex items-center gap-1">
-            Initial Balance
-            <InfoTooltip content={optimizationTooltips.initialBalance} side="top" />
-          </Label>
+        <FormField label="Initial Balance" tooltip={optimizationTooltips.initialBalance} id="opt-balance">
           <Input
             id="opt-balance"
             type="number"
@@ -216,16 +197,12 @@ export function OptimizationForm({ onSubmit, submitting, adminOnly = false }: Pr
             value={initialBalance}
             onChange={(e) => setInitialBalance(e.target.value)}
           />
-        </div>
+        </FormField>
       </div>
 
       {/* ── Date range ──────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="opt-from" className="inline-flex items-center gap-1">
-            From
-            <InfoTooltip content={optimizationTooltips.fromDate} side="top" />
-          </Label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField label="From" tooltip={optimizationTooltips.fromDate} id="opt-from">
           <Input
             id="opt-from"
             type="date"
@@ -233,12 +210,8 @@ export function OptimizationForm({ onSubmit, submitting, adminOnly = false }: Pr
             max={toDate}
             onChange={(e) => setFromDate(e.target.value)}
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="opt-to" className="inline-flex items-center gap-1">
-            To
-            <InfoTooltip content={optimizationTooltips.toDate} side="top" />
-          </Label>
+        </FormField>
+        <FormField label="To" tooltip={optimizationTooltips.toDate} id="opt-to">
           <Input
             id="opt-to"
             type="date"
@@ -246,16 +219,15 @@ export function OptimizationForm({ onSubmit, submitting, adminOnly = false }: Pr
             min={fromDate}
             onChange={(e) => setToDate(e.target.value)}
           />
-        </div>
+        </FormField>
       </div>
 
       {/* ── Parameter ranges ─────────────────────── */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="inline-flex items-center gap-1">
-            Parameter Ranges
-            <InfoTooltip content={optimizationTooltips.parameterRanges} side="top" />
-          </Label>
+          <FormField label="Parameter Ranges" tooltip={optimizationTooltips.parameterRanges} id="param-ranges">
+            {null}
+          </FormField>
           <Button
             type="button"
             variant="outline"
@@ -279,9 +251,7 @@ export function OptimizationForm({ onSubmit, submitting, adminOnly = false }: Pr
               </SelectTrigger>
               <SelectContent>
                 {availableParams.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -311,7 +281,6 @@ export function OptimizationForm({ onSubmit, submitting, adminOnly = false }: Pr
       <Button
         type="submit"
         disabled={submitting || loadingInstruments || paramRanges.length === 0}
-        className="w-full"
       >
         {submitting ? (
           <>
@@ -319,12 +288,7 @@ export function OptimizationForm({ onSubmit, submitting, adminOnly = false }: Pr
             Optimization queued…
           </>
         ) : (
-          <>
-            Run Optimization
-            <span className="ml-1.5 inline-flex">
-              <InfoTooltip content={optimizationTooltips.runOptimization} side="top" />
-            </span>
-          </>
+          'Run Optimization'
         )}
       </Button>
     </form>

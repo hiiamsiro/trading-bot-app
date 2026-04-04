@@ -241,6 +241,7 @@ function ChartToolbar({
   indicators,
   onToggleIndicator,
   symbol,
+  isFullscreen,
 }: ChartToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border/40 px-3 py-2">
@@ -271,43 +272,45 @@ function ChartToolbar({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <ToggleIndicator
-          label="Vol"
-          checked={indicators.showVolume}
-          onChange={() => onToggleIndicator('showVolume')}
-        />
-        <ToggleIndicator
-          label="MA"
-          checked={indicators.showMa}
-          onChange={() => onToggleIndicator('showMa')}
-        />
-        <ToggleIndicator
-          label="RSI"
-          checked={indicators.showRsi}
-          onChange={() => onToggleIndicator('showRsi')}
-        />
-        <ToggleIndicator
-          label="MACD"
-          checked={indicators.showMacd}
-          onChange={() => onToggleIndicator('showMacd')}
-        />
-        <ToggleIndicator
-          label="BB"
-          checked={indicators.showBollingerBands}
-          onChange={() => onToggleIndicator('showBollingerBands')}
-        />
-        <ToggleIndicator
-          label="ATR"
-          checked={indicators.showAtr}
-          onChange={() => onToggleIndicator('showAtr')}
-        />
-        <ToggleIndicator
-          label="VWAP"
-          checked={indicators.showVwap}
-          onChange={() => onToggleIndicator('showVwap')}
-        />
-      </div>
+      {isFullscreen && (
+        <div className="flex flex-wrap items-center gap-2">
+          <ToggleIndicator
+            label="Vol"
+            checked={indicators.showVolume}
+            onChange={() => onToggleIndicator('showVolume')}
+          />
+          <ToggleIndicator
+            label="MA"
+            checked={indicators.showMa}
+            onChange={() => onToggleIndicator('showMa')}
+          />
+          <ToggleIndicator
+            label="RSI"
+            checked={indicators.showRsi}
+            onChange={() => onToggleIndicator('showRsi')}
+          />
+          <ToggleIndicator
+            label="MACD"
+            checked={indicators.showMacd}
+            onChange={() => onToggleIndicator('showMacd')}
+          />
+          <ToggleIndicator
+            label="BB"
+            checked={indicators.showBollingerBands}
+            onChange={() => onToggleIndicator('showBollingerBands')}
+          />
+          <ToggleIndicator
+            label="ATR"
+            checked={indicators.showAtr}
+            onChange={() => onToggleIndicator('showAtr')}
+          />
+          <ToggleIndicator
+            label="VWAP"
+            checked={indicators.showVwap}
+            onChange={() => onToggleIndicator('showVwap')}
+          />
+        </div>
+      )}
 
       <div className="ml-auto flex items-center gap-1">
         <SimpleTooltip content="Zoom in">
@@ -437,9 +440,9 @@ function ChartContent({
   const lastHoverEmitAtRef = useRef(0)
   const pendingHoverTsRef = useRef<number | null>(null) 
   const pausedRef = useRef(paused) 
-  const mainSeriesMetaRef = useRef< 
-    { len: number; firstOpenTime: number | null; lastOpenTime: number | null } 
-  >({ len: 0, firstOpenTime: null, lastOpenTime: null }) 
+  const mainSeriesMetaRef = useRef<
+    { len: number; firstOpenTime: number | null; lastOpenTime: number | null }
+  >({ len: 0, firstOpenTime: null, lastOpenTime: null })
 
   const { mas, showRsi, rsiPeriod, showMacd, showBollingerBands, showAtr, showVwap } =
     useMemo(() => {
@@ -453,11 +456,11 @@ function ChartContent({
         showAtr: indicatorState.showAtr,
         showVwap: indicatorState.showVwap,
       }
-    }, [indicatorConfig, indicatorState]) 
+    }, [indicatorConfig, indicatorState])
 
   const indicatorBars = useThrottledLatest(bars, INDICATOR_THROTTLE_MS, !paused)
- 
-  const subPaneCount = [showRsi, showMacd, showAtr].filter(Boolean).length 
+
+  const subPaneCount = [showRsi, showMacd, showAtr].filter(Boolean).length
   const subPaneHeight = subPaneCount > 0 ? Math.floor(height * 0.18) : 0
   const mainChartH =
     height -
@@ -465,6 +468,9 @@ function ChartContent({
     (showOhlcvLegend ? 32 : 0) -
     subPaneCount * subPaneHeight -
     subPaneCount * 8
+  // Keep a mutable ref so ResizeObserver always reads the latest computed height
+  const mainChartHRef = useRef(mainChartH)
+  useEffect(() => { mainChartHRef.current = mainChartH }, [mainChartH])
 
   useEffect(() => { 
     pausedRef.current = paused 
@@ -735,6 +741,10 @@ function ChartContent({
         if (rsiChartRef.current) rsiChartRef.current.applyOptions({ width: el.clientWidth })
         if (macdChartRef.current) macdChartRef.current.applyOptions({ width: el.clientWidth })
         if (atrChartRef.current) atrChartRef.current.applyOptions({ width: el.clientWidth })
+      }
+      // Also handle height changes (e.g. when indicators toggle and mainChartH shrinks/grows)
+      if (mainChartHRef.current > 0) {
+        chart.applyOptions({ height: mainChartHRef.current })
       }
     })
     ro.observe(el) 
@@ -1075,6 +1085,7 @@ function ChartContent({
           indicators={indicatorState}
           onToggleIndicator={onToggleIndicator}
           symbol={symbol}
+          isFullscreen={false}
         />
       )}
       {showOhlcvLegend && <OhlcvLegend bar={activeBar} />}
@@ -1084,23 +1095,7 @@ function ChartContent({
         style={{ height: mainChartH }}
         role="img"
         aria-label="Candlestick price chart"
-      >
-        <div
-          data-rsi-chart
-          className="border-t border-border/40"
-          style={{ height: subPaneHeight, marginTop: 8, display: indicatorState.showRsi ? 'block' : 'none' }}
-        />
-        <div
-          data-macd-chart
-          className="border-t border-border/40"
-          style={{ height: subPaneHeight, marginTop: 8, display: indicatorState.showMacd ? 'block' : 'none' }}
-        />
-        <div
-          data-atr-chart
-          className="border-t border-border/40"
-          style={{ height: subPaneHeight, marginTop: 8, display: indicatorState.showAtr ? 'block' : 'none' }}
-        />
-      </div>
+      />
     </div>
   )
 }
@@ -1797,10 +1792,10 @@ export function FullscreenChartDialog({
       > 
         <DialogTitle className="sr-only">{symbol ? `${symbol} Chart` : 'Chart'}</DialogTitle> 
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden rounded-b-md"> 
-          <ChartToolbar 
-            chartType={chartTypeState} 
-            onChartTypeChange={setChartTypeState} 
-            onToggleFullscreen={onClose} 
+          <ChartToolbar
+            chartType={chartTypeState}
+            onChartTypeChange={setChartTypeState}
+            onToggleFullscreen={onClose}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             indicators={indicatorStateLocal}
@@ -1808,6 +1803,7 @@ export function FullscreenChartDialog({
               setIndicatorStateLocal((prev) => ({ ...prev, [key]: !prev[key] }))
             }
             symbol={symbol}
+            isFullscreen={true}
           /> 
           <OhlcvLegend bar={activeBar} />  
           <div  

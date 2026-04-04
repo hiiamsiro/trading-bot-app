@@ -130,12 +130,32 @@ model StrategyConfig {
   strategy     String
   params       Json
   builderConfig Json?   @map("builder_config") // Visual builder JSON; takes precedence over raw params when present
+  sourceCodeId  String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  bot         Bot            @relation(fields: [botId], references: [id], onDelete: Cascade)
+  sourceCode  StrategyCode? @relation("SourceCode", fields: [sourceCodeId], references: [id])
 
   @@map("strategy_configs")
+}
+
+model StrategyCode {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  code        String    @db.Text
+  language    String    @default("javascript")
+  isValid     Boolean   @default(true)
+  lastValidAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  strategyConfigs StrategyConfig[] @relation("SourceCode")
+
+  @@index([userId])
+  @@map("strategy_codes")
 }
 
 model Trade {

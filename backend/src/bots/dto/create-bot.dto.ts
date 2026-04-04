@@ -21,6 +21,11 @@ class StrategyConfigDto {
   @ApiProperty({ example: { shortPeriod: 10, longPeriod: 20 } })
   @IsObject()
   params: Record<string, unknown>;
+
+  @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440000' })
+  @IsString()
+  @IsOptional()
+  sourceCodeId?: string;
 }
 
 export class CreateBotDto {

@@ -681,3 +681,94 @@ export async function getLeaderboard(opts?: {
   const qs = params.toString()
   return api.get<{ items: LeaderboardItem[]; total: number }>(`/leaderboard${qs ? `?${qs}` : ''}`)
 }
+
+// ─── Strategy Code ──────────────────────────────────────────────────────────
+
+export interface StrategyCode {
+  id: string
+  userId: string
+  name: string
+  description?: string
+  code: string
+  language: string
+  isValid: boolean
+  lastValidAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateStrategyCodePayload {
+  name: string
+  description?: string
+  code: string
+  language?: string
+}
+
+export interface UpdateStrategyCodePayload {
+  name?: string
+  description?: string
+  code?: string
+  language?: string
+}
+
+export interface CreateBotFromCodePayload {
+  name: string
+  description?: string
+  symbol: string
+  interval: string
+  initialBalance: number
+  strategyCodeId: string
+}
+
+export interface StrategyCodeTemplate {
+  id: string
+  name: string
+  description: string
+  code: string
+  language: string
+}
+
+export async function fetchStrategyCodes(token: string): Promise<StrategyCode[]> {
+  return api.get<StrategyCode[]>('/strategy-codes', token)
+}
+
+export async function fetchStrategyCode(token: string, id: string): Promise<StrategyCode> {
+  return api.get<StrategyCode>(`/strategy-codes/${id}`, token)
+}
+
+export async function createStrategyCode(
+  token: string,
+  payload: CreateStrategyCodePayload,
+): Promise<StrategyCode> {
+  return api.post<StrategyCode>('/strategy-codes', payload, token)
+}
+
+export async function updateStrategyCode(
+  token: string,
+  id: string,
+  payload: UpdateStrategyCodePayload,
+): Promise<StrategyCode> {
+  return api.put<StrategyCode>(`/strategy-codes/${id}`, payload, token)
+}
+
+export async function deleteStrategyCode(token: string, id: string): Promise<void> {
+  return api.delete<void>(`/strategy-codes/${id}`, token)
+}
+
+export async function validateStrategyCode(
+  token: string,
+  code: string,
+): Promise<{ valid: boolean; error?: string }> {
+  return api.post<{ valid: boolean; error?: string }>('/strategy-codes/validate', { code }, token)
+}
+
+export async function fetchStrategyCodeTemplates(): Promise<StrategyCodeTemplate[]> {
+  return api.get<StrategyCodeTemplate[]>('/strategy-codes/templates')
+}
+
+export async function createBotFromCode(
+  token: string,
+  payload: CreateBotFromCodePayload,
+): Promise<Bot> {
+  return api.post<Bot>('/bots/from-code', payload, token)
+}

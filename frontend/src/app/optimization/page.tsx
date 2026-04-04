@@ -126,9 +126,9 @@ export default function OptimizationPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
         {/* ── Form ──────────────────────────────── */}
-        <Card className="lg:col-span-1">
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-1.5">
               Parameter Ranges
@@ -150,7 +150,7 @@ export default function OptimizationPage() {
           {currentRecord ? (
             <>
               {/* Bot selector for "apply to bot" */}
-              {currentRecord.status === 'COMPLETED' && bots.length > 0 && (
+              {currentRecord.status === 'COMPLETED' && (
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-1">
@@ -161,18 +161,24 @@ export default function OptimizationPage() {
                   <CardContent className="flex gap-2">
                     <div className="flex-1 space-y-1.5">
                       <Label htmlFor="target-bot" className="text-xs">Select bot</Label>
-                      <Select value={targetBotId} onValueChange={setTargetBotId}>
-                        <SelectTrigger id="target-bot">
-                          <SelectValue placeholder="Choose a stopped bot…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {bots.map((bot) => (
-                            <SelectItem key={bot.id} value={bot.id}>
-                              {bot.name} ({bot.symbol})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {bots.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          No stopped bots available. Stop a running bot first to apply this configuration.
+                        </p>
+                      ) : (
+                        <Select value={targetBotId} onValueChange={setTargetBotId}>
+                          <SelectTrigger id="target-bot">
+                            <SelectValue placeholder="Choose a stopped bot…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {bots.map((bot) => (
+                              <SelectItem key={bot.id} value={bot.id}>
+                                {bot.name} ({bot.symbol})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

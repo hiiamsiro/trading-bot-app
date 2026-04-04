@@ -23,6 +23,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { BotsService } from './bots.service';
 import { CreateBotDto } from './dto/create-bot.dto';
 import { CreateBotFromBuilderDto } from './dto/create-bot-from-builder.dto';
+import { CreateBotFromCodeDto } from './dto/create-bot-from-code.dto';
 import { UpdateBotDto } from './dto/update-bot.dto';
 import { ListBotLogsQueryDto } from './dto/list-bot-logs-query.dto';
 
@@ -104,6 +105,13 @@ export class BotsController {
     @CurrentUser() user: AuthUserPayload,
   ) {
     return this.botsService.createFromBuilder(dto, user.userId);
+  }
+
+  @Post('from-code')
+  @ApiOperation({ summary: 'Create a bot from a saved strategy code' })
+  @ApiOkResponse({ description: 'Created bot (custom_code strategy)' })
+  async createFromCode(@Body() dto: CreateBotFromCodeDto, @CurrentUser() user: AuthUserPayload) {
+    return this.botsService.createFromCode(dto, user.userId);
   }
 
   @Post()

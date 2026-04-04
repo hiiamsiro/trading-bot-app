@@ -4,9 +4,10 @@ import { BacktestService } from './backtest.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MarketDataModule } from '../market-data/market-data.module';
 import { StrategyModule } from '../strategy/strategy.module';
+import { StrategyCodeModule } from '../strategy-code/strategy-code.module';
 
 @Module({
-  imports: [PrismaModule, MarketDataModule, StrategyModule],
+  imports: [PrismaModule, MarketDataModule, StrategyModule, StrategyCodeModule],
   controllers: [BacktestController],
   providers: [BacktestService],
   exports: [BacktestService],

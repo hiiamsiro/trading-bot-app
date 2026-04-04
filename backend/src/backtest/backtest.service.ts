@@ -7,6 +7,7 @@ import {
   MarketKlineInterval,
 } from '../market-data/providers/market-data-provider.types';
 import { Prisma } from '@prisma/client';
+import { StrategySandboxService } from '../strategy-code/strategy-sandbox.service';
 
 export type BacktestMetrics = {
   totalTrades: number;
@@ -84,6 +85,7 @@ export class BacktestService {
     private readonly prisma: PrismaService,
     private readonly marketDataAdapter: BinanceMarketDataAdapter,
     private readonly strategyService: StrategyService,
+    private readonly strategySandbox: StrategySandboxService,
   ) {}
 
   /**
@@ -91,13 +93,14 @@ export class BacktestService {
    * Returns sample trades + win rate so user can validate a strategy before starting a bot.
    */
   async preview(params: {
+    userId?: string;
     symbol: string;
     interval: MarketKlineInterval;
     strategyKey: string;
     strategyParams: Record<string, unknown>;
     sourceSymbol: string;
   }): Promise<BacktestResult> {
-    const { symbol, interval, strategyKey, strategyParams, sourceSymbol } = params;
+    const { userId, symbol, interval, strategyKey, strategyParams, sourceSymbol } = params;
 
     const candles = await this.marketDataAdapter.getKlines(sourceSymbol, interval, 100);
     if (candles.length < 3) {
@@ -106,9 +109,15 @@ export class BacktestService {
 
     const validated = this.strategyService.validateConfig(strategyKey, strategyParams);
     const requiredCandles = this.strategyService.getRequiredCandles(
-      strategyKey,
+      validated.normalizedStrategy,
       validated.normalizedParams,
     );
+
+    const entryRequired = Math.max(2, Math.min(requiredCandles.entry, candles.length));
+    const customCode =
+      validated.normalizedStrategy === 'custom_code'
+        ? await this.resolveCustomStrategyCode(userId ?? null, validated.normalizedParams)
+        : null;
 
     return this.simulate(
       symbol,
@@ -116,12 +125,14 @@ export class BacktestService {
       validated.normalizedStrategy,
       validated.normalizedParams,
       candles,
-      requiredCandles.entry,
+      entryRequired,
       10000,
+      customCode,
     );
   }
 
   async runBacktest(params: {
+    userId?: string;
     symbol: string;
     interval: MarketKlineInterval;
     strategyKey: string;
@@ -132,6 +143,7 @@ export class BacktestService {
     sourceSymbol: string;
   }): Promise<BacktestResult> {
     const {
+      userId,
       symbol,
       interval,
       strategyKey,
@@ -153,18 +165,25 @@ export class BacktestService {
     // Validate strategy config
     const validated = this.strategyService.validateConfig(strategyKey, strategyParams);
     const requiredCandles = this.strategyService.getRequiredCandles(
-      strategyKey,
+      validated.normalizedStrategy,
       validated.normalizedParams,
     );
 
-    const results = this.simulate(
+    const entryRequired = Math.max(2, Math.min(requiredCandles.entry, allCandles.length));
+    const customCode =
+      validated.normalizedStrategy === 'custom_code'
+        ? await this.resolveCustomStrategyCode(userId ?? null, validated.normalizedParams)
+        : null;
+
+    const results = await this.simulate(
       symbol,
       interval,
       validated.normalizedStrategy,
       validated.normalizedParams,
       allCandles,
-      requiredCandles.entry,
+      entryRequired,
       initialBalance,
+      customCode,
     );
     return results;
   }
@@ -191,7 +210,37 @@ export class BacktestService {
     return candles.filter((c) => c.closeTime <= cutoff);
   }
 
-  private simulate(
+  private async resolveCustomStrategyCode(
+    userId: string | null,
+    params: Record<string, unknown>,
+  ): Promise<string> {
+    const inlineCode = typeof params.code === 'string' ? params.code : null;
+    if (inlineCode && inlineCode.trim().length > 0) {
+      return inlineCode;
+    }
+
+    // Support both sourceCodeId (preferred) and legacy strategyCodeId param key
+    const sourceCodeId =
+      (typeof params.sourceCodeId === 'string' ? params.sourceCodeId : null) ||
+      (typeof params.strategyCodeId === 'string' ? params.strategyCodeId : null);
+    if (!sourceCodeId) {
+      throw new Error('custom_code requires params.code or params.sourceCodeId');
+    }
+    if (!userId) {
+      throw new Error('custom_code sourceCodeId lookup requires userId');
+    }
+
+    const record = await this.prisma.strategyCode.findFirst({
+      where: { id: sourceCodeId, userId },
+      select: { code: true },
+    });
+    if (!record) {
+      throw new Error('Strategy code not found');
+    }
+    return record.code;
+  }
+
+  private async simulate(
     symbol: string,
     interval: MarketKlineInterval,
     strategyKey: string,
@@ -199,7 +248,8 @@ export class BacktestService {
     candles: MarketKline[],
     requiredCandles: number,
     initialBalance: number,
-  ): BacktestResult {
+    customCode: string | null,
+  ): Promise<BacktestResult> {
     const trades: BacktestTrade[] = [];
     const equityCurve: BacktestEquityPoint[] = [];
 
@@ -428,15 +478,38 @@ export class BacktestService {
 
       // 3. Strategy evaluation (only if no open position)
       if (!openPosition) {
-        const decision = this.strategyService.evaluate({
-          strategyKey,
-          instrument: symbol,
-          interval,
-          params,
-          closes: { entry: closes, trend: [] },
-        });
+        let effectiveSignal: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
+        if (strategyKey === 'custom_code') {
+          if (!customCode) {
+            throw new Error('Missing custom strategy code for custom_code backtest');
+          }
+          const customDecision = await this.strategySandbox.execute(customCode, {
+            symbol,
+            interval,
+            candles: completedCandles.slice(-requiredCandles).map((c) => ({
+              open: Number(c.open),
+              high: Number(c.high),
+              low: Number(c.low),
+              close: Number(c.close),
+              volume: Number(c.volume),
+            })),
+            position: null,
+            balance: currentBalance,
+            entryPrice: null,
+          });
+          effectiveSignal = customDecision?.action ?? 'HOLD';
+        } else {
+          const decision = this.strategyService.evaluate({
+            strategyKey,
+            instrument: symbol,
+            interval,
+            params,
+            closes: { entry: closes, trend: [] },
+          });
+          effectiveSignal = decision.signal;
+        }
 
-        if (decision.signal === 'BUY') {
+        if (effectiveSignal === 'BUY') {
           const entryPrice = currentCandle.close;
           const slippageBps = randomSlippageBps();
           const executedEntryPrice = applySlippage(entryPrice, slippageBps, true);

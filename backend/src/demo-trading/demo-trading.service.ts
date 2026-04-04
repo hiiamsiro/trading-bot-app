@@ -9,13 +9,19 @@ import {
   StrategyConfig,
   Trade,
   TradeSide,
+  StrategyCode,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataGateway } from '../market-data/market-data.gateway';
 import { MarketDataService } from '../market-data/market-data.service';
-import { MarketKlineInterval } from '../market-data/providers/market-data-provider.types';
+import {
+  MarketKline,
+  MarketKlineInterval,
+} from '../market-data/providers/market-data-provider.types';
 import { StrategyService } from '../strategy/strategy.service';
 import { BotsService } from '../bots/bots.service';
+import { StrategySandboxService } from '../strategy-code/strategy-sandbox.service';
+import { BillingService } from '../billing/billing.service';
 
 type BotWithStrategy = Bot & {
   strategyConfig: StrategyConfig | null;
@@ -25,6 +31,8 @@ type BotWithStrategy = Bot & {
 // Realistic trading simulation defaults (can be overridden via env)
 const DEFAULT_FEE_BPS = 10; // 0.10% per side (typical crypto spot fee)
 const DEFAULT_MAX_SLIPPAGE_BPS = 5; // up to 0.05% slippage per side
+const BILLING_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const INSTRUMENT_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour (instruments change rarely)
 
 @Injectable()
 export class DemoTradingService {
@@ -34,7 +42,57 @@ export class DemoTradingService {
     private readonly strategy: StrategyService,
     private readonly gateway: MarketDataGateway,
     private readonly botsService: BotsService,
+    private readonly strategySandboxService: StrategySandboxService,
+    private readonly billingService: BillingService,
   ) {}
+
+  // ── Per-service caches (TTL-based, no eviction needed at this scale) ─────────
+
+  private billingCache = new Map<string, { allowed: boolean; checkedAt: number }>();
+  private instrumentCache = new Map<string, { instrument: Instrument; checkedAt: number }>();
+  private sourceCodeCache = new Map<string, { code: string; loadedAt: number }>();
+
+  private getCachedBilling(userId: string): Promise<boolean> {
+    const cached = this.billingCache.get(userId);
+    if (cached && Date.now() - cached.checkedAt < BILLING_CACHE_TTL_MS) {
+      return Promise.resolve(cached.allowed);
+    }
+    return this.billingService.canUseCustomCode(userId).then(({ allowed }) => {
+      this.billingCache.set(userId, { allowed, checkedAt: Date.now() });
+      return allowed;
+    });
+  }
+
+  private getCachedInstrument(symbol: string): Promise<Instrument | null> {
+    const cached = this.instrumentCache.get(symbol);
+    if (cached && Date.now() - cached.checkedAt < INSTRUMENT_CACHE_TTL_MS) {
+      return Promise.resolve(cached.instrument);
+    }
+    return this.prisma.instrument
+      .findUnique({ where: { symbol } })
+      .then((instrument) => {
+        if (instrument) {
+          this.instrumentCache.set(symbol, { instrument, checkedAt: Date.now() });
+        }
+        return instrument;
+      });
+  }
+
+  private getCachedSourceCode(id: string): Promise<string | null> {
+    const cached = this.sourceCodeCache.get(id);
+    if (cached && Date.now() - cached.loadedAt < BILLING_CACHE_TTL_MS) {
+      return Promise.resolve(cached.code);
+    }
+    return this.prisma.strategyCode
+      .findUnique({ where: { id }, select: { code: true } })
+      .then((record) => {
+        if (record) {
+          this.sourceCodeCache.set(id, { code: record.code, loadedAt: Date.now() });
+          return record.code;
+        }
+        return null;
+      });
+  }
 
   /**
    * Returns a random slippage amount in basis points (0 to maxBps).
@@ -114,9 +172,7 @@ export class DemoTradingService {
       return;
     }
 
-    const instrument = await this.prisma.instrument.findUnique({
-      where: { symbol: bot.symbol },
-    });
+    const instrument = await this.getCachedInstrument(bot.symbol);
     if (!instrument || !instrument.isActive || instrument.status !== 'ACTIVE') {
       await this.botsService.appendLog(
         bot.id,
@@ -192,6 +248,116 @@ export class DemoTradingService {
         ? this.marketData.getCloses(bot.symbol, requiredCandles.trend, trendInterval)
         : Promise.resolve([]),
     ]);
+
+    // If custom strategy, use sandbox executor
+    // strategyConfig.strategy is stored normalized; legacy "custom:..." prefix is also supported
+    const isCustomStrategy =
+      bot.strategyConfig.strategy === 'custom_code' ||
+      bot.strategyConfig.strategy.startsWith('custom:');
+    const sourceCodeId =
+      bot.strategyConfig.sourceCodeId ??
+      (bot.strategyConfig.strategy.startsWith('custom:')
+        ? bot.strategyConfig.strategy.replace('custom:', '')
+        : null);
+
+    if (isCustomStrategy) {
+      // Guard: re-verify plan at execution time (user may have downgraded since bot started)
+      const allowed = await this.getCachedBilling(bot.userId);
+      if (!allowed) {
+        await this.botsService.appendLog(
+          bot.id,
+          LogLevel.ERROR,
+          'Custom code disabled: plan expired or downgrade',
+          { userId: bot.userId },
+          'billing',
+        );
+        await this.botsService.stop(bot.id, bot.userId);
+        return;
+      }
+
+      if (!sourceCodeId) {
+        await this.botsService.appendLog(
+          bot.id,
+          LogLevel.ERROR,
+          'Custom strategy is missing sourceCodeId',
+          { strategy: bot.strategyConfig.strategy },
+          'strategy',
+        );
+        return;
+      }
+
+      const sourceCode = await this.getCachedSourceCode(sourceCodeId);
+      if (!sourceCode) {
+        await this.botsService.appendLog(
+          bot.id,
+          LogLevel.ERROR,
+          'Strategy code not found',
+          { sourceCodeId },
+          'strategy',
+        );
+        return;
+      }
+
+      const klines = await this.marketData.getKlines(bot.symbol, interval, requiredCandles.entry);
+      const balance = bot.executionSession?.currentBalance ?? 10000;
+
+      const result = await this.strategySandboxService.execute(sourceCode, {
+        symbol: bot.symbol,
+        interval,
+        candles: klines.map((k: MarketKline) => ({
+          open: k.open,
+          high: k.high,
+          low: k.low,
+          close: k.close,
+          volume: k.volume,
+        })),
+        position: openTrade
+          ? openTrade.side === TradeSide.BUY
+            ? 'long'
+            : 'short'
+          : null,
+        balance,
+        entryPrice: openTrade?.price ?? null,
+      });
+
+      await this.botsService.appendLog(
+        bot.id,
+        LogLevel.DEBUG,
+        'Custom strategy signal evaluated',
+        {
+          symbol: bot.symbol,
+          sourceCodeId,
+          signal: result?.action ?? 'HOLD',
+          reason: result?.reason ?? 'no signal',
+          confidence: result?.confidence,
+        },
+        'strategy',
+      );
+
+      if (!result) {
+        return;
+      }
+
+      if (result.action !== 'HOLD') {
+        await this.prisma.bot.update({
+          where: { id: bot.id },
+          data: { lastSignalAt: new Date() },
+        });
+      }
+
+      const decision: { signal: 'BUY' | 'SELL' | 'HOLD'; reason: string; metadata: Record<string, unknown> } = {
+        signal: result.action === 'BUY' ? 'BUY' : result.action === 'SELL' ? 'SELL' : 'HOLD',
+        reason: result.reason,
+        metadata: { sourceCodeId, confidence: result.confidence },
+      };
+
+      if (decision.signal === 'BUY' && !openTrade) {
+        await this.openLong(bot, livePrice, params, decision);
+      } else if (decision.signal === 'SELL' && openTrade && openTrade.side === TradeSide.BUY) {
+        await this.closeTrade(bot, openTrade, livePrice, `strategy:${decision.reason}`, decision);
+      }
+      return;
+    }
 
     const decision = this.strategy.evaluate({
       strategyKey: bot.strategyConfig.strategy,

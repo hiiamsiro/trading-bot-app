@@ -105,9 +105,9 @@ export default function BacktestPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
         {/* ── Form ──────────────────────────────── */}
-        <Card className="lg:col-span-1">
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-1.5">
               Configuration

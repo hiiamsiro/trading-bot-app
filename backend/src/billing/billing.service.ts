@@ -8,6 +8,7 @@ export interface PlanLimits {
   canBacktest: boolean
   canPublish: boolean
   canCloneFromMarketplace: boolean
+  canUseCustomCode: boolean
 }
 
 export const PLAN_ORDER: Plan[] = ['FREE', 'PRO', 'PREMIUM']
@@ -19,6 +20,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     canBacktest: false,
     canPublish: false,
     canCloneFromMarketplace: false,
+    canUseCustomCode: false,
   },
   PRO: {
     maxBots: 5,
@@ -26,6 +28,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     canBacktest: true,
     canPublish: true,
     canCloneFromMarketplace: true,
+    canUseCustomCode: true,
   },
   PREMIUM: {
     maxBots: -1, // unlimited
@@ -33,6 +36,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     canBacktest: true,
     canPublish: true,
     canCloneFromMarketplace: true,
+    canUseCustomCode: true,
   },
 }
 
@@ -136,6 +140,17 @@ export class BillingService {
     return {
       allowed: false,
       reason: 'Publishing requires a Pro or Premium plan.',
+    };
+  }
+
+  async canUseCustomCode(userId: string): Promise<{ allowed: boolean; reason?: string }> {
+    const plan = await this.getPlan(userId);
+    if (PLAN_LIMITS[plan].canUseCustomCode) {
+      return { allowed: true };
+    }
+    return {
+      allowed: false,
+      reason: 'Custom code editor requires a Pro or Premium plan.',
     };
   }
 

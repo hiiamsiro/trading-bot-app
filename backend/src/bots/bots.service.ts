@@ -12,7 +12,9 @@ import { UpdateBotDto } from './dto/update-bot.dto';
 import { ListBotLogsQueryDto } from './dto/list-bot-logs-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateBotFromBuilderDto } from './dto/create-bot-from-builder.dto';
+import { CreateBotFromCodeDto } from './dto/create-bot-from-code.dto';
 import { BillingService } from '../billing/billing.service';
+import { StrategyCodeService } from '../strategy-code/strategy-code.service';
 
 @Injectable()
 export class BotsService {
@@ -25,6 +27,7 @@ export class BotsService {
     private readonly strategyBuilderService: StrategyBuilderService,
     private readonly notificationsService: NotificationsService,
     private readonly billingService: BillingService,
+    private readonly strategyCodeService: StrategyCodeService,
   ) {}
 
   async findAll(userId: string) {
@@ -80,6 +83,18 @@ export class BotsService {
         );
       }
 
+      const sourceCodeId = createBotDto.strategyConfig?.sourceCodeId;
+      const requestedStrategy = createBotDto.strategyConfig?.strategy?.trim().toLowerCase().replace(/-/g, '_');
+      if (requestedStrategy === 'custom_code' && !sourceCodeId) {
+        throw new BadRequestException('custom_code strategy requires sourceCodeId');
+      }
+      if (sourceCodeId) {
+        // Guard: user must have Pro+ plan to attach custom code
+        const { allowed, reason } = await this.billingService.canUseCustomCode(userId);
+        if (!allowed) throw new ForbiddenException(reason);
+        // Guard: sourceCodeId must be owned by the user
+        await this.strategyCodeService.getCodeForUser(sourceCodeId, userId);
+      }
       return tx.bot.create({
         data: {
           name: createBotDto.name,
@@ -91,6 +106,7 @@ export class BotsService {
                 create: {
                   strategy: validatedStrategyConfig.strategy,
                   params: validatedStrategyConfig.params as Prisma.InputJsonValue,
+                  ...(sourceCodeId ? { sourceCodeId } : {}),
                 },
               }
             : undefined,
@@ -153,12 +169,48 @@ export class BotsService {
     });
   }
 
+  async createFromCode(dto: CreateBotFromCodeDto, userId: string) {
+    // Guard: feature requires Pro+ plan
+    const { allowed, reason } = await this.billingService.canUseCustomCode(userId);
+    if (!allowed) throw new ForbiddenException(reason);
+
+    // Guard: strategy code must be owned by user
+    await this.strategyCodeService.getCodeForUser(dto.strategyCodeId, userId);
+
+    return this.create(
+      {
+        name: dto.name,
+        description: dto.description,
+        symbol: dto.symbol,
+        strategyConfig: {
+          strategy: 'custom_code',
+          params: {
+            interval: dto.interval,
+            initialBalance: dto.initialBalance ?? 10000,
+          },
+          sourceCodeId: dto.strategyCodeId,
+        },
+      },
+      userId,
+    );
+  }
+
   async update(id: string, updateBotDto: UpdateBotDto, userId: string) {
     const existing = await this.findOne(id, userId);
     const normalizedSymbol = updateBotDto.symbol?.trim().toUpperCase();
 
     if (normalizedSymbol) {
       await this.instrumentsService.assertActiveBySymbol(normalizedSymbol);
+    }
+
+    // Guard: sourceCodeId assignment requires Pro+ plan and ownership
+    if (updateBotDto.sourceCodeId !== undefined) {
+      const { allowed, reason } = await this.billingService.canUseCustomCode(userId);
+      if (!allowed) throw new ForbiddenException(reason);
+      // Loose check catches both null and undefined (DTO allows either to mean "unlink")
+      if (updateBotDto.sourceCodeId != null) {
+        await this.strategyCodeService.getCodeForUser(updateBotDto.sourceCodeId, userId);
+      }
     }
 
     const updated = await this.prisma.bot.update({
@@ -168,6 +220,13 @@ export class BotsService {
         description: updateBotDto.description,
         symbol: normalizedSymbol,
         status: updateBotDto.status,
+        ...(updateBotDto.sourceCodeId !== undefined
+          ? {
+              strategyConfig: {
+                update: { sourceCodeId: updateBotDto.sourceCodeId },
+              },
+            }
+          : {}),
       },
       include: {
         strategyConfig: true,
@@ -628,6 +687,30 @@ export class BotsService {
     supportedIntervalsRaw: unknown,
   ): { strategy: string; params: Record<string, unknown> } {
     try {
+      const normalizedStrategy = strategy.trim().toLowerCase().replace(/-/g, '_');
+      if (normalizedStrategy === 'custom_code') {
+        // Custom strategies are executed via StrategySandboxService (not StrategyService.validateConfig).
+        // Still validate optional timeframe/interval so downstream market-data fetches are sane.
+        const requestedInterval = this.parseRequestedInterval(params);
+        if (requestedInterval) {
+          if (!this.strategyService.isSupportedInterval(requestedInterval)) {
+            throw new BadRequestException(
+              `Unsupported interval "${requestedInterval}". Supported values: 1m, 5m, 15m, 1h, 4h, 1d`,
+            );
+          }
+          const supportedByInstrument = this.normalizeInstrumentIntervals(supportedIntervalsRaw);
+          if (
+            supportedByInstrument.length > 0 &&
+            !supportedByInstrument.includes(requestedInterval)
+          ) {
+            throw new BadRequestException(
+              `Interval "${requestedInterval}" is not supported for this instrument. Supported intervals: ${supportedByInstrument.join(', ')}`,
+            );
+          }
+        }
+        return { strategy: 'custom_code', params };
+      }
+
       const validated = this.strategyService.validateConfig(strategy, params);
       const requestedInterval = this.parseRequestedInterval(validated.normalizedParams);
       if (requestedInterval) {

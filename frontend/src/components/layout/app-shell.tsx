@@ -3,6 +3,7 @@
 import { AuthGuard } from '@/components/layout/auth-guard'
 import { AppSidebar, MobileSidebar } from '@/components/layout/app-sidebar'
 import { NotificationPanel } from '@/components/notifications/notification-panel'
+import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { Menu } from 'lucide-react'
 import { useState } from 'react'
 
@@ -26,7 +27,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Menu className="h-5 w-5 text-foreground" />
         </button>
         <span className="font-semibold text-foreground">Trading Bot</span>
-        <div className="w-10 shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
+          <ThemeToggle />
           <NotificationPanel />
         </div>
       </header>
@@ -45,7 +47,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <main className="flex flex-1 flex-col overflow-auto pt-14 lg:pt-0">
         <div className="container max-w-7xl px-4 py-6 sm:px-6">
-          <div className="mb-4 hidden justify-end lg:flex">
+          <div className="mb-4 hidden items-center justify-end gap-2 lg:flex">
+            <ThemeToggle />
             <NotificationPanel />
           </div>
           {children}

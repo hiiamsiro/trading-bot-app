@@ -19,6 +19,7 @@ import { BacktestModule } from './backtest/backtest.module';
 import { TemplatesModule } from './templates/templates.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { StrategyModule } from './strategy/strategy.module';
+import { StrategyCodeModule } from './strategy-code/strategy-code.module';
 import { ShareModule } from './share/share.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { BillingModule } from './billing/billing.module';
@@ -66,6 +67,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
     TemplatesModule,
     PortfolioModule,
     StrategyModule,
+    StrategyCodeModule,
     ShareModule,
     BillingModule,
     StripeModule,

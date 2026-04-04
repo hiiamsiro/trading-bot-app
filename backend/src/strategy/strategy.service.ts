@@ -70,6 +70,24 @@ export class StrategyService {
     const normalizedStrategy = this.normalizeStrategyKey(strategyKey);
     const safeParams = params ?? {};
 
+    if (normalizedStrategy === 'custom_code') {
+      // Custom strategies are executed in the sandbox (StrategySandboxService).
+      // Validate only lightweight, shared fields (e.g. interval) so callers can reuse this path.
+      const interval = this.optionalTrimmedString(safeParams.interval);
+      const trendInterval = this.optionalTrimmedString(safeParams.trendInterval);
+      if (interval && !this.isSupportedInterval(interval)) {
+        throw new BadRequestException(
+          `Invalid strategy config: interval "${interval}" is not supported. Supported: 1m, 5m, 15m, 1h, 4h, 1d`,
+        );
+      }
+      if (trendInterval && !this.isSupportedInterval(trendInterval)) {
+        throw new BadRequestException(
+          `Invalid strategy config: trendInterval "${trendInterval}" is not supported. Supported: 1m, 5m, 15m, 1h, 4h, 1d`,
+        );
+      }
+      return { normalizedStrategy: 'custom_code', normalizedParams: safeParams };
+    }
+
     if (normalizedStrategy === 'ma_crossover' || normalizedStrategy === 'sma_crossover') {
       const shortPeriod = Number(safeParams.shortPeriod);
       const longPeriod = Number(safeParams.longPeriod);
@@ -234,6 +252,11 @@ export class StrategyService {
     params: Record<string, unknown>,
   ): { entry: number; trend: number } {
     const key = this.normalizeStrategyKey(strategyKey);
+    if (key === 'custom_code') {
+      const requested = Number(params.requiredCandles ?? params.lookback ?? params.window);
+      const entry = Number.isFinite(requested) && requested >= 2 ? Math.floor(requested) : 50;
+      return { entry, trend: entry };
+    }
     if (key === 'ma_crossover' || key === 'sma_crossover') {
       const shortPeriod = Number(params.shortPeriod) || 10;
       const longPeriod = Number(params.longPeriod) || 20;

@@ -29,6 +29,9 @@ function makeService(overrides?: any) {
       updateMany: mockAsyncFn(async () => ({ count: 1 })),
       findUnique: mockAsyncFn(async () => ({ profitLoss: 0, endedAt: null })),
     },
+    strategyCode: {
+      findUnique: mockAsyncFn(async () => ({ code: 'signal("HOLD", 0, "default")' })),
+    },
     // bot.update is called to stamp lastSignalAt after every strategy evaluation
     bot: {
       update: mockAsyncFn(async (args) => ({
@@ -46,6 +49,7 @@ function makeService(overrides?: any) {
       ...prismaDefaults.executionSession,
       ...overrides?.prisma?.executionSession,
     },
+    strategyCode: overrides?.prisma?.strategyCode ?? prismaDefaults.strategyCode,
     bot: { ...prismaDefaults.bot, ...overrides?.prisma?.bot },
   };
 
@@ -70,13 +74,26 @@ function makeService(overrides?: any) {
     stop: mockAsyncFn(async () => ({})),
   };
 
+  const strategySandboxService = overrides?.strategySandboxService ?? {
+    execute: mockAsyncFn(async () => null),
+  };
+
+  const billingService = overrides?.billingService ?? {
+    canUseCustomCode: mockAsyncFn(async () => ({ allowed: true })),
+  };
+
   return {
-    service: new DemoTradingService(prisma, marketData, strategy, gateway, botsService),
+    service: new DemoTradingService(
+      prisma, marketData, strategy, gateway, botsService,
+      strategySandboxService, billingService,
+    ),
     prisma,
     marketData,
     strategy,
     gateway,
     botsService,
+    strategySandboxService,
+    billingService,
   };
 }
 
@@ -632,6 +649,250 @@ test('processTick enforceMaxDailyLoss closes position and stops bot when limit e
   assert.equal(botsService.stop.calls.length, 1);
   assert.equal(botsService.stop.calls[0][0], 'bot-1');
   assert.equal(botsService.stop.calls[0][1], 'user-1');
+});
+
+// ─────────────────────────────────────────────────────────
+// custom_code / sandbox path tests
+// ─────────────────────────────────────────────────────────
+
+test('processTick custom_code: sandbox BUY signal opens trade', async () => {
+  const { service, prisma, marketData, strategySandboxService, botsService } = makeService({
+    prisma: {
+      instrument: {
+        findUnique: mockAsyncFn(async () => ({
+          symbol: 'BTCUSDT',
+          isActive: true,
+          status: 'ACTIVE',
+          supportedIntervals: ['1m'],
+        })),
+      },
+      trade: {
+        findFirst: mockAsyncFn(async () => null),
+        create: mockAsyncFn(async (args) => ({ id: 'trade-1', ...args.data })),
+        update: mockAsyncFn(async () => ({})),
+      },
+      executionSession: {
+        updateMany: mockAsyncFn(async () => ({ count: 1 })),
+        findUnique: mockAsyncFn(async () => null),
+      },
+      strategyCode: {
+        findUnique: mockAsyncFn(async () => ({ code: 'signal("BUY", 0.8, "sandbox")' })),
+      },
+    },
+    marketData: {
+      getLatestPrice: mockAsyncFn(async () => 100),
+      getCloses: mockAsyncFn(async () => Array.from({ length: 50 }, () => 100)),
+      getKlines: mockAsyncFn(async () =>
+        Array.from({ length: 50 }, (_, i) => ({
+          open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 1000,
+        })),
+      ),
+    },
+    strategy: {
+      isSupportedInterval: mockFn(() => true),
+      getRequiredCandles: mockFn(() => ({ entry: 50, trend: 50 })),
+    },
+    strategySandboxService: {
+      execute: mockAsyncFn(async () => ({
+        action: 'BUY', confidence: 0.8, reason: 'sandbox',
+      })),
+    },
+    billingService: {
+      canUseCustomCode: mockAsyncFn(async () => ({ allowed: true })),
+    },
+  });
+
+  const bot = {
+    id: 'bot-1',
+    userId: 'user-1',
+    symbol: 'BTCUSDT',
+    status: 'RUNNING',
+    strategyConfig: {
+      strategy: 'custom_code',
+      params: { interval: '1m', quantity: 0.1 },
+      sourceCodeId: 'code-id-1',
+    },
+    executionSession: { botId: 'bot-1' },
+  };
+
+  await service.processTick(bot);
+
+  assert.equal(strategySandboxService.execute.calls.length, 1);
+  assert.equal(prisma.trade.create.calls.length, 1);
+  assert.equal(prisma.trade.create.calls[0][0].data.side, 'BUY');
+});
+
+test('processTick custom_code: sandbox HOLD returns null — no trade, no lastSignalAt write', async () => {
+  const { service, prisma, strategySandboxService } = makeService({
+    marketData: {
+      getLatestPrice: mockAsyncFn(async () => 100),
+      getCloses: mockAsyncFn(async () => Array.from({ length: 50 }, () => 100)),
+      getKlines: mockAsyncFn(async () =>
+        Array.from({ length: 50 }, (_, i) => ({
+          open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 1000,
+        })),
+      ),
+    },
+    strategySandboxService: {
+      execute: mockAsyncFn(async () => ({
+        action: 'HOLD', confidence: 0.1, reason: 'no signal',
+      })),
+    },
+  });
+
+  const bot = {
+    id: 'bot-1',
+    userId: 'user-1',
+    symbol: 'BTCUSDT',
+    status: 'RUNNING',
+    strategyConfig: {
+      strategy: 'custom_code',
+      params: { interval: '1m' },
+      sourceCodeId: 'code-id-1',
+    },
+    executionSession: { botId: 'bot-1' },
+  };
+
+  await service.processTick(bot);
+
+  // sandbox was called
+  assert.equal(strategySandboxService.execute.calls.length, 1);
+  // no trade opened
+  assert.equal(prisma.trade.create.calls.length, 0);
+  // no DB write to bot.lastSignalAt (because action === HOLD)
+  assert.equal(prisma.bot.update.calls.length, 0);
+});
+
+test('processTick custom_code: billing disallowed stops bot and returns', async () => {
+  const { service, botsService, strategySandboxService } = makeService({
+    billingService: {
+      canUseCustomCode: mockAsyncFn(async () => ({ allowed: false, reason: 'Plan expired' })),
+    },
+    strategySandboxService: {
+      execute: mockAsyncFn(async () => ({ action: 'BUY', confidence: 0.9, reason: 'test' })),
+    },
+  });
+
+  const bot = {
+    id: 'bot-1',
+    userId: 'user-1',
+    symbol: 'BTCUSDT',
+    status: 'RUNNING',
+    strategyConfig: {
+      strategy: 'custom_code',
+      params: { interval: '1m' },
+      sourceCodeId: 'code-id-1',
+    },
+    executionSession: { botId: 'bot-1' },
+  };
+
+  await service.processTick(bot);
+
+  assert.equal(botsService.stop.calls.length, 1);
+  assert.equal(strategySandboxService.execute.calls.length, 0); // never reached sandbox
+});
+
+test('processTick custom_code: missing sourceCodeId logs error and returns', async () => {
+  const { service, botsService, strategySandboxService } = makeService({
+    billingService: {
+      canUseCustomCode: mockAsyncFn(async () => ({ allowed: true })),
+    },
+    strategySandboxService: {
+      execute: mockAsyncFn(async () => null),
+    },
+  });
+
+  const bot = {
+    id: 'bot-1',
+    userId: 'user-1',
+    symbol: 'BTCUSDT',
+    status: 'RUNNING',
+    // no sourceCodeId and strategy is 'custom_code' (not 'custom:...')
+    strategyConfig: {
+      strategy: 'custom_code',
+      params: { interval: '1m' },
+      sourceCodeId: null,
+    },
+    executionSession: { botId: 'bot-1' },
+  };
+
+  await service.processTick(bot);
+
+  assert.equal(
+    botsService.appendLog.calls.some((c: unknown[]) => c[2] === 'Custom strategy is missing sourceCodeId'),
+    true,
+  );
+  assert.equal(strategySandboxService.execute.calls.length, 0);
+});
+
+test('processTick custom_code: sourceCode not found logs error and returns', async () => {
+  const { service, botsService, strategySandboxService } = makeService({
+    prisma: {
+      ...makeService().prisma,
+      strategyCode: {
+        findUnique: mockAsyncFn(async () => null),
+      },
+    },
+    strategySandboxService: {
+      execute: mockAsyncFn(async () => null),
+    },
+  });
+
+  const bot = {
+    id: 'bot-1',
+    userId: 'user-1',
+    symbol: 'BTCUSDT',
+    status: 'RUNNING',
+    strategyConfig: {
+      strategy: 'custom_code',
+      params: { interval: '1m' },
+      sourceCodeId: 'nonexistent-id',
+    },
+    executionSession: { botId: 'bot-1' },
+  };
+
+  await service.processTick(bot);
+
+  assert.equal(strategySandboxService.execute.calls.length, 0);
+  assert.equal(
+    botsService.appendLog.calls.some((c: unknown[]) => c[2] === 'Strategy code not found'),
+    true,
+  );
+});
+
+test('processTick custom_code: sandbox timeout returns null without crashing', async () => {
+  const { service, strategySandboxService, prisma } = makeService({
+    marketData: {
+      getLatestPrice: mockAsyncFn(async () => 100),
+      getCloses: mockAsyncFn(async () => Array.from({ length: 50 }, () => 100)),
+      getKlines: mockAsyncFn(async () =>
+        Array.from({ length: 50 }, (_, i) => ({
+          open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 1000,
+        })),
+      ),
+    },
+    strategySandboxService: {
+      execute: mockAsyncFn(async () => null), // timeout → null
+    },
+  });
+
+  const bot = {
+    id: 'bot-1',
+    userId: 'user-1',
+    symbol: 'BTCUSDT',
+    status: 'RUNNING',
+    strategyConfig: {
+      strategy: 'custom_code',
+      params: { interval: '1m' },
+      sourceCodeId: 'code-id-1',
+    },
+    executionSession: { botId: 'bot-1' },
+  };
+
+  await service.processTick(bot);
+
+  assert.equal(strategySandboxService.execute.calls.length, 1);
+  assert.equal(prisma.trade.create.calls.length, 0);
 });
 
 export {};
