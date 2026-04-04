@@ -15,9 +15,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
+import { backtestTooltips } from '@/lib/tooltip-content'
 
 export default function BacktestPage() {
   const token = useAuthStore((s) => s.token)
+  const isAdmin = useAuthStore((s) => s.isAdmin())
   const handleError = useHandleApiError()
   const [result, setResult] = useState<BacktestResult | null>(null)
   const [backtestId, setBacktestId] = useState<string | null>(null)
@@ -93,7 +96,10 @@ export default function BacktestPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Backtest</h1>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-1.5">
+          Backtest
+          <InfoTooltip content={backtestTooltips.pageTitle} side="right" />
+        </h1>
         <p className="text-sm text-muted-foreground">
           Simulate a strategy against historical market data before running it live.
         </p>
@@ -103,11 +109,14 @@ export default function BacktestPage() {
         {/* ── Form ──────────────────────────────── */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Configuration</CardTitle>
+            <CardTitle className="flex items-center gap-1.5">
+              Configuration
+              <InfoTooltip content={backtestTooltips.configurationTitle} side="top" />
+            </CardTitle>
             <CardDescription>Select instrument, strategy, and date range.</CardDescription>
           </CardHeader>
           <CardContent>
-            <BacktestForm onSubmit={handleSubmit} submitting={submitting} />
+            <BacktestForm onSubmit={handleSubmit} submitting={submitting} adminOnly={isAdmin} />
           </CardContent>
         </Card>
 

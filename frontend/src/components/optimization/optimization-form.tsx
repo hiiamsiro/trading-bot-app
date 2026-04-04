@@ -9,6 +9,8 @@ import { Instrument, MARKET_KLINE_INTERVALS } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
+import { optimizationTooltips } from '@/lib/tooltip-content'
 import {
   Select,
   SelectContent,
@@ -36,12 +38,13 @@ export interface OptimizationFormValues {
 type Props = {
   onSubmit: (values: OptimizationFormValues) => Promise<void>
   submitting: boolean
+  adminOnly?: boolean
 }
 
 const RSI_PARAMS = ['period', 'oversold', 'overbought']
 const SMA_PARAMS = ['shortPeriod', 'longPeriod']
 
-export function OptimizationForm({ onSubmit, submitting }: Props) {
+export function OptimizationForm({ onSubmit, submitting, adminOnly = false }: Props) {
   const token = useAuthStore((s) => s.token)
   const handleError = useHandleApiError()
   const [instruments, setInstruments] = useState<Instrument[]>([])
@@ -64,7 +67,7 @@ export function OptimizationForm({ onSubmit, submitting }: Props) {
   ])
 
   useEffect(() => {
-    if (!token) return
+    if (!token || !adminOnly) return
     ;(async () => {
       setLoadingInstruments(true)
       try {
@@ -79,7 +82,7 @@ export function OptimizationForm({ onSubmit, submitting }: Props) {
         setLoadingInstruments(false)
       }
     })()
-  }, [token, handleError, symbol])
+  }, [token, handleError, symbol, adminOnly])
 
   function handleStrategyChange(s: string) {
     setStrategy(s)
@@ -132,29 +135,44 @@ export function OptimizationForm({ onSubmit, submitting }: Props) {
       {/* ── Instrument + Strategy ─────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="opt-symbol">Instrument</Label>
-          {loadingInstruments ? (
-            <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
-            </div>
+          <Label htmlFor="opt-symbol" className="inline-flex items-center gap-1">
+            Instrument
+            <InfoTooltip content={optimizationTooltips.instrument} side="top" />
+          </Label>
+          {adminOnly ? (
+            loadingInstruments ? (
+              <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+              </div>
+            ) : (
+              <Select value={symbol} onValueChange={setSymbol}>
+                <SelectTrigger id="opt-symbol">
+                  <SelectValue placeholder="Select instrument" />
+                </SelectTrigger>
+                <SelectContent>
+                  {instruments.map((inst) => (
+                    <SelectItem key={inst.symbol} value={inst.symbol}>
+                      {inst.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )
           ) : (
-            <Select value={symbol} onValueChange={setSymbol}>
-              <SelectTrigger id="opt-symbol">
-                <SelectValue placeholder="Select instrument" />
-              </SelectTrigger>
-              <SelectContent>
-                {instruments.map((inst) => (
-                  <SelectItem key={inst.symbol} value={inst.symbol}>
-                    {inst.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              id="opt-symbol"
+              value={symbol}
+              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+              placeholder="e.g. BTCUSDT"
+            />
           )}
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="opt-interval">Timeframe</Label>
+          <Label htmlFor="opt-interval" className="inline-flex items-center gap-1">
+            Timeframe
+            <InfoTooltip content={optimizationTooltips.timeframe} side="top" />
+          </Label>
           <Select value={interval} onValueChange={setInterval}>
             <SelectTrigger id="opt-interval">
               <SelectValue />
@@ -170,7 +188,10 @@ export function OptimizationForm({ onSubmit, submitting }: Props) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="opt-strategy">Strategy</Label>
+          <Label htmlFor="opt-strategy" className="inline-flex items-center gap-1">
+            Strategy
+            <InfoTooltip content={optimizationTooltips.strategy} side="top" />
+          </Label>
           <Select value={strategy} onValueChange={handleStrategyChange}>
             <SelectTrigger id="opt-strategy">
               <SelectValue />
@@ -183,7 +204,10 @@ export function OptimizationForm({ onSubmit, submitting }: Props) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="opt-balance">Initial Balance</Label>
+          <Label htmlFor="opt-balance" className="inline-flex items-center gap-1">
+            Initial Balance
+            <InfoTooltip content={optimizationTooltips.initialBalance} side="top" />
+          </Label>
           <Input
             id="opt-balance"
             type="number"
@@ -198,7 +222,10 @@ export function OptimizationForm({ onSubmit, submitting }: Props) {
       {/* ── Date range ──────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="opt-from">From</Label>
+          <Label htmlFor="opt-from" className="inline-flex items-center gap-1">
+            From
+            <InfoTooltip content={optimizationTooltips.fromDate} side="top" />
+          </Label>
           <Input
             id="opt-from"
             type="date"
@@ -208,7 +235,10 @@ export function OptimizationForm({ onSubmit, submitting }: Props) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="opt-to">To</Label>
+          <Label htmlFor="opt-to" className="inline-flex items-center gap-1">
+            To
+            <InfoTooltip content={optimizationTooltips.toDate} side="top" />
+          </Label>
           <Input
             id="opt-to"
             type="date"
@@ -222,7 +252,10 @@ export function OptimizationForm({ onSubmit, submitting }: Props) {
       {/* ── Parameter ranges ─────────────────────── */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label>Parameter Ranges</Label>
+          <Label className="inline-flex items-center gap-1">
+            Parameter Ranges
+            <InfoTooltip content={optimizationTooltips.parameterRanges} side="top" />
+          </Label>
           <Button
             type="button"
             variant="outline"
@@ -286,7 +319,12 @@ export function OptimizationForm({ onSubmit, submitting }: Props) {
             Optimization queued…
           </>
         ) : (
-          'Run Optimization'
+          <>
+            Run Optimization
+            <span className="ml-1.5 inline-flex">
+              <InfoTooltip content={optimizationTooltips.runOptimization} side="top" />
+            </span>
+          </>
         )}
       </Button>
     </form>

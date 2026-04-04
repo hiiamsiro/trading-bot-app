@@ -19,6 +19,8 @@ import { MarketCandlestickChart } from '@/components/charts/market-candlestick-c
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
+import { backtestTooltips } from '@/lib/tooltip-content'
 
 type Props = {
   result: BacktestResult
@@ -55,7 +57,6 @@ export function BacktestResults({ result, backtestId, token }: Props) {
 
   const closedTrades = useMemo(() => trades.filter((t) => t.exitTime !== null), [trades])
 
-  // Map BacktestTrade fields to what computeTradeMarkers needs
   const chartTrades = useMemo(
     () => trades.map((t) => ({
       id: String(t.id),
@@ -72,7 +73,6 @@ export function BacktestResults({ result, backtestId, token }: Props) {
 
   const loadCandles = useCallback(async () => {
     if (!token || !backtestId) return
-    // Skip if already loaded
     if (candles) return
     setLoadingCandles(true)
     try {
@@ -98,7 +98,10 @@ export function BacktestResults({ result, backtestId, token }: Props) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Net P&amp;L</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              Net P&amp;L
+              <InfoTooltip content={backtestTooltips.netPnl} side="top" />
+            </CardTitle>
             <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -113,7 +116,10 @@ export function BacktestResults({ result, backtestId, token }: Props) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Gross P&amp;L</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              Gross P&amp;L
+              <InfoTooltip content={backtestTooltips.grossPnl} side="top" />
+            </CardTitle>
             <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -126,7 +132,10 @@ export function BacktestResults({ result, backtestId, token }: Props) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Fees Paid</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              Fees Paid
+              <InfoTooltip content={backtestTooltips.feesPaid} side="top" />
+            </CardTitle>
             <TimerReset className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -139,7 +148,10 @@ export function BacktestResults({ result, backtestId, token }: Props) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Win Rate</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              Win Rate
+              <InfoTooltip content={backtestTooltips.winRate} side="top" />
+            </CardTitle>
             <Target className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -152,7 +164,10 @@ export function BacktestResults({ result, backtestId, token }: Props) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Max Drawdown</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              Max Drawdown
+              <InfoTooltip content={backtestTooltips.maxDrawdown} side="top" />
+            </CardTitle>
             <ArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -167,12 +182,16 @@ export function BacktestResults({ result, backtestId, token }: Props) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-base">Candlestick Chart</CardTitle>
+              <CardTitle className="text-base flex items-center gap-1">
+                Candlestick Chart
+                <InfoTooltip content={backtestTooltips.candlestickChart} side="top" />
+              </CardTitle>
               {backtestId && (
                 <Button asChild variant="ghost" size="sm" className="h-7 gap-1 text-xs">
                   <Link href={`/backtest/replay/${backtestId}`}>
                     <Play className="h-3 w-3" />
                     Replay
+                    <InfoTooltip content={backtestTooltips.sessionReplay} side="top" />
                   </Link>
                 </Button>
               )}
@@ -228,7 +247,10 @@ export function BacktestResults({ result, backtestId, token }: Props) {
       {/* ── Equity curve ─────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Equity Curve</CardTitle>
+          <CardTitle className="text-base flex items-center gap-1">
+            Equity Curve
+            <InfoTooltip content={backtestTooltips.equityCurve} side="top" />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {equityPoints.length > 1 ? (
@@ -245,7 +267,10 @@ export function BacktestResults({ result, backtestId, token }: Props) {
       {closedTrades.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Trade Log ({closedTrades.length})</CardTitle>
+            <CardTitle className="text-base flex items-center gap-1">
+              Trade Log ({closedTrades.length})
+              <InfoTooltip content={backtestTooltips.tradeLog} side="top" />
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="max-h-72 overflow-auto">

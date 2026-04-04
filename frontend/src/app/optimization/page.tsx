@@ -31,9 +31,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
+import { optimizationTooltips } from '@/lib/tooltip-content'
 
 export default function OptimizationPage() {
   const token = useAuthStore((s) => s.token)
+  const isAdmin = useAuthStore((s) => s.isAdmin())
   const handleError = useHandleApiError()
   const router = useRouter()
 
@@ -114,7 +117,10 @@ export default function OptimizationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Strategy Optimization</h1>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-1.5">
+          Strategy Optimization
+          <InfoTooltip content={optimizationTooltips.pageTitle} side="right" />
+        </h1>
         <p className="text-sm text-muted-foreground">
           Automatically test hundreds of parameter combinations to find the best configuration.
         </p>
@@ -124,13 +130,18 @@ export default function OptimizationPage() {
         {/* ── Form ──────────────────────────────── */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Parameter Ranges</CardTitle>
+            <CardTitle className="flex items-center gap-1.5">
+              Parameter Ranges
+              <span className="ml-1">
+                <InfoTooltip content={optimizationTooltips.parameterRangesCard} side="top" />
+              </span>
+            </CardTitle>
             <CardDescription>
               Define ranges for each parameter. All combinations will be grid-searched.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <OptimizationForm onSubmit={handleSubmit} submitting={submitting} />
+            <OptimizationForm onSubmit={handleSubmit} submitting={submitting} adminOnly={isAdmin} />
           </CardContent>
         </Card>
 
@@ -142,7 +153,10 @@ export default function OptimizationPage() {
               {currentRecord.status === 'COMPLETED' && bots.length > 0 && (
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">Apply Best Configuration</CardTitle>
+                    <CardTitle className="text-sm flex items-center gap-1">
+                      Apply Best Configuration
+                      <InfoTooltip content={optimizationTooltips.applyToBot} side="top" />
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="flex gap-2">
                     <div className="flex-1 space-y-1.5">

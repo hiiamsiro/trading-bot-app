@@ -30,9 +30,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
+import { walkforwardTooltips } from '@/lib/tooltip-content'
 
 export default function WalkforwardPage() {
   const token = useAuthStore((s) => s.token)
+  const isAdmin = useAuthStore((s) => s.isAdmin())
   const handleError = useHandleApiError()
   const router = useRouter()
 
@@ -120,7 +123,10 @@ export default function WalkforwardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Walk-Forward Testing</h1>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-1.5">
+          Walk-Forward Testing
+          <InfoTooltip content={walkforwardTooltips.pageTitle} side="right" />
+        </h1>
         <p className="text-sm text-muted-foreground">
           Optimize on training data, validate on unseen test data — avoid overfitting.
         </p>
@@ -130,14 +136,21 @@ export default function WalkforwardPage() {
         {/* ── Form ──────────────────────────────── */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Walk-Forward Configuration</CardTitle>
-            <CardDescription>
+            <CardTitle className="flex items-center gap-1.5">
+              Walk-Forward Configuration
+              <InfoTooltip content={walkforwardTooltips.configurationTitle} side="top" />
+            </CardTitle>
+            <CardDescription className="flex items-start gap-1.5">
               Define parameter ranges. System splits data 70/30 by default.
+              <InfoTooltip content={walkforwardTooltips.defaultSplitDescription} side="top" />
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="train-split">Train / Test Split</Label>
+              <Label htmlFor="train-split" className="inline-flex items-center gap-1">
+                Train / Test Split
+                <InfoTooltip content={walkforwardTooltips.trainTestSplit} side="top" />
+              </Label>
               <Select value={trainSplitPct} onValueChange={setTrainSplitPct}>
                 <SelectTrigger id="train-split">
                   <SelectValue />
@@ -150,7 +163,7 @@ export default function WalkforwardPage() {
               </Select>
             </div>
 
-            <OptimizationForm onSubmit={handleSubmit} submitting={submitting} />
+            <OptimizationForm onSubmit={handleSubmit} submitting={submitting} adminOnly={isAdmin} />
           </CardContent>
         </Card>
 
@@ -161,7 +174,10 @@ export default function WalkforwardPage() {
               {currentRecord.status === 'COMPLETED' && bots.length > 0 && (
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">Apply Best Config</CardTitle>
+                    <CardTitle className="text-sm flex items-center gap-1">
+                      Apply Best Config
+                      <InfoTooltip content={walkforwardTooltips.applyBestConfig} side="top" />
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="flex gap-2">
                     <div className="flex-1 space-y-1.5">

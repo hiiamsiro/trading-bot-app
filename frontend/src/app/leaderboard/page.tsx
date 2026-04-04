@@ -111,14 +111,14 @@ export default function LeaderboardPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border/50 text-xs text-muted-foreground">
-                    <th className="px-4 py-2 text-left font-medium">#</th>
-                    <th className="px-4 py-2 text-left font-medium">Bot</th>
-                    <th className="px-4 py-2 text-left font-medium">Symbol</th>
-                    <th className="px-4 py-2 text-left font-medium">Strategy</th>
-                    <th className="px-4 py-2 text-right font-medium">Total P&amp;L</th>
-                    <th className="px-4 py-2 text-right font-medium">Win Rate</th>
-                    <th className="px-4 py-2 text-right font-medium">Drawdown</th>
-                    <th className="px-4 py-2 text-right font-medium">Trades</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-left font-medium sm:px-4 sm:py-2">#</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-left font-medium sm:px-4 sm:py-2">Bot</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-left font-medium sm:px-4 sm:py-2">Symbol</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-left font-medium sm:px-4 sm:py-2 hidden lg:table-cell">Strategy</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right font-medium sm:px-4 sm:py-2">Total P&amp;L</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right font-medium sm:px-4 sm:py-2 hidden sm:table-cell">Win Rate</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right font-medium sm:px-4 sm:py-2 hidden md:table-cell">Drawdown</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right font-medium sm:px-4 sm:py-2 hidden lg:table-cell">Trades</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -127,10 +127,10 @@ export default function LeaderboardPage() {
                       key={item.botId}
                       className="border-b border-border/30 transition-colors hover:bg-muted/20"
                     >
-                      <td className={`px-4 py-3 font-mono text-sm font-bold ${rankClass(item.rank)}`}>
+                      <td className={`whitespace-nowrap px-3 py-3 font-mono text-sm font-bold sm:px-4 ${rankClass(item.rank)}`}>
                         #{item.rank}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="whitespace-nowrap px-3 py-3 sm:px-4">
                         <div className="font-medium">{item.botName}</div>
                         {item.shareSlug && (
                           <Link
@@ -141,26 +141,26 @@ export default function LeaderboardPage() {
                           </Link>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="whitespace-nowrap px-3 py-3 sm:px-4">
                         <Badge variant="outline" className="font-mono text-xs">
                           {item.symbol}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">
+                      <td className="whitespace-nowrap px-3 py-3 text-muted-foreground sm:px-4 hidden lg:table-cell">
                         {item.strategy}
                       </td>
-                      <td className={`px-4 py-3 text-right font-mono text-sm font-medium ${
+                      <td className={`whitespace-nowrap px-3 py-3 text-right font-mono text-sm font-medium sm:px-4 ${
                         item.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
                       }`}>
                         {fmtPnl(item.totalPnl)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-sm">
+                      <td className="whitespace-nowrap px-3 py-3 text-right font-mono text-sm sm:px-4 hidden sm:table-cell">
                         {fmtPct(item.winRate)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-sm text-red-400">
+                      <td className="whitespace-nowrap px-3 py-3 text-right font-mono text-sm text-red-400 sm:px-4 hidden md:table-cell">
                         {fmtPct(item.maxDrawdown)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">
+                      <td className="whitespace-nowrap px-3 py-3 text-right font-mono text-sm text-muted-foreground sm:px-4 hidden lg:table-cell">
                         {item.totalTrades}
                       </td>
                     </tr>

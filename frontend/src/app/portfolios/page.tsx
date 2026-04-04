@@ -114,14 +114,14 @@ export default function PortfoliosListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Portfolios</h1>
           <p className="mt-1 text-muted-foreground">
             Group bots to track combined performance metrics.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2 cursor-pointer">
+        <Button onClick={() => setCreateOpen(true)} className="gap-2 cursor-pointer w-full sm:w-auto justify-center">
           <Plus className="h-4 w-4" />
           New portfolio
         </Button>
@@ -139,16 +139,17 @@ export default function PortfoliosListPage() {
           </Button>
         </EmptyState>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-muted-foreground">Name</TableHead>
-              <TableHead className="text-muted-foreground">Bots</TableHead>
-              <TableHead className="text-muted-foreground">Created</TableHead>
-              <TableHead className="text-right text-muted-foreground">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <div className="overflow-x-auto rounded-lg border border-border/70">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Name</TableHead>
+                <TableHead className="text-muted-foreground hidden sm:table-cell">Bots</TableHead>
+                <TableHead className="text-muted-foreground hidden lg:table-cell">Created</TableHead>
+                <TableHead className="text-right text-muted-foreground">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
             {portfolios.map((portfolio) => (
               <TableRow
                 key={portfolio.id}
@@ -156,7 +157,7 @@ export default function PortfoliosListPage() {
                 onClick={() => router.push(`/portfolios/${portfolio.id}`)}
               >
                 <TableCell className="font-medium">{portfolio.name}</TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <div className="flex flex-wrap gap-1">
                     {portfolio.bots.length === 0 ? (
                       <span className="text-xs text-muted-foreground">No bots</span>
@@ -172,7 +173,7 @@ export default function PortfoliosListPage() {
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
+                <TableCell className="font-mono text-xs text-muted-foreground hidden lg:table-cell">
                   {new Date(portfolio.createdAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -184,13 +185,14 @@ export default function PortfoliosListPage() {
                     disabled={deletingId === portfolio.id}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    Delete
+                    <span className="hidden sm:inline">Delete</span>
                   </Button>
                 </TableCell>
               </TableRow>
             ))}
-          </TableBody>
-        </Table>
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <PortfolioFormDialog

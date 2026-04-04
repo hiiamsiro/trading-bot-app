@@ -225,16 +225,18 @@ export default function AdminMonitoringPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader>
             <CardTitle className="text-lg">Recent errors</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {snapshot.recentErrors.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No errors in the recent window.</p>
+              <p className="px-4 py-3 text-sm text-muted-foreground">No errors in the recent window.</p>
             ) : (
-              <ErrorsTable items={snapshot.recentErrors} />
+              <div className="overflow-x-auto">
+                <ErrorsTable items={snapshot.recentErrors} />
+              </div>
             )}
           </CardContent>
         </Card>
@@ -243,50 +245,52 @@ export default function AdminMonitoringPage() {
           <CardHeader>
             <CardTitle className="text-lg">Recent activity</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {recentActivity.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recent activity.</p>
+              <p className="px-4 py-3 text-sm text-muted-foreground">No recent activity.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>When</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Bot</TableHead>
-                    <TableHead>Detail</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentActivity.map((row) => (
-                    <TableRow key={row.id} className="hover:bg-muted/40">
-                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                        {formatLocal(row.at)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={row.kind === 'error' ? 'destructive' : 'outline'}>
-                          {row.kind}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[160px] truncate text-xs">{row.userEmail}</TableCell>
-                      <TableCell className="max-w-[180px] truncate text-xs">
-                        {row.botName}{' '}
-                        <span className="text-muted-foreground">({row.botSymbol})</span>
-                      </TableCell>
-                      <TableCell className="max-w-[320px] truncate text-xs">
-                        {row.detail}{' '}
-                        <span className="text-muted-foreground">({row.status})</span>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="whitespace-nowrap">When</TableHead>
+                      <TableHead className="whitespace-nowrap">Type</TableHead>
+                      <TableHead className="whitespace-nowrap hidden sm:table-cell">User</TableHead>
+                      <TableHead className="whitespace-nowrap">Bot</TableHead>
+                      <TableHead className="whitespace-nowrap hidden md:table-cell">Detail</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {recentActivity.map((row) => (
+                      <TableRow key={row.id} className="hover:bg-muted/40">
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                          {formatLocal(row.at)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={row.kind === 'error' ? 'destructive' : 'outline'}>
+                            {row.kind}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-[160px] truncate text-xs hidden sm:table-cell">{row.userEmail}</TableCell>
+                        <TableCell className="max-w-[180px] truncate text-xs">
+                          {row.botName}{' '}
+                          <span className="text-muted-foreground">({row.botSymbol})</span>
+                        </TableCell>
+                        <TableCell className="max-w-[320px] truncate text-xs hidden md:table-cell">
+                          {row.detail}{' '}
+                          <span className="text-muted-foreground">({row.status})</span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
         <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
           <CardHeader>
             <CardTitle className="text-lg">Top active bots (last {snapshot.windowHours}h)</CardTitle>
@@ -295,31 +299,33 @@ export default function AdminMonitoringPage() {
             {snapshot.topActiveBots.length === 0 ? (
               <p className="text-sm text-muted-foreground">No bot activity.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>Bot</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Trades</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {snapshot.topActiveBots.map((b) => (
-                    <TableRow key={b.botId} className="hover:bg-muted/40">
-                      <TableCell className="text-sm">
-                        {b.botName}{' '}
-                        <span className="font-mono text-xs text-muted-foreground">{b.symbol}</span>
-                      </TableCell>
-                      <TableCell className="max-w-[220px] truncate text-xs">{b.userEmail}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{b.status}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm">{b.tradeCount}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="whitespace-nowrap">Bot</TableHead>
+                      <TableHead className="whitespace-nowrap hidden lg:table-cell">User</TableHead>
+                      <TableHead className="whitespace-nowrap">Status</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Trades</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {snapshot.topActiveBots.map((b) => (
+                      <TableRow key={b.botId} className="hover:bg-muted/40">
+                        <TableCell className="text-sm">
+                          {b.botName}{' '}
+                          <span className="font-mono text-xs text-muted-foreground">{b.symbol}</span>
+                        </TableCell>
+                        <TableCell className="max-w-[220px] truncate text-xs hidden lg:table-cell">{b.userEmail}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{b.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">{b.tradeCount}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -332,24 +338,26 @@ export default function AdminMonitoringPage() {
             {snapshot.topActiveUsers.length === 0 ? (
               <p className="text-sm text-muted-foreground">No user activity.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>User</TableHead>
-                    <TableHead className="text-right">Active bots</TableHead>
-                    <TableHead className="text-right">Trades</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {snapshot.topActiveUsers.map((u) => (
-                    <TableRow key={u.userId} className="hover:bg-muted/40">
-                      <TableCell className="max-w-[260px] truncate text-sm">{u.email}</TableCell>
-                      <TableCell className="text-right font-mono text-sm">{u.activeBotCount}</TableCell>
-                      <TableCell className="text-right font-mono text-sm">{u.tradeCount}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="whitespace-nowrap">User</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Active bots</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Trades</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {snapshot.topActiveUsers.map((u) => (
+                      <TableRow key={u.userId} className="hover:bg-muted/40">
+                        <TableCell className="max-w-[260px] truncate text-sm">{u.email}</TableCell>
+                        <TableCell className="text-right font-mono text-sm">{u.activeBotCount}</TableCell>
+                        <TableCell className="text-right font-mono text-sm">{u.tradeCount}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -363,10 +371,10 @@ function ErrorsTable({ items }: { items: AdminRecentError[] }) {
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead>When</TableHead>
-          <TableHead>User</TableHead>
-          <TableHead>Bot</TableHead>
-          <TableHead>Message</TableHead>
+          <TableHead className="whitespace-nowrap">When</TableHead>
+          <TableHead className="whitespace-nowrap hidden sm:table-cell">User</TableHead>
+          <TableHead className="whitespace-nowrap">Bot</TableHead>
+          <TableHead className="whitespace-nowrap hidden md:table-cell">Message</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -375,11 +383,11 @@ function ErrorsTable({ items }: { items: AdminRecentError[] }) {
             <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
               {formatLocal(e.createdAt)}
             </TableCell>
-            <TableCell className="max-w-[160px] truncate text-xs">{e.userEmail}</TableCell>
+            <TableCell className="max-w-[160px] truncate text-xs hidden sm:table-cell">{e.userEmail}</TableCell>
             <TableCell className="max-w-[180px] truncate text-xs">
               {e.botName} <span className="text-muted-foreground">({e.botSymbol})</span>
             </TableCell>
-            <TableCell className="max-w-[360px] truncate text-xs">{e.message}</TableCell>
+            <TableCell className="max-w-[360px] truncate text-xs hidden md:table-cell">{e.message}</TableCell>
           </TableRow>
         ))}
       </TableBody>

@@ -69,11 +69,11 @@ function HealthIssueRow({ issue }: { issue: BotHealthIssue }) {
           {issue.issue === 'stuck' ? 'Stuck' : 'No data'}
         </Badge>
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground">{issue.detail}</TableCell>
-      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+      <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">{issue.detail}</TableCell>
+      <TableCell className="whitespace-nowrap text-xs text-muted-foreground hidden md:table-cell">
         {formatLocal(issue.lastRunAt)}
       </TableCell>
-      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+      <TableCell className="whitespace-nowrap text-xs text-muted-foreground hidden md:table-cell">
         {formatLocal(issue.lastSignalAt)}
       </TableCell>
       <TableCell className="text-right">
@@ -102,8 +102,8 @@ function HealthyRow({ bot }: { bot: HealthyBot }) {
           Healthy
         </Badge>
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground">All systems operational</TableCell>
-      <TableCell colSpan={2} />
+      <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">All systems operational</TableCell>
+      <TableCell colSpan={2} className="hidden sm:table-cell" />
       <TableCell className="text-right">
         <Button variant="ghost" size="sm" asChild className="cursor-pointer">
           <Link href={`/bots/${bot.botId}`}>Open</Link>
@@ -193,8 +193,8 @@ export default function HealthPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 rounded-xl border border-border/70 bg-card/70 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-tight">
-            <HeartPulse className="h-8 w-8 text-primary" />
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+            <HeartPulse className="h-6 w-6 text-primary sm:h-8 sm:w-8" />
             Bot Health
           </h1>
           <p className="mt-1 text-muted-foreground">
@@ -220,7 +220,7 @@ export default function HealthPage() {
 
       {/* Summary cards */}
       {report && (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
           <Card className="border-border/70 bg-card/80 backdrop-blur-xl">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-medium">
@@ -301,23 +301,25 @@ export default function HealthPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Bot</TableHead>
-                  <TableHead>Issue</TableHead>
-                  <TableHead>Detail</TableHead>
-                  <TableHead>Last tick</TableHead>
-                  <TableHead>Last signal</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report!.stuck.map((issue) => (
-                  <HealthIssueRow key={issue.botId} issue={issue} />
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="whitespace-nowrap">Bot</TableHead>
+                    <TableHead className="whitespace-nowrap">Issue</TableHead>
+                    <TableHead className="whitespace-nowrap hidden sm:table-cell">Detail</TableHead>
+                    <TableHead className="whitespace-nowrap hidden md:table-cell">Last tick</TableHead>
+                    <TableHead className="whitespace-nowrap hidden md:table-cell">Last signal</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report!.stuck.map((issue) => (
+                    <HealthIssueRow key={issue.botId} issue={issue} />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -331,23 +333,25 @@ export default function HealthPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Bot</TableHead>
-                  <TableHead>Issue</TableHead>
-                  <TableHead>Detail</TableHead>
-                  <TableHead>Last tick</TableHead>
-                  <TableHead>Last signal</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report!.noData.map((issue) => (
-                  <HealthIssueRow key={issue.botId} issue={issue} />
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="whitespace-nowrap">Bot</TableHead>
+                    <TableHead className="whitespace-nowrap">Issue</TableHead>
+                    <TableHead className="whitespace-nowrap hidden sm:table-cell">Detail</TableHead>
+                    <TableHead className="whitespace-nowrap hidden md:table-cell">Last tick</TableHead>
+                    <TableHead className="whitespace-nowrap hidden md:table-cell">Last signal</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report!.noData.map((issue) => (
+                    <HealthIssueRow key={issue.botId} issue={issue} />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -362,22 +366,24 @@ export default function HealthPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Bot</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Detail</TableHead>
-                  <TableHead colSpan={2} />
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report!.healthy.map((bot) => (
-                  <HealthyRow key={bot.botId} bot={bot} />
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="whitespace-nowrap">Bot</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableHead className="whitespace-nowrap hidden sm:table-cell">Detail</TableHead>
+                    <TableHead colSpan={2} className="hidden sm:table-cell" />
+                    <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report!.healthy.map((bot) => (
+                    <HealthyRow key={bot.botId} bot={bot} />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -9,6 +9,8 @@ import { Instrument, MARKET_KLINE_INTERVALS } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
+import { backtestTooltips } from '@/lib/tooltip-content'
 import {
   Select,
   SelectContent,
@@ -48,9 +50,10 @@ export interface BacktestFormValues {
 type Props = {
   onSubmit: (values: BacktestFormValues) => Promise<void>
   submitting: boolean
+  adminOnly?: boolean
 }
 
-export function BacktestForm({ onSubmit, submitting }: Props) {
+export function BacktestForm({ onSubmit, submitting, adminOnly = false }: Props) {
   const token = useAuthStore((s) => s.token)
   const handleError = useHandleApiError()
   const [instruments, setInstruments] = useState<Instrument[]>([])
@@ -82,7 +85,7 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
   const [partialTpPercent, setPartialTpPercent] = useState('')
 
   useEffect(() => {
-    if (!token) return
+    if (!token || !adminOnly) return
     ;(async () => {
       setLoadingInstruments(true)
       try {
@@ -97,7 +100,7 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
         setLoadingInstruments(false)
       }
     })()
-  }, [token, handleError, symbol])
+  }, [token, handleError, symbol, adminOnly])
 
   function buildParams(): Record<string, unknown> {
     const activeTrend = trendInterval && trendInterval !== '__none__' ? trendInterval : undefined
@@ -163,29 +166,44 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       {/* ── Core params ─────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="symbol">Instrument</Label>
-          {loadingInstruments ? (
-            <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
-            </div>
+          <Label htmlFor="symbol" className="inline-flex items-center gap-1">
+            Instrument
+            <InfoTooltip content={backtestTooltips.instrument} side="top" />
+          </Label>
+          {adminOnly ? (
+            loadingInstruments ? (
+              <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+              </div>
+            ) : (
+              <Select value={symbol} onValueChange={setSymbol}>
+                <SelectTrigger id="symbol">
+                  <SelectValue placeholder="Select instrument" />
+                </SelectTrigger>
+                <SelectContent>
+                  {instruments.map((inst) => (
+                    <SelectItem key={inst.symbol} value={inst.symbol}>
+                      {inst.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )
           ) : (
-            <Select value={symbol} onValueChange={setSymbol}>
-              <SelectTrigger id="symbol">
-                <SelectValue placeholder="Select instrument" />
-              </SelectTrigger>
-              <SelectContent>
-                {instruments.map((inst) => (
-                  <SelectItem key={inst.symbol} value={inst.symbol}>
-                    {inst.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              id="symbol"
+              value={symbol}
+              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+              placeholder="e.g. BTCUSDT"
+            />
           )}
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="interval">Timeframe</Label>
+          <Label htmlFor="interval" className="inline-flex items-center gap-1">
+            Timeframe
+            <InfoTooltip content={backtestTooltips.timeframe} side="top" />
+          </Label>
           <Select value={interval} onValueChange={setInterval}>
             <SelectTrigger id="interval">
               <SelectValue />
@@ -201,7 +219,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="trendInterval">Trend timeframe (optional)</Label>
+          <Label htmlFor="trendInterval" className="inline-flex items-center gap-1">
+            Trend timeframe (optional)
+            <InfoTooltip content={backtestTooltips.trendTimeframe} side="top" />
+          </Label>
           <Select value={trendInterval} onValueChange={setTrendInterval}>
             <SelectTrigger id="trendInterval">
               <SelectValue placeholder="None (single TF)" />
@@ -218,7 +239,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="strategy">Strategy</Label>
+          <Label htmlFor="strategy" className="inline-flex items-center gap-1">
+            Strategy
+            <InfoTooltip content={backtestTooltips.strategy} side="top" />
+          </Label>
           <Select value={strategy} onValueChange={setStrategy}>
             <SelectTrigger id="strategy">
               <SelectValue />
@@ -231,7 +255,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="initialBalance">Initial Balance</Label>
+          <Label htmlFor="initialBalance" className="inline-flex items-center gap-1">
+            Initial Balance
+            <InfoTooltip content={backtestTooltips.initialBalance} side="top" />
+          </Label>
           <Input
             id="initialBalance"
             type="number"
@@ -247,7 +274,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       {/* ── Date range ──────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="fromDate">From</Label>
+          <Label htmlFor="fromDate" className="inline-flex items-center gap-1">
+            From
+            <InfoTooltip content={backtestTooltips.fromDate} side="top" />
+          </Label>
           <Input
             id="fromDate"
             type="date"
@@ -257,7 +287,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="toDate">To</Label>
+          <Label htmlFor="toDate" className="inline-flex items-center gap-1">
+            To
+            <InfoTooltip content={backtestTooltips.toDate} side="top" />
+          </Label>
           <Input
             id="toDate"
             type="date"
@@ -272,7 +305,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       {strategy === 'sma_crossover' ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <Label htmlFor="shortPeriod">Short Period</Label>
+            <Label htmlFor="shortPeriod" className="inline-flex items-center gap-1">
+              Short Period
+              <InfoTooltip content={backtestTooltips.shortPeriod} side="top" />
+            </Label>
             <Input
               id="shortPeriod"
               type="number"
@@ -283,7 +319,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="longPeriod">Long Period</Label>
+            <Label htmlFor="longPeriod" className="inline-flex items-center gap-1">
+              Long Period
+              <InfoTooltip content={backtestTooltips.longPeriod} side="top" />
+            </Label>
             <Input
               id="longPeriod"
               type="number"
@@ -294,7 +333,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="quantity">Quantity</Label>
+            <Label htmlFor="quantity" className="inline-flex items-center gap-1">
+              Quantity
+              <InfoTooltip content={backtestTooltips.quantity} side="top" />
+            </Label>
             <Input
               id="quantity"
               type="number"
@@ -309,7 +351,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="space-y-1.5">
-            <Label htmlFor="rsiPeriod">RSI Period</Label>
+            <Label htmlFor="rsiPeriod" className="inline-flex items-center gap-1">
+              RSI Period
+              <InfoTooltip content={backtestTooltips.rsiPeriod} side="top" />
+            </Label>
             <Input
               id="rsiPeriod"
               type="number"
@@ -320,7 +365,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="oversold">Oversold</Label>
+            <Label htmlFor="oversold" className="inline-flex items-center gap-1">
+              Oversold
+              <InfoTooltip content={backtestTooltips.oversold} side="top" />
+            </Label>
             <Input
               id="oversold"
               type="number"
@@ -332,7 +380,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="overbought">Overbought</Label>
+            <Label htmlFor="overbought" className="inline-flex items-center gap-1">
+              Overbought
+              <InfoTooltip content={backtestTooltips.overbought} side="top" />
+            </Label>
             <Input
               id="overbought"
               type="number"
@@ -344,7 +395,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="qty">Quantity</Label>
+            <Label htmlFor="qty" className="inline-flex items-center gap-1">
+              Quantity
+              <InfoTooltip content={backtestTooltips.quantity} side="top" />
+            </Label>
             <Input
               id="qty"
               type="number"
@@ -361,7 +415,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       {/* ── Position sizing ───────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label htmlFor="positionSizeMode">Position Size Mode</Label>
+          <Label htmlFor="positionSizeMode" className="inline-flex items-center gap-1">
+            Position Size Mode
+            <InfoTooltip content={backtestTooltips.positionSizeMode} side="top" />
+          </Label>
           <Select value={positionSizeMode} onValueChange={(v: 'fixed' | 'balance_percent' | 'risk_based') => setPositionSizeMode(v)}>
             <SelectTrigger id="positionSizeMode">
               <SelectValue />
@@ -375,7 +432,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
         </div>
         {positionSizeMode === 'fixed' && (
           <div className="space-y-1.5">
-            <Label htmlFor="qty-fixed">Quantity</Label>
+            <Label htmlFor="qty-fixed" className="inline-flex items-center gap-1">
+              Quantity
+              <InfoTooltip content={backtestTooltips.quantity} side="top" />
+            </Label>
             <Input
               id="qty-fixed"
               type="number"
@@ -389,7 +449,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
         )}
         {positionSizeMode === 'balance_percent' && (
           <div className="space-y-1.5">
-            <Label htmlFor="qty-pct">Balance % (e.g. 0.01 = 1%)</Label>
+            <Label htmlFor="qty-pct" className="inline-flex items-center gap-1">
+              Balance % (e.g. 0.01 = 1%)
+              <InfoTooltip content={backtestTooltips.quantity} side="top" />
+            </Label>
             <Input
               id="qty-pct"
               type="number"
@@ -405,7 +468,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
         {positionSizeMode === 'risk_based' && (
           <>
             <div className="space-y-1.5">
-              <Label htmlFor="risk-pct">Risk % of balance</Label>
+              <Label htmlFor="risk-pct" className="inline-flex items-center gap-1">
+                Risk % of balance
+                <InfoTooltip content={backtestTooltips.riskPercent} side="top" />
+              </Label>
               <Input
                 id="risk-pct"
                 type="number"
@@ -418,7 +484,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="sl-for-risk">Stop Loss % (required)</Label>
+              <Label htmlFor="sl-for-risk" className="inline-flex items-center gap-1">
+                Stop Loss % (required)
+                <InfoTooltip content={backtestTooltips.stopLoss} side="top" />
+              </Label>
               <Input
                 id="sl-for-risk"
                 type="number"
@@ -437,7 +506,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       {/* ── Risk params ─────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <div className="space-y-1.5">
-          <Label htmlFor="stopLossPercent">Stop Loss %</Label>
+          <Label htmlFor="stopLossPercent" className="inline-flex items-center gap-1">
+            Stop Loss %
+            <InfoTooltip content={backtestTooltips.stopLoss} side="top" />
+          </Label>
           <Input
             id="stopLossPercent"
             type="number"
@@ -450,7 +522,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="takeProfitPercent">Take Profit %</Label>
+          <Label htmlFor="takeProfitPercent" className="inline-flex items-center gap-1">
+            Take Profit %
+            <InfoTooltip content={backtestTooltips.takeProfit} side="top" />
+          </Label>
           <Input
             id="takeProfitPercent"
             type="number"
@@ -463,7 +538,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="maxDailyLoss">Max Daily Loss</Label>
+          <Label htmlFor="maxDailyLoss" className="inline-flex items-center gap-1">
+            Max Daily Loss
+            <InfoTooltip content={backtestTooltips.maxDailyLoss} side="top" />
+          </Label>
           <Input
             id="maxDailyLoss"
             type="number"
@@ -475,7 +553,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="trailingStopDistance">Trailing Stop %</Label>
+          <Label htmlFor="trailingStopDistance" className="inline-flex items-center gap-1">
+            Trailing Stop %
+            <InfoTooltip content={backtestTooltips.trailingStop} side="top" />
+          </Label>
           <Input
             id="trailingStopDistance"
             type="number"
@@ -492,7 +573,10 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
       {/* ── Partial TP ────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="partialTpPercent">Partial Take Profit % (e.g. 50)</Label>
+          <Label htmlFor="partialTpPercent" className="inline-flex items-center gap-1">
+            Partial Take Profit % (e.g. 50)
+            <InfoTooltip content={backtestTooltips.partialTp} side="top" />
+          </Label>
           <Input
             id="partialTpPercent"
             type="number"
@@ -514,7 +598,12 @@ export function BacktestForm({ onSubmit, submitting }: Props) {
             Running backtest…
           </>
         ) : (
-          'Run Backtest'
+          <>
+            Run Backtest
+            <span className="ml-1.5 inline-flex">
+              <InfoTooltip content={backtestTooltips.runBacktest} side="top" />
+            </span>
+          </>
         )}
       </Button>
     </form>

@@ -132,48 +132,83 @@ export default function BotsListPage() {
         </FadeInSection>
       ) : (
         <FadeInSection stagger>
-          <div className="rounded-xl border border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Name</TableHead>
-                  <TableHead>Symbol</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Strategy</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bots.map((b, index) => (
-                  <TableRow
-                    key={b.id}
-                    className="transition-all duration-200 hover:bg-muted/40"
-                    style={{ transitionDelay: `${index * ROW_STAGGER_DELAY_MS}ms` }}
-                  >
-                    <TableCell className="font-medium">
-                      <Link
-                        href={`/bots/${b.id}`}
-                        className="cursor-pointer transition-colors duration-200 hover:text-primary"
-                      >
-                        {b.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="font-mono">{b.symbol}</TableCell>
-                    <TableCell>
-                      <BotStatusBadge status={b.status} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {b.strategyConfig?.strategy ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild className="cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:text-primary">
-                        <Link href={`/bots/${b.id}`}>Open</Link>
-                      </Button>
-                    </TableCell>
+          {/* ── Mobile: card view ─────────────────────────────── */}
+          <div className="grid gap-3 sm:hidden">
+            {bots.map((b, index) => (
+              <div
+                key={b.id}
+                className="rounded-xl border border-border/70 bg-card/80 p-4 transition-all duration-200"
+                style={{ transitionDelay: `${index * ROW_STAGGER_DELAY_MS}ms` }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/bots/${b.id}`}
+                      className="block truncate text-sm font-semibold transition-colors hover:text-primary"
+                    >
+                      {b.name}
+                    </Link>
+                    <p className="mt-0.5 font-mono text-xs text-muted-foreground">{b.symbol}</p>
+                  </div>
+                  <BotStatusBadge status={b.status} />
+                </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {b.strategyConfig?.strategy ?? '—'}
+                  </p>
+                  <Button variant="ghost" size="sm" asChild className="cursor-pointer h-8 px-3">
+                    <Link href={`/bots/${b.id}`}>Open</Link>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Tablet+: table view ───────────────────────────── */}
+          <div className="hidden sm:block">
+            <div className="overflow-x-auto rounded-xl border border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Name</TableHead>
+                    <TableHead>Symbol</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Strategy</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {bots.map((b, index) => (
+                    <TableRow
+                      key={b.id}
+                      className="transition-all duration-200 hover:bg-muted/40"
+                      style={{ transitionDelay: `${index * ROW_STAGGER_DELAY_MS}ms` }}
+                    >
+                      <TableCell className="font-medium">
+                        <Link
+                          href={`/bots/${b.id}`}
+                          className="cursor-pointer transition-colors duration-200 hover:text-primary"
+                        >
+                          {b.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="font-mono">{b.symbol}</TableCell>
+                      <TableCell>
+                        <BotStatusBadge status={b.status} />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {b.strategyConfig?.strategy ?? '—'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" asChild className="cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:text-primary">
+                          <Link href={`/bots/${b.id}`}>Open</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </FadeInSection>
       )}

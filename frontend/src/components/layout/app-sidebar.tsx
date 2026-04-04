@@ -17,6 +17,7 @@ import {
   HeartPulse,
   Settings,
   ChevronDown,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -24,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/store/auth.store'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 
 type NavItem = { href: string; label: string; icon: LucideIcon; adminOnly?: boolean }
 
@@ -34,7 +36,6 @@ type NavGroup = {
   items: NavItem[]
 }
 
-// Rendered in this order: flat items → collapsible group → flat items → collapsible group
 const NAV_ITEMS_TOP: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/bots', label: 'Bots', icon: Bot },
@@ -141,11 +142,114 @@ function NavGroupSection({
   )
 }
 
+function SidebarNav({
+  pathname,
+  openGroups,
+  toggleGroup,
+  visibleItems,
+  isAdmin,
+  onNavigate,
+  isMobile = false,
+}: {
+  pathname: string
+  openGroups: Set<string>
+  toggleGroup: (id: string) => void
+  visibleItems: NavItem[]
+  isAdmin: () => boolean
+  onNavigate?: () => void
+  isMobile?: boolean
+}) {
+  const router = useRouter()
+  const clearAuth = useAuthStore((s) => s.clearAuth)
+
+  const handleNavClick = () => {
+    onNavigate?.()
+  }
+
+  const handleSignOut = () => {
+    clearAuth()
+    router.replace('/login')
+    onNavigate?.()
+  }
+
+  const activeClass = (href: string) =>
+    isActive(href, pathname)
+      ? 'bg-primary/20 text-primary ring-1 ring-primary/40'
+      : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+
+  return (
+    <>
+      {/* Logo area */}
+      <div className="border-b border-border/70 px-4 py-5">
+        <Link
+          href="/dashboard"
+          className="font-semibold tracking-tight text-foreground"
+          onClick={handleNavClick}
+        >
+          Trading Bot App
+        </Link>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-1 p-3">
+        {NAV_ITEMS_TOP.map(({ href, label, icon: ItemIcon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={cn(
+              'flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200',
+              activeClass(href),
+            )}
+            onClick={handleNavClick}
+          >
+            <ItemIcon className="h-4 w-4 shrink-0" />
+            {label}
+          </Link>
+        ))}
+
+        {NAV_GROUPS.map((group) => (
+          <NavGroupSection
+            key={group.id}
+            group={group}
+            pathname={pathname}
+            isOpen={openGroups.has(group.id)}
+            onToggle={() => toggleGroup(group.id)}
+          />
+        ))}
+
+        {visibleItems.map(({ href, label, icon: ItemIcon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={cn(
+              'flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200',
+              activeClass(href),
+            )}
+            onClick={handleNavClick}
+          >
+            <ItemIcon className="h-4 w-4 shrink-0" />
+            {label}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="border-t p-2">
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-2 text-muted-foreground transition-colors duration-200 hover:text-foreground"
+          onClick={handleSignOut}
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </Button>
+      </div>
+    </>
+  )
+}
+
+// ─── Desktop sidebar (always visible, hidden on mobile) ───────────────────────
 export function AppSidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const user = useAuthStore((s) => s.user)
-  const clearAuth = useAuthStore((s) => s.clearAuth)
   const isAdmin = useAuthStore((s) => s.isAdmin)
 
   const visibleItems = NAV_ITEMS_BOTTOM.filter((item) => !item.adminOnly || isAdmin())
@@ -170,82 +274,77 @@ export function AppSidebar() {
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-border/70 bg-card/70 backdrop-blur-xl">
-      <div className="border-b border-border/70 px-4 py-5">
-        <Link
-          href="/dashboard"
-          className="font-semibold tracking-tight text-foreground"
-        >
-          Trading Bot App
-        </Link>
-        <p className="mt-1 truncate text-xs text-muted-foreground">
-          {user?.email ?? '—'}
-        </p>
-      </div>
-
-      <nav className="flex flex-1 flex-col gap-1 p-3">
-        {NAV_ITEMS_TOP.map(({ href, label, icon: ItemIcon }) => {
-          const active = isActive(href, pathname)
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200',
-                active
-                  ? 'bg-primary/20 text-primary ring-1 ring-primary/40'
-                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-              )}
-            >
-              <ItemIcon className="h-4 w-4 shrink-0" />
-              {label}
-            </Link>
-          )
-        })}
-
-        {NAV_GROUPS.map((group) => (
-          <NavGroupSection
-            key={group.id}
-            group={group}
-            pathname={pathname}
-            isOpen={openGroups.has(group.id)}
-            onToggle={() => toggleGroup(group.id)}
-          />
-        ))}
-
-        {visibleItems.map(({ href, label, icon: ItemIcon }) => {
-          const active = isActive(href, pathname)
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200',
-                active
-                  ? 'bg-primary/20 text-primary ring-1 ring-primary/40'
-                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-              )}
-            >
-              <ItemIcon className="h-4 w-4 shrink-0" />
-              {label}
-            </Link>
-          )
-        })}
-      </nav>
-
-      <div className="border-t p-2">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-2 text-muted-foreground transition-colors duration-200 hover:text-foreground"
-          onClick={() => {
-            clearAuth()
-            router.replace('/login')
-          }}
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </Button>
-      </div>
+    <aside className="hidden lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:border-r lg:border-border/70 lg:bg-card/70 lg:backdrop-blur-xl">
+      <SidebarNav
+        pathname={pathname}
+        openGroups={openGroups}
+        toggleGroup={toggleGroup}
+        visibleItems={visibleItems}
+        isAdmin={isAdmin}
+      />
     </aside>
+  )
+}
+
+// ─── Mobile drawer sidebar ───────────────────────────────────────────────────
+export function MobileSidebar({
+  open,
+  onClose,
+}: {
+  open: boolean
+  onClose: () => void
+}) {
+  const pathname = usePathname()
+  const isAdmin = useAuthStore((s) => s.isAdmin)
+
+  const visibleItems = NAV_ITEMS_BOTTOM.filter((item) => !item.adminOnly || isAdmin())
+
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    const active = new Set<string>()
+    for (const group of NAV_GROUPS) {
+      if (group.items.some((item) => isActive(item.href, pathname))) {
+        active.add(group.id)
+      }
+    }
+    return active
+  })
+
+  const toggleGroup = (id: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="left" className="flex w-72 flex-col p-0">
+        <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+
+        {/* Custom close — replace Radix default X with our own */}
+        <div className="absolute right-4 top-4 z-10">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-muted/80"
+            aria-label="Close navigation menu"
+          >
+            <X className="h-5 w-5 text-foreground" />
+          </button>
+        </div>
+
+        <SidebarNav
+          pathname={pathname}
+          openGroups={openGroups}
+          toggleGroup={toggleGroup}
+          visibleItems={visibleItems}
+          isAdmin={isAdmin}
+          onNavigate={onClose}
+          isMobile
+        />
+      </SheetContent>
+    </Sheet>
   )
 }

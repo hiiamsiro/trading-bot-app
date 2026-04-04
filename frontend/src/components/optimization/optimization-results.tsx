@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
+import { optimizationTooltips } from '@/lib/tooltip-content'
 import { toast } from '@/hooks/use-toast'
 
 export type OptimizationResult = {
@@ -66,16 +68,27 @@ function fmtPct(value: number | null) {
   return `${(value * 100).toFixed(1)}%`
 }
 
-function MetricsRow({ label, result, highlight }: { label: string; result: OptimizationResult | null; highlight?: boolean }) {
+function MetricsRow({ label, result, highlight, tooltip }: {
+  label: string
+  result: OptimizationResult | null
+  highlight?: boolean
+  tooltip?: string
+}) {
   if (!result) return (
     <div className="flex items-center justify-between py-1">
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xs text-muted-foreground flex items-center gap-1">
+        {label}
+        {tooltip && <InfoTooltip content={tooltip} side="top" />}
+      </span>
       <span className="text-xs text-muted-foreground">—</span>
     </div>
   )
   return (
     <div className={`flex items-center justify-between py-1 ${highlight ? 'bg-primary/10 rounded px-2 -mx-2' : ''}`}>
-      <span className="text-xs font-medium">{label}</span>
+      <span className="text-xs font-medium flex items-center gap-1">
+        {label}
+        {tooltip && <InfoTooltip content={tooltip} side="top" />}
+      </span>
       <div className="flex gap-3 text-xs">
         <span className={result.metrics.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
           {fmtPnl(result.metrics.totalPnl)}
@@ -146,7 +159,10 @@ export function OptimizationResults({ record, onApplyBest }: Props) {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Optimization #{liveRecord.id.slice(0, 8)}</CardTitle>
+            <CardTitle className="text-base flex items-center gap-1.5">
+              Optimization #{liveRecord.id.slice(0, 8)}
+              <InfoTooltip content={optimizationTooltips.optimizationStatus} side="top" />
+            </CardTitle>
             <Badge
               variant={
                 liveRecord.status === 'COMPLETED' ? 'default' :
@@ -163,7 +179,10 @@ export function OptimizationResults({ record, onApplyBest }: Props) {
           {liveRecord.status === 'RUNNING' || liveRecord.status === 'PENDING' ? (
             <div className="mt-2">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                <span>{liveRecord.completedCombinations} / {liveRecord.totalCombinations} combinations</span>
+                <span className="inline-flex items-center gap-1">
+                  {liveRecord.completedCombinations} / {liveRecord.totalCombinations} combinations
+                  <InfoTooltip content={optimizationTooltips.progress} side="top" />
+                </span>
                 <span>{liveRecord.progress}%</span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -190,7 +209,17 @@ export function OptimizationResults({ record, onApplyBest }: Props) {
                 size="sm"
                 onClick={() => setActiveTab(tab)}
               >
-                Best by {tab === 'pnl' ? 'PnL' : tab === 'drawdown' ? 'Drawdown' : 'Win Rate'}
+                <span className="inline-flex items-center gap-1">
+                  Best by {tab === 'pnl' ? 'PnL' : tab === 'drawdown' ? 'Drawdown' : 'Win Rate'}
+                  <InfoTooltip
+                    content={
+                      tab === 'pnl' ? optimizationTooltips.bestByPnl :
+                      tab === 'drawdown' ? optimizationTooltips.bestByDrawdown :
+                      optimizationTooltips.bestByWinrate
+                    }
+                    side="top"
+                  />
+                </span>
               </Button>
             ))}
           </div>
@@ -199,7 +228,10 @@ export function OptimizationResults({ record, onApplyBest }: Props) {
           {bestResult && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Best Configuration</CardTitle>
+                <CardTitle className="text-sm flex items-center gap-1">
+                  Best Configuration
+                  <InfoTooltip content={optimizationTooltips.bestConfiguration} side="top" />
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="rounded-md bg-muted/50 p-3">
@@ -210,16 +242,19 @@ export function OptimizationResults({ record, onApplyBest }: Props) {
                   </p>
                 </div>
                 <div className="space-y-0.5">
-                  <MetricsRow label="Total P&L" result={bestResult} highlight />
-                  <MetricsRow label="Max Drawdown" result={bestResult} />
-                  <MetricsRow label="Win Rate" result={bestResult} />
-                  <MetricsRow label="Total Trades" result={bestResult} />
-                  <MetricsRow label="Avg Win / Loss" result={bestResult} />
+                  <MetricsRow label="Total P&L" result={bestResult} highlight tooltip={optimizationTooltips.totalPnl} />
+                  <MetricsRow label="Max Drawdown" result={bestResult} tooltip={optimizationTooltips.maxDrawdown} />
+                  <MetricsRow label="Win Rate" result={bestResult} tooltip={optimizationTooltips.winRate} />
+                  <MetricsRow label="Total Trades" result={bestResult} tooltip={optimizationTooltips.totalTrades} />
+                  <MetricsRow label="Avg Win / Loss" result={bestResult} tooltip={optimizationTooltips.avgWinLoss} />
                 </div>
-                <Button onClick={handleApply} disabled={applying} size="sm" className="w-full gap-1.5">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Apply to Bot
-                </Button>
+                <div className="flex items-center justify-between">
+                  <InfoTooltip content={optimizationTooltips.applyToBot} side="top" />
+                  <Button onClick={handleApply} disabled={applying} size="sm" className="gap-1.5">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Apply to Bot
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -227,7 +262,10 @@ export function OptimizationResults({ record, onApplyBest }: Props) {
           {/* ── Full results table ────────────────── */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">All Results ({sortedResults.length})</CardTitle>
+              <CardTitle className="text-base flex items-center gap-1">
+                All Results ({sortedResults.length})
+                <InfoTooltip content={optimizationTooltips.allResults} side="top" />
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="max-h-96 overflow-auto">
@@ -236,10 +274,22 @@ export function OptimizationResults({ record, onApplyBest }: Props) {
                     <TableRow>
                       <TableHead>#</TableHead>
                       <TableHead>Parameters</TableHead>
-                      <TableHead className="text-right">PnL</TableHead>
-                      <TableHead className="text-right">Drawdown</TableHead>
-                      <TableHead className="text-right">Win Rate</TableHead>
-                      <TableHead className="text-right">Trades</TableHead>
+                      <TableHead className="text-right flex items-center gap-1 justify-end">
+                        PnL
+                        <InfoTooltip content={optimizationTooltips.pnlColumn} side="top" />
+                      </TableHead>
+                      <TableHead className="text-right flex items-center gap-1 justify-end">
+                        Drawdown
+                        <InfoTooltip content={optimizationTooltips.drawdownColumn} side="top" />
+                      </TableHead>
+                      <TableHead className="text-right flex items-center gap-1 justify-end">
+                        Win Rate
+                        <InfoTooltip content={optimizationTooltips.winRateColumn} side="top" />
+                      </TableHead>
+                      <TableHead className="text-right flex items-center gap-1 justify-end">
+                        Trades
+                        <InfoTooltip content={optimizationTooltips.tradesColumn} side="top" />
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

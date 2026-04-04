@@ -14,8 +14,9 @@ export class InstrumentsController {
   constructor(private readonly instrumentsService: InstrumentsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List active instruments for trading' })
-  @ApiOkResponse({ description: 'Array of active instruments' })
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'List active instruments for admin use' })
+  @ApiOkResponse({ description: 'Array of active instruments (admin only)' })
   async findActive() {
     return this.instrumentsService.findActive();
   }

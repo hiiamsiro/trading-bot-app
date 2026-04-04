@@ -335,7 +335,7 @@ export default function DashboardPage() {
 
       {/* Primary metrics */}
       <FadeInSection stagger threshold={0.05}>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
@@ -419,7 +419,7 @@ export default function DashboardPage() {
 
       {/* Secondary metrics */}
       <FadeInSection stagger threshold={0.05}>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="card-3d-hover border-border/70 bg-card/80 backdrop-blur-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
@@ -588,11 +588,20 @@ export default function DashboardPage() {
               </div>
             ))
           )}
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-1">
             <p className="text-xs text-muted-foreground">
               Page {instrumentPage} · Showing {instruments.length} / {instrumentTotal}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onPrevInstrumentsPage}
+                disabled={!hasPrevPage}
+                className="cursor-pointer"
+              >
+                Prev
+              </Button>
               <input
                 type="number"
                 min={1}
@@ -604,7 +613,7 @@ export default function DashboardPage() {
                     void onGoToInstrumentPage()
                   }
                 }}
-                className="h-8 w-16 rounded-md border border-border/70 bg-background px-2 text-xs"
+                className="h-8 w-14 rounded-md border border-border/70 bg-background px-2 text-xs"
                 aria-label="Instrument page number"
               />
               <Button
@@ -614,15 +623,6 @@ export default function DashboardPage() {
                 className="cursor-pointer"
               >
                 Go
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onPrevInstrumentsPage}
-                disabled={!hasPrevPage}
-                className="cursor-pointer"
-              >
-                Previous
               </Button>
               <Button
                 variant="outline"
@@ -691,12 +691,12 @@ export default function DashboardPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-muted-foreground">Time</TableHead>
-                      <TableHead className="text-muted-foreground">Bot</TableHead>
-                      <TableHead className="text-muted-foreground">Symbol</TableHead>
-                      <TableHead className="text-muted-foreground">Side</TableHead>
-                      <TableHead className="text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-right text-muted-foreground">PnL</TableHead>
+                      <TableHead className="whitespace-nowrap text-muted-foreground">Time</TableHead>
+                      <TableHead className="whitespace-nowrap text-muted-foreground hidden sm:table-cell">Bot</TableHead>
+                      <TableHead className="whitespace-nowrap text-muted-foreground">Symbol</TableHead>
+                      <TableHead className="whitespace-nowrap text-muted-foreground">Side</TableHead>
+                      <TableHead className="whitespace-nowrap text-muted-foreground hidden md:table-cell">Status</TableHead>
+                      <TableHead className="text-right whitespace-nowrap text-muted-foreground">PnL</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -708,7 +708,7 @@ export default function DashboardPage() {
                         <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                           {formatTradeTime(t.createdAt)}
                         </TableCell>
-                        <TableCell>{t.bot?.name ?? '—'}</TableCell>
+                        <TableCell className="hidden sm:table-cell">{t.bot?.name ?? '—'}</TableCell>
                         <TableCell className="font-mono">{t.symbol}</TableCell>
                         <TableCell>
                           <Badge
@@ -722,7 +722,7 @@ export default function DashboardPage() {
                             {t.side}
                           </Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           <TradeStatusBadge status={t.status} />
                         </TableCell>
                         <TableCell
@@ -788,9 +788,9 @@ export default function DashboardPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-muted-foreground">Time</TableHead>
+                      <TableHead className="whitespace-nowrap text-muted-foreground">Time</TableHead>
                       <TableHead className="text-muted-foreground">Bot</TableHead>
-                      <TableHead className="text-muted-foreground">Message</TableHead>
+                      <TableHead className="text-muted-foreground hidden md:table-cell">Message</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -803,7 +803,7 @@ export default function DashboardPage() {
                           {formatTradeTime(row.createdAt)}
                         </TableCell>
                         <TableCell>{row.botName}</TableCell>
-                        <TableCell className="text-sm text-rose-200/90">{row.message}</TableCell>
+                        <TableCell className="text-sm text-rose-200/90 hidden md:table-cell">{row.message}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

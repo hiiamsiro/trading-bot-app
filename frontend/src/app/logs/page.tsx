@@ -356,7 +356,7 @@ function LogsContent() {
           </Button>
         </div>
 
-        <div className="mt-3 grid gap-4 md:grid-cols-4">
+        <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="bot">Bot</Label>
             <Select value={botId} onValueChange={setBotId}>
@@ -538,14 +538,14 @@ function LogsContent() {
           <p className="text-sm text-muted-foreground">
             Showing {logs.length} of {total}
           </p>
-          <div className="rounded-md border border-border/70 bg-card/80 backdrop-blur-xl">
+          <div className="overflow-x-auto rounded-md border border-border/70 bg-card/80 backdrop-blur-xl">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Time</TableHead>
-                  {botId === ALL && <TableHead>Bot</TableHead>}
-                  <TableHead>Level</TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead className="whitespace-nowrap">Time</TableHead>
+                  {botId === ALL && <TableHead className="whitespace-nowrap hidden sm:table-cell">Bot</TableHead>}
+                  <TableHead className="whitespace-nowrap">Level</TableHead>
+                  <TableHead className="whitespace-nowrap hidden sm:table-cell">Category</TableHead>
                   <TableHead>Message</TableHead>
                 </TableRow>
               </TableHeader>
@@ -556,7 +556,7 @@ function LogsContent() {
                       {formatLogTime(row.createdAt)}
                     </TableCell>
                     {botId === ALL && (
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap hidden sm:table-cell">
                         <Link
                           href={`/bots/${row.botId}`}
                           className="text-sm text-muted-foreground underline-offset-4 hover:underline"
@@ -568,7 +568,7 @@ function LogsContent() {
                     <TableCell>
                       <LogLevelBadge level={row.level} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant="outline">{row.category}</Badge>
                     </TableCell>
                     <TableCell className="max-w-md">

@@ -209,16 +209,16 @@ export default function MarketplacePage() {
         </EmptyState>
       ) : (
         <>
-          <div className="rounded-md border border-border/70 bg-card/80 backdrop-blur-xl">
+          <div className="overflow-x-auto rounded-md border border-border/70 bg-card/80 backdrop-blur-xl">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Name</TableHead>
-                  <TableHead>Symbol</TableHead>
-                  <TableHead>Strategy</TableHead>
-                  <TableHead>Author</TableHead>
-                  <TableHead>Added</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="whitespace-nowrap">Name</TableHead>
+                  <TableHead className="whitespace-nowrap">Symbol</TableHead>
+                  <TableHead className="whitespace-nowrap hidden sm:table-cell">Strategy</TableHead>
+                  <TableHead className="whitespace-nowrap hidden lg:table-cell">Author</TableHead>
+                  <TableHead className="whitespace-nowrap hidden lg:table-cell">Added</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -242,7 +242,7 @@ export default function MarketplacePage() {
                           {bot.symbol}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Badge
                           variant="outline"
                           className={`text-xs ${isRsi ? 'border-violet-500/40 bg-violet-500/10 text-violet-300' : 'border-sky-500/40 bg-sky-500/10 text-sky-300'}`}
@@ -251,10 +251,10 @@ export default function MarketplacePage() {
                           {isRsi ? 'RSI' : 'MA Crossover'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground hidden lg:table-cell">
                         {bot.userName ?? 'Anonymous'}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground hidden lg:table-cell">
                         {new Date(bot.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
@@ -270,7 +270,7 @@ export default function MarketplacePage() {
                             ) : (
                               <Sparkles className="mr-1 h-3.5 w-3.5" />
                             )}
-                            Clone
+                            <span className="hidden sm:inline">Clone</span>
                           </Button>
                           <Button size="sm" variant="ghost" asChild className="cursor-pointer">
                             <Link href={`/marketplace/bot/${bot.shareSlug}`}>View</Link>

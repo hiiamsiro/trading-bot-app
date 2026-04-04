@@ -264,7 +264,7 @@ export default function TradesPage() {
           </Button>
         </div>
 
-        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col gap-2">
             <Label>Bot</Label>
             <Select value={botId} onValueChange={setFilter(setBotId)}>
@@ -460,20 +460,20 @@ export default function TradesPage() {
             </div>
           </div>
 
-          <div className="rounded-md border border-border/70 bg-card/80 backdrop-blur-xl">
+          <div className="overflow-x-auto rounded-md border border-border/70 bg-card/80 backdrop-blur-xl">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Created</TableHead>
-                  <TableHead>Bot</TableHead>
-                  <TableHead>Instrument</TableHead>
-                  <TableHead>Side</TableHead>
-                  <TableHead className="text-right">Entry</TableHead>
-                  <TableHead className="text-right">Exit</TableHead>
-                  <TableHead className="text-right">PnL</TableHead>
-                  <TableHead className="text-right">PnL %</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Reason</TableHead>
+                  <TableHead className="whitespace-nowrap">Created</TableHead>
+                  <TableHead className="whitespace-nowrap">Bot</TableHead>
+                  <TableHead className="whitespace-nowrap">Instrument</TableHead>
+                  <TableHead className="whitespace-nowrap">Side</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">Entry</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">Exit</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">PnL</TableHead>
+                  <TableHead className="whitespace-nowrap text-right hidden 2xl:table-cell">PnL %</TableHead>
+                  <TableHead className="whitespace-nowrap">Status</TableHead>
+                  <TableHead className="whitespace-nowrap hidden md:table-cell">Reason</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -521,27 +521,27 @@ export default function TradesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        <div>{t.price.toFixed(4)}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs sm:text-sm">{t.price.toFixed(4)}</div>
+                        <div className="text-[10px] text-muted-foreground sm:text-xs">
                           {t.executedAt ? formatTradeTime(t.executedAt) : '—'}
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        <div>{t.exitPrice != null ? t.exitPrice.toFixed(4) : '—'}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs sm:text-sm">{t.exitPrice != null ? t.exitPrice.toFixed(4) : '—'}</div>
+                        <div className="text-[10px] text-muted-foreground sm:text-xs">
                           {t.closedAt ? formatTradeTime(t.closedAt) : '—'}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="text-right font-mono text-xs">
                         {t.realizedPnl != null ? t.realizedPnl.toFixed(2) : '—'}
                       </TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="text-right font-mono hidden 2xl:table-cell">
                         {pnlPct != null ? `${pnlPct.toFixed(2)}%` : '—'}
                       </TableCell>
                       <TableCell>
                         <TradeStatusBadge status={t.status} />
                       </TableCell>
-                      <TableCell className="max-w-[320px]">
+                      <TableCell className="max-w-[320px] hidden md:table-cell">
                         <div className="flex items-center gap-1.5">
                           {hasExplanation && (
                             isExpanded

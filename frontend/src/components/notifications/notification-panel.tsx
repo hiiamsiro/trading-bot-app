@@ -197,7 +197,7 @@ export function NotificationPanel() {
       </Button>
 
       {open ? (
-        <div className="absolute right-0 z-40 mt-2 w-[380px] max-w-[calc(100vw-2rem)] rounded-lg border border-border/70 bg-card/95 p-3 shadow-2xl backdrop-blur-xl">
+        <div className="absolute right-0 z-[100] mt-2 w-[380px] max-w-[calc(100vw-2rem)] rounded-lg border border-border/70 bg-card/95 p-3 shadow-2xl backdrop-blur-xl">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold">Notifications</p>
