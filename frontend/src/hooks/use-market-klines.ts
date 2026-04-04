@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchMarketKlines } from '@/lib/api-client'
 import { connectWebSocket } from '@/lib/websocket'
+import { perfAdd, perfCount, perfNow } from '@/lib/debug-perf'
 import type { MarketKline, MarketKlineInterval } from '@/types'
 
-const REFETCH_DEBOUNCE_MS = 450
-const MAX_EVENT_IDS = 500
-const MAX_BARS = 400
+const REFETCH_DEBOUNCE_MS = 450 
+const MAX_EVENT_IDS = 500 
+const MAX_BARS = 400 
+const WS_FLUSH_INTERVAL_MS = 120 
 
 type MarketDataSocketPayload = {
   symbol?: string
@@ -41,6 +43,11 @@ function upsertKline(prev: MarketKline[], incoming: MarketKline): MarketKline[] 
   if (prev.length === 0) return [incoming]
 
   const last = prev[prev.length - 1]
+  if (last && incoming.openTime === last.openTime) {
+    const next = prev.slice()
+    next[next.length - 1] = incoming
+    return next
+  }
   if (last && incoming.openTime > last.openTime) {
     const next = [...prev, incoming]
     return next.length > MAX_BARS ? next.slice(-MAX_BARS) : next
@@ -61,19 +68,21 @@ function upsertKline(prev: MarketKline[], incoming: MarketKline): MarketKline[] 
   return next
 }
 
-export function useMarketKlines(
-  token: string | undefined,
-  symbol: string,
-  interval: MarketKlineInterval,
-) {
-  const [bars, setBars] = useState<MarketKline[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const fetchIdRef = useRef(0)
-  const seenEventIdsRef = useRef<Map<string, number>>(new Map())
-
-  const normalizedSymbol = useMemo(() => normalizeSymbol(symbol), [symbol])
+export function useMarketKlines( 
+  token: string | undefined, 
+  symbol: string, 
+  interval: MarketKlineInterval, 
+) { 
+  const [bars, setBars] = useState<MarketKline[]>([]) 
+  const [loading, setLoading] = useState(true) 
+  const [error, setError] = useState<string | null>(null) 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)  
+  const fetchIdRef = useRef(0)  
+  const seenEventIdsRef = useRef<Map<string, number>>(new Map())  
+  const pendingKlinesRef = useRef<MarketKline[]>([])  
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)  
+ 
+  const normalizedSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]) 
 
   const trackEventId = useCallback((eventId: string) => {
     const seen = seenEventIdsRef.current
@@ -126,16 +135,36 @@ export function useMarketKlines(
     }, REFETCH_DEBOUNCE_MS)
   }, [load])
 
-  useEffect(() => {
-    if (!token || !normalizedSymbol) return
-
-    const socket = connectWebSocket(token)
-    const subscription = { symbol: normalizedSymbol, interval }
-
-    const subscribe = () => socket.emit('subscribe-market', subscription)
-    const onConnect = () => {
-      subscribe()
-      scheduleRefetch()
+  useEffect(() => { 
+    if (!token || !normalizedSymbol) return 
+ 
+    const socket = connectWebSocket(token)  
+    const subscription = { symbol: normalizedSymbol, interval }  
+    const flushPending = () => {  
+      flushTimerRef.current = null  
+      const pending = pendingKlinesRef.current  
+      if (pending.length === 0) return  
+      pendingKlinesRef.current = []  
+      const t0 = perfNow()
+      setBars((prev) => {  
+        let next = prev 
+        for (const row of pending) next = upsertKline(next, row) 
+        perfAdd('ws.flush.setBars', perfNow() - t0, { pending: pending.length, bars: next.length })
+        return next 
+      }) 
+      perfCount('ws.flush.count', 1, { pending: pending.length })
+    }  
+    const enqueueKline = (row: MarketKline) => {  
+      pendingKlinesRef.current.push(row)  
+      if (flushTimerRef.current == null) {  
+        flushTimerRef.current = setTimeout(flushPending, WS_FLUSH_INTERVAL_MS)  
+      } 
+    }  
+ 
+    const subscribe = () => socket.emit('subscribe-market', subscription) 
+    const onConnect = () => { 
+      subscribe() 
+      scheduleRefetch() 
     }
 
     const unsubscribe = () => {
@@ -150,32 +179,37 @@ export function useMarketKlines(
       if (incomingInterval !== interval) return
 
       const eventId = typeof data.eventId === 'string' ? data.eventId : null
-      if (eventId && !trackEventId(eventId)) return
-
-      if (isMarketKline(data.kline)) {
-        setBars((prev) => upsertKline(prev, data.kline as MarketKline))
-        return
-      }
-
-      scheduleRefetch()
-    }
+      if (eventId && !trackEventId(eventId)) return 
+ 
+      if (isMarketKline(data.kline)) { 
+        enqueueKline(data.kline as MarketKline) 
+        return 
+      } 
+ 
+      scheduleRefetch() 
+    } 
 
     subscribe()
     if (socket.connected) {
       scheduleRefetch()
     }
     socket.on('connect', onConnect)
-    socket.on('market-data', onMarketData)
-    return () => {
-      socket.off('market-data', onMarketData)
-      socket.off('connect', onConnect)
-      unsubscribe()
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-        debounceRef.current = null
-      }
-    }
-  }, [token, normalizedSymbol, interval, scheduleRefetch, trackEventId])
+    socket.on('market-data', onMarketData)  
+    return () => {  
+      if (flushTimerRef.current != null) {  
+        clearTimeout(flushTimerRef.current)  
+        flushTimerRef.current = null  
+      } 
+      pendingKlinesRef.current = []   
+      socket.off('market-data', onMarketData)   
+      socket.off('connect', onConnect)   
+      unsubscribe()   
+      if (debounceRef.current) { 
+        clearTimeout(debounceRef.current) 
+        debounceRef.current = null 
+      } 
+    } 
+  }, [token, normalizedSymbol, interval, scheduleRefetch, trackEventId]) 
 
   return { bars, loading, error, reload: load }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useMarketKlines } from '@/hooks/use-market-klines'
 import { MarketCandlestickChart } from '@/components/charts/market-candlestick-chart'
@@ -14,7 +14,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { MARKET_KLINE_INTERVALS, type MarketKlineInterval, type Trade } from '@/types'
+import {
+  MARKET_KLINE_INTERVALS,
+  type MarketKlineInterval,
+  type Trade,
+} from '@/types'
 import {
   buildIndicatorConfigFromTrade,
   type ChartIndicatorConfig,
@@ -41,6 +45,12 @@ type LiveMarketChartPanelProps = {
    * When omitted, defaults are inferred from the first trade's openExplanation.
    */
   indicatorConfig?: ChartIndicatorConfig
+  /** Show the chart toolbar (chart type switcher, indicators, zoom, fullscreen). */
+  showToolbar?: boolean
+  /** Show the OHLCV legend bar below the toolbar. */
+  showOhlcvLegend?: boolean
+  /** Default chart type. */
+  defaultChartType?: 'candlestick' | 'line' | 'area' | 'baseline'
 }
 
 export function LiveMarketChartPanel({
@@ -49,28 +59,27 @@ export function LiveMarketChartPanel({
   activeSymbol,
   defaultInterval,
   title = 'Market chart',
-  chartHeight = 380,
+  chartHeight = 480,
   className,
   showInstrumentSelect = true,
   showIntervalSelect = true,
   trades = [],
   indicatorConfig: explicitConfig,
+  showToolbar = true,
+  showOhlcvLegend = true,
+  defaultChartType = 'candlestick',
 }: LiveMarketChartPanelProps) {
-  const indicatorConfig = explicitConfig ?? buildIndicatorConfigFromTrade(
-    trades[0]?.openExplanation,
+  const indicatorConfig = useMemo(
+    () => explicitConfig ?? buildIndicatorConfigFromTrade(trades[0]?.openExplanation),
+    [explicitConfig, trades],
   )
   const [symbol, setSymbol] = useState(activeSymbol)
   const [interval, setInterval] = useState<MarketKlineInterval>(defaultInterval ?? '1m')
 
   useEffect(() => {
     setSymbol(activeSymbol)
-  }, [activeSymbol])
-
-  useEffect(() => {
-    if (defaultInterval) {
-      setInterval(defaultInterval)
-    }
-  }, [defaultInterval])
+    if (defaultInterval) setInterval(defaultInterval)
+  }, [activeSymbol, defaultInterval])
 
   const { bars, loading, error } = useMarketKlines(token, symbol, interval)
 
@@ -160,6 +169,10 @@ export function LiveMarketChartPanel({
             height={chartHeight}
             trades={trades}
             indicatorConfig={indicatorConfig}
+            showToolbar={showToolbar}
+            showOhlcvLegend={showOhlcvLegend}
+            defaultChartType={defaultChartType}
+            symbol={symbol}
           />
         )}
       </CardContent>
